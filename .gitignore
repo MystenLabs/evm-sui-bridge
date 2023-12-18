@@ -1,0 +1,31 @@
+**/node_modules
+artifacts*
+deployments/localhost
+cache*
+# testing
+coverage
+# production
+build
+# misc
+.DS_Store
+.env
+coverage.json
+types
+network_config.json
+.vscode
+cache/
+out/
+*.txt
+!remappings.txt
+
+lcov.info
+
+types
+
+.env
+
+deployments/localhost
+deployments/ganache
+deployments/hardhat
+
+docs
