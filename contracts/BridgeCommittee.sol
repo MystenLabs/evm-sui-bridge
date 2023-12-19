@@ -6,13 +6,20 @@ pragma solidity ^0.8.0;
 contract BridgeCommittee {
     /* ========== TYPES ========== */
 
-    enum ActionType {
+    struct Message {
+        uint256 nonce;
+        uint256 version;
+        MessageType messageType;
+        bytes payload;
+    }
+
+    enum MessageType {
+        SEND_BRIDGE_MESSAGE,
         ADD_MEMBER,
         REMOVE_MEMBER,
         TRANSFER_MEMBER,
         UPGRADE_BRIDGE,
-        TRANSFER_BRIDGE_OWNERSHIP,
-        SEND_BRIDGE_MESSAGE
+        TRANSFER_BRIDGE_OWNERSHIP
     }
 
     /* ========== STATE VARIABLES ========== */
@@ -27,10 +34,10 @@ contract BridgeCommittee {
     mapping(address => mapping(address => bool)) public nominations;
     // committee member => total nominations
     mapping(address => uint256) public totalNominations;
-    // signer address => nonce => action hash
-    mapping(address => mapping(uint256 => bytes32)) public actionApprovals;
-    // nonce => action hash => total approvals
-    mapping(uint256 => mapping(bytes32 => uint256)) public totalActionApprovals;
+    // signer address => nonce => message hash
+    mapping(address => mapping(uint256 => bytes32)) public messageApprovals;
+    // nonce => message hash => total approvals
+    mapping(uint256 => mapping(bytes32 => uint256)) public totalMessageApprovals;
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -42,16 +49,11 @@ contract BridgeCommittee {
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    function submitActionSignatures(
-        bytes memory signatures,
-        uint256 _nonce,
-        ActionType actionType,
-        bytes memory payload
-    ) external {
+    function submitMessageSignatures(bytes memory signatures, bytes memory message) external {
         // Prepare the message hash
-        bytes32 actionHash = keccak256(abi.encodePacked(_nonce, actionType, payload));
+        bytes32 messageHash = keccak256(abi.encodePacked(message));
         bytes32 ethSignedMessageHash =
-            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", actionHash));
+            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
         uint256 approvals;
         address signer;
@@ -66,51 +68,54 @@ contract BridgeCommittee {
 
             // Check if the signer is a committee member and not already approved
             require(committee[signer], "BridgeCommittee: Not a committee member");
-            // TODO: Check that signer has not already approved the payload
-            // require(currentHash != payload, "BridgeCommittee: Duplicate approval");
+            // TODO: Check that signer has not already approved the message
 
             // Record the approval
-            actionApprovals[signer][nonce] = actionHash;
+            messageApprovals[signer][nonce] = messageHash;
             approvals++;
 
             // Emit the event for this approval
-            emit ActionApproved(signer, nonce, payload);
+            emit MessageApproved(signer, nonce, message);
         }
 
         // Update total approvals
-        totalActionApprovals[nonce][actionHash] += approvals;
+        totalMessageApprovals[nonce][messageHash] += approvals;
 
-        if (checkActionApproval(nonce, actionHash)) {
-            executeAction(_nonce, actionType, payload);
+        if (checkMessageApproval(nonce, messageHash)) {
+            processMessage(message);
         }
     }
 
-    function executeAction(uint256 _nonce, ActionType actionType, bytes memory payload) public {
-        // check that action has enough approvals
-        bytes32 actionHash = keccak256(abi.encodePacked(_nonce, actionType, payload));
+    function processMessage(bytes memory message) public {
+        bytes32 messageHash = keccak256(abi.encodePacked());
+        Message memory _message = initMessage(message);
+        uint256 _nonce = _message.nonce;
+        MessageType messageType = _message.messageType;
+        bytes memory payload = _message.payload;
 
-        require(checkActionApproval(_nonce, actionHash), "BridgeCommittee: Not enough approvals");
+        require(_nonce == nonce, "BridgeCommittee: Invalid nonce");
+        require(checkMessageApproval(nonce, messageHash), "BridgeCommittee: Not enough approvals");
 
-        if (actionType == ActionType.ADD_MEMBER) {
+        if (messageType == MessageType.ADD_MEMBER) {
             address member = getAddressFromPayload(payload);
             _addMember(member);
-        } else if (actionType == ActionType.REMOVE_MEMBER) {
+        } else if (messageType == MessageType.REMOVE_MEMBER) {
             address member = getAddressFromPayload(payload);
             _removeMember(member);
-        } else if (actionType == ActionType.TRANSFER_MEMBER) {
+        } else if (messageType == MessageType.TRANSFER_MEMBER) {
             (address member, address newMember) = getAddressesFromPayload(payload);
             _transferMember(member, newMember);
-        } else if (actionType == ActionType.UPGRADE_BRIDGE) {
+        } else if (messageType == MessageType.UPGRADE_BRIDGE) {
             address upgradeImplementation = getAddressFromPayload(payload);
             _upgrade(upgradeImplementation);
-        } else if (actionType == ActionType.TRANSFER_BRIDGE_OWNERSHIP) {
+        } else if (messageType == MessageType.TRANSFER_BRIDGE_OWNERSHIP) {
             address newOwner = getAddressFromPayload(payload);
             _transferBridgeOwnership(newOwner);
-        } else if (actionType == ActionType.SEND_BRIDGE_MESSAGE) {
-            bytes memory message = getMessageFromPayload(payload);
+        } else if (messageType == MessageType.SEND_BRIDGE_MESSAGE) {
             _sendMessage(message);
         }
         nonce++;
+        emit MessageProcessed(nonce, message);
     }
 
     function _addMember(address member) internal {
@@ -144,10 +149,10 @@ contract BridgeCommittee {
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    function checkActionApproval(uint256 _nonce, bytes32 actionHash) public view returns (bool) {
+    function checkMessageApproval(uint256 _nonce, bytes32 messageHash) public view returns (bool) {
         // the required approvals is a majority of total committee members
         uint256 requiredApprovals = totalCommitteeMembers / 2 + 1;
-        uint256 approvals = totalActionApprovals[_nonce][actionHash];
+        uint256 approvals = totalMessageApprovals[_nonce][messageHash];
         return approvals >= requiredApprovals;
     }
 
@@ -166,8 +171,8 @@ contract BridgeCommittee {
         // TODO: extract member and newMember from payload
     }
 
-    function getMessageFromPayload(bytes memory payload) public pure returns (bytes memory) {
-        // TODO; extract message from payload
+    function initMessage(bytes memory message) internal pure returns (Message memory) {
+        // TODO: extract message struct from message bytes
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
@@ -205,5 +210,6 @@ contract BridgeCommittee {
 
     /* ========== EVENTS ========== */
 
-    event ActionApproved(address member, uint256 nonce, bytes action);
+    event MessageApproved(address member, uint256 nonce, bytes message);
+    event MessageProcessed(uint256 nonce, bytes message);
 }
