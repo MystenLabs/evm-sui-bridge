@@ -20,7 +20,7 @@
     "artifacts/**/*.json",
     "scripts/**/*",
     "tasks/**/*",
-    "types/**/*",
+    "utils/utils.ts",
     "deploy/*"
   ]
 }

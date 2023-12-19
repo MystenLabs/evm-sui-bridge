@@ -6,7 +6,7 @@
     "test": "forge test",
     "coverage": "forge coverage --report lcov",
     "compile": "yarn hardhat compile",
-    "deploy": "yarn hardhat deploy --write true --network localhost",
+    "deploy-local": "yarn hardhat deploy --write true --network localhost",
     "clean-local-deployments": "rm -rf deployments/localhost/*",
     "clean": "yarn hardhat clean"
   },

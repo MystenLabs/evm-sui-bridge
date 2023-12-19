@@ -7,8 +7,8 @@ import "hardhat-dependency-compiler";
 import "hardhat-preprocessor";
 import "hardhat-deploy";
 import "hardhat-deploy-ethers";
-import "@nomicfoundation/hardhat-ethers";
 import "@openzeppelin/hardhat-upgrades";
+import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-verify";
 
 dotenvConfig({ path: resolve(__dirname, "./.env") });

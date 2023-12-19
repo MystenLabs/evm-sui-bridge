@@ -1,7 +1,7 @@
-import { HardhatRuntimeEnvironment } from "hardhat/types"
-import { DeploymentSubmission } from "hardhat-deploy/dist/types"
-import { DeployProxyOptions } from "@openzeppelin/hardhat-upgrades/dist/utils/options"
-import { ethers } from "ethers"
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { DeploymentSubmission } from "hardhat-deploy/dist/types";
+import { DeployProxyOptions } from "@openzeppelin/hardhat-upgrades/dist/utils/options";
+import { ethers } from "ethers";
 
 export const deployProxyAndSave = async (
   name: string,
@@ -9,8 +9,8 @@ export const deployProxyAndSave = async (
   hardhat: HardhatRuntimeEnvironment,
   deployOptions?: DeployProxyOptions
 ): Promise<string> => {
-  return await deployProxyAndSaveAs(name, name, args, hardhat, deployOptions)
-}
+  return await deployProxyAndSaveAs(name, name, args, hardhat, deployOptions);
+};
 
 export const deployProxyAndSaveAs = async (
   factoryName: string,
@@ -19,25 +19,31 @@ export const deployProxyAndSaveAs = async (
   hardhat: HardhatRuntimeEnvironment,
   deployOptions?: DeployProxyOptions
 ): Promise<string> => {
-  const contractFactory = await hardhat.ethers.getContractFactory(factoryName)
-  let deployment = await hardhat.deployments.getOrNull(name)
+  const contractFactory = await hardhat.ethers.getContractFactory(factoryName);
+  let deployment = await hardhat.deployments.getOrNull(name);
 
   if (deployment) {
-    console.log("✅ ", name, " already deployed")
-    return deployment.address
+    console.log("✅ ", name, " already deployed");
+    return deployment.address;
   }
 
-  let abi = (await hardhat.artifacts.readArtifact(name)).abi
+  let abi = (await hardhat.artifacts.readArtifact(name)).abi;
 
-  let contract = await hardhat.upgrades.deployProxy(contractFactory, args, deployOptions)
+  let contract = await hardhat.upgrades.deployProxy(
+    contractFactory,
+    args,
+    deployOptions
+  );
 
-  contract = await contract.waitForDeployment()
+  contract = await contract.waitForDeployment();
 
-  let receipt = await contract.deploymentTransaction()
-  let tx = await receipt?.getTransaction()
-  let proxyAddress = await contract.getAddress()
-  const implAddress = await hardhat.upgrades.erc1967.getImplementationAddress(proxyAddress)
-  if (!receipt || !tx || !proxyAddress) return ""
+  let receipt = await contract.deploymentTransaction();
+  let tx = await receipt?.getTransaction();
+  let proxyAddress = await contract.getAddress();
+  const implAddress = await hardhat.upgrades.erc1967.getImplementationAddress(
+    proxyAddress
+  );
+  if (!receipt || !tx || !proxyAddress) return "";
 
   const contractDeployment = {
     address: proxyAddress,
@@ -52,24 +58,24 @@ export const deployProxyAndSaveAs = async (
       gasUsed: 0,
     },
     metadata: "implementationAddress: " + implAddress,
-  } as DeploymentSubmission
+  } as DeploymentSubmission;
 
-  await hardhat.deployments.save(name, contractDeployment)
+  await hardhat.deployments.save(name, contractDeployment);
 
-  console.log("🚀 ", name, " deployed at ", proxyAddress)
-  return proxyAddress
-}
+  console.log("🚀 ", name, " deployed at ", proxyAddress);
+  return proxyAddress;
+};
 
 export const formatStableCredits = (value: ethers.BigNumberish) => {
-  return ethers.formatUnits(value, "mwei")
-}
+  return ethers.formatUnits(value, "mwei");
+};
 
 export const parseStableCredits = (value: string) => {
-  return ethers.parseUnits(value, "mwei")
-}
+  return ethers.parseUnits(value, "mwei");
+};
 
 export const getConfig = () => {
-  let adminOwner = process.env.ADMIN_OWNER_ADDRESS
-  let reserveTokenAddress = process.env.RESERVE_TOKEN_ADDRESS
-  return { adminOwner, reserveTokenAddress }
-}
+  let adminOwner = process.env.ADMIN_OWNER_ADDRESS;
+  let reserveTokenAddress = process.env.RESERVE_TOKEN_ADDRESS;
+  return { adminOwner, reserveTokenAddress };
+};
