@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-// NOTE: THIS CONTRACT IS THE OWNER OF THE SUIBRIDGE CONTRACT
-
 contract BridgeCommittee {
     /* ========== TYPES ========== */
 
@@ -14,12 +12,10 @@ contract BridgeCommittee {
     }
 
     enum MessageType {
-        SEND_BRIDGE_MESSAGE,
-        ADD_MEMBER,
-        REMOVE_MEMBER,
-        TRANSFER_MEMBER,
-        UPGRADE_BRIDGE,
-        TRANSFER_BRIDGE_OWNERSHIP
+        BRIDGE_MESSAGE,
+        BRIDGE_UPGRADE,
+        BRIDGE_OWNERSHIP,
+        BLOCKLIST
     }
 
     /* ========== STATE VARIABLES ========== */
@@ -30,10 +26,8 @@ contract BridgeCommittee {
     uint256 public totalCommitteeMembers;
     // member address => is committee member
     mapping(address => bool) public committee;
-    // nominator => nominee => nominationStatus
-    mapping(address => mapping(address => bool)) public nominations;
-    // committee member => total nominations
-    mapping(address => uint256) public totalNominations;
+    // member address => is blocklisted
+    mapping(address => bool) public blocklist;
     // signer address => nonce => message hash
     mapping(address => mapping(uint256 => bytes32)) public messageApprovals;
     // nonce => message hash => total approvals
@@ -43,15 +37,19 @@ contract BridgeCommittee {
 
     /// @notice Initializes the contract with the deployer as the admin.
     /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
-    constructor() {
+    constructor(address[] memory _committee) {
         nonce = 1;
+        totalCommitteeMembers = _committee.length;
+        for (uint256 i = 0; i < _committee.length; i++) {
+            committee[_committee[i]] = true;
+        }
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
     function submitMessageSignatures(bytes memory signatures, bytes memory message) external {
         // Prepare the message hash
-        bytes32 messageHash = keccak256(abi.encodePacked(message));
+        bytes32 messageHash = getMessageHash(message);
         bytes32 ethSignedMessageHash =
             keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
@@ -68,7 +66,12 @@ contract BridgeCommittee {
 
             // Check if the signer is a committee member and not already approved
             require(committee[signer], "BridgeCommittee: Not a committee member");
-            // TODO: Check that signer has not already approved the message
+
+            // If signer has already approved this message skip this signature
+            if (messageApprovals[signer][nonce] == messageHash) continue;
+
+            // If signer is block listed skip this signature
+            if (blocklist[signer]) continue;
 
             // Record the approval
             messageApprovals[signer][nonce] = messageHash;
@@ -87,8 +90,8 @@ contract BridgeCommittee {
     }
 
     function processMessage(bytes memory message) public {
-        bytes32 messageHash = keccak256(abi.encodePacked());
-        Message memory _message = initMessage(message);
+        bytes32 messageHash = getMessageHash(message);
+        Message memory _message = constructMessage(message);
         uint256 _nonce = _message.nonce;
         MessageType messageType = _message.messageType;
         bytes memory payload = _message.payload;
@@ -96,43 +99,22 @@ contract BridgeCommittee {
         require(_nonce == nonce, "BridgeCommittee: Invalid nonce");
         require(checkMessageApproval(nonce, messageHash), "BridgeCommittee: Not enough approvals");
 
-        if (messageType == MessageType.ADD_MEMBER) {
-            address member = getAddressFromPayload(payload);
-            _addMember(member);
-        } else if (messageType == MessageType.REMOVE_MEMBER) {
-            address member = getAddressFromPayload(payload);
-            _removeMember(member);
-        } else if (messageType == MessageType.TRANSFER_MEMBER) {
-            (address member, address newMember) = getAddressesFromPayload(payload);
-            _transferMember(member, newMember);
-        } else if (messageType == MessageType.UPGRADE_BRIDGE) {
+        if (messageType == MessageType.BRIDGE_MESSAGE) {
+            _sendMessage(message);
+        } else if (messageType == MessageType.BRIDGE_UPGRADE) {
             address upgradeImplementation = getAddressFromPayload(payload);
             _upgrade(upgradeImplementation);
-        } else if (messageType == MessageType.TRANSFER_BRIDGE_OWNERSHIP) {
+        } else if (messageType == MessageType.BRIDGE_OWNERSHIP) {
             address newOwner = getAddressFromPayload(payload);
             _transferBridgeOwnership(newOwner);
-        } else if (messageType == MessageType.SEND_BRIDGE_MESSAGE) {
-            _sendMessage(message);
+        } else if (messageType == MessageType.BLOCKLIST) {
+            address[] memory _blocklist = getAddressesFromPayload(payload);
+            _updateBlockclist(_blocklist);
+        } else {
+            revert("BridgeCommittee: Invalid message type");
         }
         nonce++;
         emit MessageProcessed(nonce, message);
-    }
-
-    function _addMember(address member) internal {
-        require(!committee[member], "BridgeCommittee: Member already exists");
-        committee[member] = true;
-    }
-
-    function _removeMember(address member) internal {
-        require(committee[member], "BridgeCommittee: Member does not exist");
-        committee[member] = false;
-    }
-
-    function _transferMember(address member, address newMember) internal {
-        require(committee[member], "BridgeCommittee: Member does not exist");
-        require(!committee[newMember], "BridgeCommittee: New member already exists");
-        committee[member] = false;
-        committee[newMember] = true;
     }
 
     function _sendMessage(bytes memory message) internal {
@@ -147,6 +129,12 @@ contract BridgeCommittee {
         // TODO: transfer ownership of SuiBridge
     }
 
+    function _updateBlockclist(address[] memory _blocklist) internal {
+        for (uint256 i = 0; i < _blocklist.length; i++) {
+            blocklist[_blocklist[i]] = true;
+        }
+    }
+
     /* ========== VIEW FUNCTIONS ========== */
 
     function checkMessageApproval(uint256 _nonce, bytes32 messageHash) public view returns (bool) {
@@ -156,23 +144,16 @@ contract BridgeCommittee {
         return approvals >= requiredApprovals;
     }
 
-    function checkMemberNominations(address member) public view returns (bool) {
-        // the required nomination is at least a third of total committee members
-        uint256 requiredNominations = totalCommitteeMembers / 3 + 1;
-        uint256 _nominations = totalNominations[member];
-        return _nominations >= requiredNominations;
-    }
-
     function getAddressFromPayload(bytes memory payload) public pure returns (address) {
-        // TODO: extract member from payload
+        // TODO: extract address from payload
     }
 
-    function getAddressesFromPayload(bytes memory payload) public pure returns (address, address) {
-        // TODO: extract member and newMember from payload
+    function getAddressesFromPayload(bytes memory payload) public pure returns (address[] memory) {
+        // TODO: extract address array from payload
     }
 
-    function initMessage(bytes memory message) internal pure returns (Message memory) {
-        // TODO: extract message struct from message bytes
+    function constructMessage(bytes memory message) internal pure returns (Message memory) {
+        // TODO: construct message struct from message bytes
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
@@ -206,6 +187,10 @@ contract BridgeCommittee {
             // final byte (first byte of the next 32 bytes)
             v := byte(0, mload(add(sig, 96)))
         }
+    }
+
+    function getMessageHash(bytes memory message) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(message));
     }
 
     /* ========== EVENTS ========== */
