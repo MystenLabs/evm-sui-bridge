@@ -24,28 +24,30 @@ contract BridgeCommittee {
     address public bridge;
     // committee nonce
     uint256 public nonce;
-    // total committee members
-    uint256 public totalCommitteeMembers;
-    // member address => is committee member
-    mapping(address => bool) public committee;
+    // total committee members stake
+    uint256 public totalCommitteeStake;
+    // member address => stake amount
+    mapping(address => uint256) public committee;
     // member address => is blocklisted
     mapping(address => bool) public blocklist;
     // signer address => nonce => message hash
     mapping(address => mapping(uint256 => bytes32)) public messageApprovals;
     // nonce => message hash => total approvals
-    mapping(uint256 => mapping(bytes32 => uint256)) public totalMessageApprovals;
+    mapping(uint256 => mapping(bytes32 => uint256)) public totalMessageApproval;
 
     /* ========== CONSTRUCTOR ========== */
 
     /// @notice Initializes the contract with the deployer as the admin.
     /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
-    constructor(address[] memory _committee, address _bridge) {
+    constructor(address[] memory _committee, uint256[] memory stake, address _bridge) {
         nonce = 1;
-        totalCommitteeMembers = _committee.length;
+        uint256 _totalCommitteeStake;
         for (uint256 i = 0; i < _committee.length; i++) {
-            committee[_committee[i]] = true;
+            committee[_committee[i]] = stake[i];
+            _totalCommitteeStake += stake[i];
         }
         bridge = _bridge;
+        totalCommitteeStake = _totalCommitteeStake;
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -56,7 +58,7 @@ contract BridgeCommittee {
         bytes32 ethSignedMessageHash =
             keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
 
-        uint256 approvals;
+        uint256 approvalStake;
         address signer;
         uint256 signatureSize = 65;
         for (uint256 i = 0; i < signatures.length; i += signatureSize) {
@@ -68,7 +70,7 @@ contract BridgeCommittee {
             signer = ecrecover(ethSignedMessageHash, v, r, s);
 
             // Check if the signer is a committee member and not already approved
-            require(committee[signer], "BridgeCommittee: Not a committee member");
+            require(committee[signer] > 0, "BridgeCommittee: Not a committee member");
 
             // If signer has already approved this message skip this signature
             if (messageApprovals[signer][nonce] == messageHash) continue;
@@ -78,14 +80,14 @@ contract BridgeCommittee {
 
             // Record the approval
             messageApprovals[signer][nonce] = messageHash;
-            approvals++;
+            approvalStake += committee[signer];
 
             // Emit the event for this approval
             emit MessageApproved(signer, nonce, message);
         }
 
-        // Update total approvals
-        totalMessageApprovals[nonce][messageHash] += approvals;
+        // Update total message approval stake
+        totalMessageApproval[nonce][messageHash] += approvalStake;
 
         if (checkMessageApproval(nonce, messageHash)) {
             processMessage(message);
@@ -141,10 +143,10 @@ contract BridgeCommittee {
     /* ========== VIEW FUNCTIONS ========== */
 
     function checkMessageApproval(uint256 _nonce, bytes32 messageHash) public view returns (bool) {
-        // the required approvals is a majority of total committee members
-        uint256 requiredApprovals = totalCommitteeMembers / 2 + 1;
-        uint256 approvals = totalMessageApprovals[_nonce][messageHash];
-        return approvals >= requiredApprovals;
+        // TODO: check the message type and adjust the required approvals accordingly
+        uint256 requiredStake = totalCommitteeStake / 2 + 1;
+        uint256 approvalStake = totalMessageApproval[_nonce][messageHash];
+        return approvalStake >= requiredStake;
     }
 
     function getAddressFromPayload(bytes memory payload) public pure returns (address) {

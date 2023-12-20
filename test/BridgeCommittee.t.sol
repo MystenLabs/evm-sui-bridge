@@ -33,17 +33,21 @@ contract AccessManagerTest is Test {
         bridge.initialize(_supportedTokens);
         vault = new BridgeVault(address(bridge));
         address[] memory _committee = new address[](3);
+        uint256[] memory _stake = new uint256[](3);
         _committee[0] = committeeMemberA;
         _committee[1] = committeeMemberB;
         _committee[2] = committeeMemberC;
-        committee = new BridgeCommittee(_committee, address(bridge));
+        _stake[0] = 1000;
+        _stake[1] = 1000;
+        _stake[2] = 1000;
+        committee = new BridgeCommittee(_committee, _stake, address(bridge));
     }
 
     function testBridgeCommitteeInitialization() public {
-        assertTrue(committee.committee(committeeMemberA));
-        assertTrue(committee.committee(committeeMemberB));
-        assertTrue(committee.committee(committeeMemberC));
-        assertEq(committee.totalCommitteeMembers(), 3);
+        assertEq(committee.committee(committeeMemberA), 1000);
+        assertEq(committee.committee(committeeMemberB), 1000);
+        assertEq(committee.committee(committeeMemberC), 1000);
+        assertEq(committee.totalCommitteeStake(), 3000);
         assertEq(committee.nonce(), 1);
         assertEq(committee.bridge(), address(bridge));
     }
