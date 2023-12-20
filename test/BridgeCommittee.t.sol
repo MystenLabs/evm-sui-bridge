@@ -51,4 +51,89 @@ contract AccessManagerTest is Test {
         assertEq(committee.nonce(), 1);
         assertEq(committee.bridge(), address(bridge));
     }
+
+    function testGetAddressFromPayload() public {
+        bytes memory payload = abi.encodePacked(committeeMemberA);
+        assertEq(committee.getAddressFromPayload(payload), committeeMemberA);
+
+        payload = abi.encodePacked(committeeMemberB);
+        assertEq(committee.getAddressFromPayload(payload), committeeMemberB);
+
+        payload = abi.encodePacked(committeeMemberC);
+        assertEq(committee.getAddressFromPayload(payload), committeeMemberC);
+
+        payload = abi.encodePacked(address(0));
+        assertEq(committee.getAddressFromPayload(payload), address(0));
+    }
+
+    function testGetAddressFromPayloadWithEmptyPayload() public {
+        // Prepare an empty payload
+        bytes memory payload = "";
+
+        // Call the function and expect it to revert with a message
+        vm.expectRevert("Empty payload");
+        committee.getAddressFromPayload(payload);
+    }
+
+    /**
+    function testGetAddressesFromPayload() public {
+        // Prepare a payload with addresseses
+        address[] memory expected = new address[](3);
+        expected[0] = committeeMemberA;
+        expected[1] = committeeMemberB; 
+        expected[2] = committeeMemberC;
+        bytes memory payload = abi.encodePacked(expected);
+
+        // Call the function and get the result
+        address[] memory actual = committee.getAddressesFromPayload(payload);
+
+        // Assert that the result matches the expected array
+        assertEq(actual, expected);
+    }
+    */
+
+    function testGetAddressesFromPayloadWithEmptyPayload() public {
+        // Prepare an empty payload
+        bytes memory payload = "";
+
+        // Call the function and expect it to revert with a message
+        vm.expectRevert("Empty payload");
+        committee.getAddressesFromPayload(payload);
+    }
+
+    function testConstructMessage() public {
+        uint256 expectedNonce = 1;
+        uint256 expectedVersion = 1;
+        BridgeCommittee.MessageType expectedType = BridgeCommittee
+            .MessageType
+            .BRIDGE_MESSAGE;
+        bytes memory expectedPayload = "0x1234";
+
+        bytes memory message = abi.encodePacked(
+            expectedNonce,
+            expectedVersion,
+            expectedType,
+            expectedPayload
+        );
+
+        // Call the function and get the result
+        BridgeCommittee.Message memory actual = committee.constructMessage(
+            message
+        );
+
+        // Assert that the result matches the expected components
+        assertEq(actual.nonce, expectedNonce);
+        assertEq(actual.version, expectedVersion);
+        assertEq(actual.messageType, expectedType);
+        assertEq(actual.payload, expectedPayload);
+    }
+
+    function testConstructMessageWithEmptyMessage() public {
+        // Prepare an empty message
+        bytes memory message = "";
+
+        // Call the function and expect it to revert with a message
+        vm.expectRevert("Empty message");
+        committee.constructMessage(message);
+    }
 }

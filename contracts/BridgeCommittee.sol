@@ -4,6 +4,9 @@ pragma solidity ^0.8.0;
 contract BridgeCommittee {
     /* ========== TYPES ========== */
 
+    uint256 public constant TOKEN_TRANSFER = 0;
+    uint256 public constant EMERGENCY_OP = 2;
+
     struct Message {
         uint256 nonce;
         uint256 version;
@@ -34,6 +37,8 @@ contract BridgeCommittee {
     mapping(address => mapping(uint256 => bytes32)) public messageApprovals;
     // nonce => message hash => total approvals
     mapping(uint256 => mapping(bytes32 => uint256)) public totalMessageApproval;
+    // maps the message types to their required approvals
+    mapping(uint256 => uint256) public requiredApprovals;
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -48,6 +53,9 @@ contract BridgeCommittee {
         }
         bridge = _bridge;
         totalCommitteeStake = _totalCommitteeStake;
+
+        requiredApprovals[TOKEN_TRANSFER] = totalCommitteeStake / 2 + 1;
+        requiredApprovals[EMERGENCY_OP] = 2;
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -102,7 +110,10 @@ contract BridgeCommittee {
         bytes memory payload = _message.payload;
 
         require(_nonce == nonce, "BridgeCommittee: Invalid nonce");
-        require(checkMessageApproval(nonce, messageHash), "BridgeCommittee: Not enough approvals");
+        require(
+            checkMessageApproval(nonce, messageHash),
+            "BridgeCommittee: Not enough approvals"
+        );
 
         if (messageType == MessageType.BRIDGE_MESSAGE) {
             _sendMessage(message);
@@ -124,6 +135,14 @@ contract BridgeCommittee {
 
     function _sendMessage(bytes memory message) internal {
         // TODO: send message to SuiBridge
+
+        // Call the submitMessage function in the SuiBridge contract
+        (bool success, ) = bridge.call(
+            abi.encodeWithSignature("submitMessage(bytes)", message)
+        );
+
+        // Check that the call was successful
+        require(success, "Call failed");
     }
 
     function _upgrade(address upgradeImplementation) internal {
@@ -144,21 +163,94 @@ contract BridgeCommittee {
 
     function checkMessageApproval(uint256 _nonce, bytes32 messageHash) public view returns (bool) {
         // TODO: check the message type and adjust the required approvals accordingly
-        uint256 requiredStake = totalCommitteeStake / 2 + 1;
+
+        // Check that the nonce and the message hash are valid.
+        require(_nonce > 0, "Invalid nonce");
+        require(messageHash != bytes32(0), "Invalid message hash");
+
+        // Get the message type from the message hash.
+        // uint256 messageType = constructMessage([_nonce][messageHash]).messageType;
+        uint256 messageType = 0;
+
+        // Get the required stake for the message type
+        uint256 requiredStake = requiredApprovals[messageType];
+        // Get the approval stake for the message
         uint256 approvalStake = totalMessageApproval[_nonce][messageHash];
+        // Compare the approval stake with the required stake and return the result
         return approvalStake >= requiredStake;
     }
 
     function getAddressFromPayload(bytes memory payload) public pure returns (address) {
         // TODO: extract address from payload
+
+        // Check that the payload is not empty
+        require(payload.length > 0, "Empty payload");
+
+        // Extract the first 20 bytes from the payload
+        bytes20 addressBytes = bytes20(slice(payload, 0, 20));
+
+        // Cast the bytes to an unsigned integer
+        uint160 addressInt = uint160(addressBytes);
+
+        // Cast the integer to an address
+        address addressValue = address(addressInt);
+
+        // Return the address
+        return addressValue;
     }
 
     function getAddressesFromPayload(bytes memory payload) public pure returns (address[] memory) {
         // TODO: extract address array from payload
+
+        // Check that the payload is not empty
+        require(payload.length > 0, "Empty payload");
+
+        // Initialize the output array
+        address[] memory addresses = new address[](payload.length / 20);
+
+        // Loop over the payload and extract 20 bytes for each address
+        for (uint i = 0; i < payload.length; i += 20) {
+            // Extract the 20 bytes from the payload
+            bytes20 addressBytes = bytes20(slice(payload, i, i + 20));
+
+            // Cast the bytes to an unsigned integer
+            uint160 addressInt = uint160(addressBytes);
+
+            // Cast the integer to an address
+            address addressValue = address(addressInt);
+
+            // Append the address to the output array
+            addresses[i / 20] = addressValue;
+        }
+
+        // Return the output array
+        return addresses;
     }
 
-    function constructMessage(bytes memory message) internal pure returns (Message memory) {
+    function constructMessage(bytes memory message) public pure returns (Message memory) {
         // TODO: construct message struct from message bytes
+
+        // Check that the message is not empty
+        require(message.length > 0, "Empty message");
+
+        // Decode the message into the struct components
+        (
+            uint256 messageNonce,
+            uint256 messageVersion,
+            MessageType messageType,
+            bytes memory messagePayload
+        ) = abi.decode(message, (uint256, uint256, MessageType, bytes));
+
+        // Cast the components to the struct type
+        Message memory messageStruct = Message(
+            messageNonce,
+            messageVersion,
+            messageType,
+            messagePayload
+        );
+
+        // Return the struct
+        return messageStruct;
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
@@ -194,8 +286,85 @@ contract BridgeCommittee {
         }
     }
 
-    function getMessageHash(bytes memory message) internal pure returns (bytes32) {
+    function getMessageHash(
+        bytes memory message
+    ) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(message));
+    }
+
+    // https://github.com/GNSPS/solidity-bytes-utils/blob/master/contracts/BytesLib.sol
+    function slice(
+        bytes memory _bytes,
+        uint256 _start,
+        uint256 _length
+    ) internal pure returns (bytes memory) {
+        require(_length + 31 >= _length, "slice_overflow");
+        require(_bytes.length >= _start + _length, "slice_outOfBounds");
+
+        bytes memory tempBytes;
+
+        assembly {
+            switch iszero(_length)
+            case 0 {
+                // Get a location of some free memory and store it in tempBytes as
+                // Solidity does for memory variables.
+                tempBytes := mload(0x40)
+
+                // The first word of the slice result is potentially a partial
+                // word read from the original array. To read it, we calculate
+                // the length of that partial word and start copying that many
+                // bytes into the array. The first word we copy will start with
+                // data we don't care about, but the last `lengthmod` bytes will
+                // land at the beginning of the contents of the new array. When
+                // we're done copying, we overwrite the full first word with
+                // the actual length of the slice.
+                let lengthmod := and(_length, 31)
+
+                // The multiplication in the next line is necessary
+                // because when slicing multiples of 32 bytes (lengthmod == 0)
+                // the following copy loop was copying the origin's length
+                // and then ending prematurely not copying everything it should.
+                let mc := add(
+                    add(tempBytes, lengthmod),
+                    mul(0x20, iszero(lengthmod))
+                )
+                let end := add(mc, _length)
+
+                for {
+                    // The multiplication in the next line has the same exact purpose
+                    // as the one above.
+                    let cc := add(
+                        add(
+                            add(_bytes, lengthmod),
+                            mul(0x20, iszero(lengthmod))
+                        ),
+                        _start
+                    )
+                } lt(mc, end) {
+                    mc := add(mc, 0x20)
+                    cc := add(cc, 0x20)
+                } {
+                    mstore(mc, mload(cc))
+                }
+
+                mstore(tempBytes, _length)
+
+                //update free-memory pointer
+                //allocating the array padded to 32 bytes like the compiler does now
+                mstore(0x40, and(add(mc, 31), not(31)))
+            }
+            //if we want a zero-length slice let's just return a zero-length array
+            default {
+                tempBytes := mload(0x40)
+                //zero out the 32 bytes slice we are about to return
+                //we need to do it because Solidity does not garbage collect
+                mstore(tempBytes, 0)
+
+                mstore(0x40, add(tempBytes, 0x20))
+            }
+        }
+
+        return tempBytes;
     }
 
     /* ========== EVENTS ========== */
