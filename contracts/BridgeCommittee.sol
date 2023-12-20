@@ -20,6 +20,8 @@ contract BridgeCommittee {
 
     /* ========== STATE VARIABLES ========== */
 
+    // address of the bridge contract
+    address public bridge;
     // committee nonce
     uint256 public nonce;
     // total committee members
@@ -37,12 +39,13 @@ contract BridgeCommittee {
 
     /// @notice Initializes the contract with the deployer as the admin.
     /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
-    constructor(address[] memory _committee) {
+    constructor(address[] memory _committee, address _bridge) {
         nonce = 1;
         totalCommitteeMembers = _committee.length;
         for (uint256 i = 0; i < _committee.length; i++) {
             committee[_committee[i]] = true;
         }
+        bridge = _bridge;
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
