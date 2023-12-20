@@ -27,7 +27,7 @@ contract AccessManagerTest is Test {
         vm.deal(committeeMemberC, 100 ether);
         deployer = address(1);
         vm.startPrank(deployer);
-        // TODO: define this with mock tokens
+        // TODO: initialize this with mock tokens
         address[] memory _supportedTokens = new address[](1);
         bridge = new SuiBridge();
         bridge.initialize(_supportedTokens);
@@ -40,6 +40,11 @@ contract AccessManagerTest is Test {
     }
 
     function testBridgeCommitteeInitialization() public {
-        // TODO: test the bridge committee has been initialized correctly
+        assertTrue(committee.committee(committeeMemberA));
+        assertTrue(committee.committee(committeeMemberB));
+        assertTrue(committee.committee(committeeMemberC));
+        assertEq(committee.totalCommitteeMembers(), 3);
+        assertEq(committee.nonce(), 1);
+        assertEq(committee.bridge(), address(bridge));
     }
 }
