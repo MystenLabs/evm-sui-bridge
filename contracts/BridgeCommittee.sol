@@ -1,30 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./interfaces/ISuiBridge.sol";
+
 contract BridgeCommittee {
     /* ========== TYPES ========== */
 
     uint256 public constant TOKEN_TRANSFER = 0;
+    uint256 public constant BLOCKLIST = 1;
     uint256 public constant EMERGENCY_OP = 2;
+    uint256 public constant BRIDGE_UPGRADE = 3;
+    uint256 public constant BRIDGE_OWNERSHIP = 4;
 
     struct Message {
         uint256 nonce;
         uint256 version;
-        MessageType messageType;
+        uint256 messageType;
         bytes payload;
-    }
-
-    enum MessageType {
-        BRIDGE_MESSAGE,
-        BRIDGE_UPGRADE,
-        BRIDGE_OWNERSHIP,
-        BLOCKLIST
     }
 
     /* ========== STATE VARIABLES ========== */
 
     // address of the bridge contract
-    address public bridge;
+    ISuiBridge public bridge;
     // committee nonce
     uint256 public nonce;
     // total committee members stake
@@ -51,7 +49,7 @@ contract BridgeCommittee {
             committee[_committee[i]] = stake[i];
             _totalCommitteeStake += stake[i];
         }
-        bridge = _bridge;
+        bridge = ISuiBridge(_bridge);
         totalCommitteeStake = _totalCommitteeStake;
 
         requiredApprovals[TOKEN_TRANSFER] = totalCommitteeStake / 2 + 1;
@@ -97,63 +95,50 @@ contract BridgeCommittee {
         // Update total message approval stake
         totalMessageApproval[nonce][messageHash] += approvalStake;
 
-        if (checkMessageApproval(nonce, messageHash)) {
-            processMessage(message);
+        if (checkMessageApproval(nonce, message)) {
+            _processMessage(message);
         }
     }
 
-    function processMessage(bytes memory message) public {
-        bytes32 messageHash = getMessageHash(message);
+    function _processMessage(bytes memory message) private {
         Message memory _message = constructMessage(message);
         uint256 _nonce = _message.nonce;
-        MessageType messageType = _message.messageType;
+        uint256 messageType = _message.messageType;
         bytes memory payload = _message.payload;
 
         require(_nonce == nonce, "BridgeCommittee: Invalid nonce");
-        require(
-            checkMessageApproval(nonce, messageHash),
-            "BridgeCommittee: Not enough approvals"
-        );
+        require(checkMessageApproval(nonce, message), "BridgeCommittee: Not enough approvals");
 
-        if (messageType == MessageType.BRIDGE_MESSAGE) {
-            _sendMessage(message);
-        } else if (messageType == MessageType.BRIDGE_UPGRADE) {
+        // if the message type is not for the committee, submit it to the bridge
+        if (messageType == BLOCKLIST) {
+            address[] memory _blocklist = getAddressesFromPayload(payload);
+            _updateBlocklist(_blocklist);
+        } else if (messageType == EMERGENCY_OP) {} else if (messageType == BRIDGE_UPGRADE) {
             address upgradeImplementation = getAddressFromPayload(payload);
             _upgrade(upgradeImplementation);
-        } else if (messageType == MessageType.BRIDGE_OWNERSHIP) {
+        } else if (messageType == BRIDGE_OWNERSHIP) {
             address newOwner = getAddressFromPayload(payload);
             _transferBridgeOwnership(newOwner);
-        } else if (messageType == MessageType.BLOCKLIST) {
-            address[] memory _blocklist = getAddressesFromPayload(payload);
-            _updateBlockclist(_blocklist);
         } else {
-            revert("BridgeCommittee: Invalid message type");
+            bridge.submitMessage(message);
         }
         nonce++;
         emit MessageProcessed(nonce, message);
     }
 
-    function _sendMessage(bytes memory message) internal {
-        // TODO: send message to SuiBridge
-
-        // Call the submitMessage function in the SuiBridge contract
-        (bool success, ) = bridge.call(
-            abi.encodeWithSignature("submitMessage(bytes)", message)
+    // TODO: going to need to test this method of upgrading
+    // note: upgrading this way will not enable initialization using "upgradeToAndCall". explore more
+    function _upgrade(address upgradeImplementation) internal returns (bool, bytes memory) {
+        return address(bridge).call(
+            abi.encodeWithSignature("upgradeTo(address)", upgradeImplementation)
         );
-
-        // Check that the call was successful
-        require(success, "Call failed");
-    }
-
-    function _upgrade(address upgradeImplementation) internal {
-        // TODO: upgrade SuiBridge
     }
 
     function _transferBridgeOwnership(address newOwner) internal {
-        // TODO: transfer ownership of SuiBridge
+        bridge.transferOwnership(newOwner);
     }
 
-    function _updateBlockclist(address[] memory _blocklist) internal {
+    function _updateBlocklist(address[] memory _blocklist) internal {
         for (uint256 i = 0; i < _blocklist.length; i++) {
             blocklist[_blocklist[i]] = true;
         }
@@ -161,17 +146,20 @@ contract BridgeCommittee {
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    function checkMessageApproval(uint256 _nonce, bytes32 messageHash) public view returns (bool) {
-        // TODO: check the message type and adjust the required approvals accordingly
+    function checkMessageApproval(uint256 _nonce, bytes memory _message)
+        public
+        view
+        returns (bool)
+    {
+        // Get the message hash
+        bytes32 messageHash = getMessageHash(_message);
 
         // Check that the nonce and the message hash are valid.
         require(_nonce > 0, "Invalid nonce");
         require(messageHash != bytes32(0), "Invalid message hash");
 
         // Get the message type from the message hash.
-        // uint256 messageType = constructMessage([_nonce][messageHash]).messageType;
-        uint256 messageType = 0;
-
+        uint256 messageType = constructMessage(_message).messageType;
         // Get the required stake for the message type
         uint256 requiredStake = requiredApprovals[messageType];
         // Get the approval stake for the message
@@ -181,8 +169,6 @@ contract BridgeCommittee {
     }
 
     function getAddressFromPayload(bytes memory payload) public pure returns (address) {
-        // TODO: extract address from payload
-
         // Check that the payload is not empty
         require(payload.length > 0, "Empty payload");
 
@@ -200,8 +186,6 @@ contract BridgeCommittee {
     }
 
     function getAddressesFromPayload(bytes memory payload) public pure returns (address[] memory) {
-        // TODO: extract address array from payload
-
         // Check that the payload is not empty
         require(payload.length > 0, "Empty payload");
 
@@ -209,18 +193,9 @@ contract BridgeCommittee {
         address[] memory addresses = new address[](payload.length / 20);
 
         // Loop over the payload and extract 20 bytes for each address
-        for (uint i = 0; i < payload.length; i += 20) {
-            // Extract the 20 bytes from the payload
-            bytes20 addressBytes = bytes20(slice(payload, i, i + 20));
-
-            // Cast the bytes to an unsigned integer
-            uint160 addressInt = uint160(addressBytes);
-
-            // Cast the integer to an address
-            address addressValue = address(addressInt);
-
+        for (uint256 i = 0; i < payload.length; i += 20) {
             // Append the address to the output array
-            addresses[i / 20] = addressValue;
+            addresses[i / 20] = getAddressFromPayload(slice(payload, i, i + 20));
         }
 
         // Return the output array
@@ -228,8 +203,6 @@ contract BridgeCommittee {
     }
 
     function constructMessage(bytes memory message) public pure returns (Message memory) {
-        // TODO: construct message struct from message bytes
-
         // Check that the message is not empty
         require(message.length > 0, "Empty message");
 
@@ -237,17 +210,13 @@ contract BridgeCommittee {
         (
             uint256 messageNonce,
             uint256 messageVersion,
-            MessageType messageType,
+            uint256 messageType,
             bytes memory messagePayload
-        ) = abi.decode(message, (uint256, uint256, MessageType, bytes));
+        ) = abi.decode(message, (uint256, uint256, uint256, bytes));
 
         // Cast the components to the struct type
-        Message memory messageStruct = Message(
-            messageNonce,
-            messageVersion,
-            messageType,
-            messagePayload
-        );
+        Message memory messageStruct =
+            Message(messageNonce, messageVersion, messageType, messagePayload);
 
         // Return the struct
         return messageStruct;
@@ -286,18 +255,16 @@ contract BridgeCommittee {
         }
     }
 
-    function getMessageHash(
-        bytes memory message
-    ) internal pure returns (bytes32) {
+    function getMessageHash(bytes memory message) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(message));
     }
 
     // https://github.com/GNSPS/solidity-bytes-utils/blob/master/contracts/BytesLib.sol
-    function slice(
-        bytes memory _bytes,
-        uint256 _start,
-        uint256 _length
-    ) internal pure returns (bytes memory) {
+    function slice(bytes memory _bytes, uint256 _start, uint256 _length)
+        internal
+        pure
+        returns (bytes memory)
+    {
         require(_length + 31 >= _length, "slice_overflow");
         require(_bytes.length >= _start + _length, "slice_outOfBounds");
 
@@ -324,28 +291,17 @@ contract BridgeCommittee {
                 // because when slicing multiples of 32 bytes (lengthmod == 0)
                 // the following copy loop was copying the origin's length
                 // and then ending prematurely not copying everything it should.
-                let mc := add(
-                    add(tempBytes, lengthmod),
-                    mul(0x20, iszero(lengthmod))
-                )
+                let mc := add(add(tempBytes, lengthmod), mul(0x20, iszero(lengthmod)))
                 let end := add(mc, _length)
 
                 for {
                     // The multiplication in the next line has the same exact purpose
                     // as the one above.
-                    let cc := add(
-                        add(
-                            add(_bytes, lengthmod),
-                            mul(0x20, iszero(lengthmod))
-                        ),
-                        _start
-                    )
+                    let cc := add(add(add(_bytes, lengthmod), mul(0x20, iszero(lengthmod))), _start)
                 } lt(mc, end) {
                     mc := add(mc, 0x20)
                     cc := add(cc, 0x20)
-                } {
-                    mstore(mc, mload(cc))
-                }
+                } { mstore(mc, mload(cc)) }
 
                 mstore(tempBytes, _length)
 

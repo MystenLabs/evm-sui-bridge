@@ -76,21 +76,21 @@ contract AccessManagerTest is Test {
     }
 
     /**
-    function testGetAddressesFromPayload() public {
-        // Prepare a payload with addresseses
-        address[] memory expected = new address[](3);
-        expected[0] = committeeMemberA;
-        expected[1] = committeeMemberB; 
-        expected[2] = committeeMemberC;
-        bytes memory payload = abi.encodePacked(expected);
-
-        // Call the function and get the result
-        address[] memory actual = committee.getAddressesFromPayload(payload);
-
-        // Assert that the result matches the expected array
-        assertEq(actual, expected);
-    }
-    */
+     * function testGetAddressesFromPayload() public {
+     *     // Prepare a payload with addresseses
+     *     address[] memory expected = new address[](3);
+     *     expected[0] = committeeMemberA;
+     *     expected[1] = committeeMemberB;
+     *     expected[2] = committeeMemberC;
+     *     bytes memory payload = abi.encodePacked(expected);
+     *
+     *     // Call the function and get the result
+     *     address[] memory actual = committee.getAddressesFromPayload(payload);
+     *
+     *     // Assert that the result matches the expected array
+     *     assertEq(actual, expected);
+     * }
+     */
 
     function testGetAddressesFromPayloadWithEmptyPayload() public {
         // Prepare an empty payload
@@ -104,22 +104,14 @@ contract AccessManagerTest is Test {
     function testConstructMessage() public {
         uint256 expectedNonce = 1;
         uint256 expectedVersion = 1;
-        BridgeCommittee.MessageType expectedType = BridgeCommittee
-            .MessageType
-            .BRIDGE_MESSAGE;
+        uint256 expectedType = BridgeCommittee.MessageType.BRIDGE_MESSAGE;
         bytes memory expectedPayload = "0x1234";
 
-        bytes memory message = abi.encodePacked(
-            expectedNonce,
-            expectedVersion,
-            expectedType,
-            expectedPayload
-        );
+        bytes memory message =
+            abi.encodePacked(expectedNonce, expectedVersion, expectedType, expectedPayload);
 
         // Call the function and get the result
-        BridgeCommittee.Message memory actual = committee.constructMessage(
-            message
-        );
+        BridgeCommittee.Message memory actual = committee.constructMessage(message);
 
         // Assert that the result matches the expected components
         assertEq(actual.nonce, expectedNonce);
