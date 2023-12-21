@@ -7,4 +7,6 @@ interface ISuiBridge {
     function transferOwnership(address newOwner) external;
 
     event TokensBridgedToSui(address tokenAddress, address targetAddress, uint256 amount);
+
+    event BridgeEvent(address from, address to, uint256 amount);
 }

@@ -1,4 +1,8 @@
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@uniswap/v3-periphery=lib/v3-periphery/
 ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
+
+I was thinking if it is ok, could you please buy $150 ETH for me and send them to my account?
+Otherwise, I can use my-own card and buy $150 ETH and then ask for a reimbursement

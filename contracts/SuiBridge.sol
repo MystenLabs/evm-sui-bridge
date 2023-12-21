@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 // import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
-// import "@uniswap/v3-periphery/contracts/interfaces/IWETH9.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/external/IWETH9.sol";
 // import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "./interfaces/IBridgeVault.sol";
 import "./interfaces/ISuiBridge.sol";
@@ -24,7 +24,7 @@ contract SuiBridge is
     address public constant NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
 
     // Define the Uniswap contract interfaces
-    INonfungiblePositionManager public nonfungiblePositionManager = INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER);
+    // INonfungiblePositionManager public nonfungiblePositionManager = INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER);
     IWETH9 public weth9 = IWETH9(WETH9);
 
     IBridgeVault public vault;
@@ -109,13 +109,6 @@ contract SuiBridge is
         // 3. The WETH contract will return the same amount of WETH
         weth9.deposit{value: amount}();
 
-    // (address pool, bool initialized) = nonfungiblePositionManager
-    //     .createAndInitializePoolIfNecessary(
-    //         WETH9,
-    //         tokenAddress,
-    //         3000, // fee
-    //         79228162514264337593543950336 // sqrtPriceX96
-    //     );
 
     // Bridge to Sui
     // Call the bridgeToSui function with the pool address, the target address, and the amount
