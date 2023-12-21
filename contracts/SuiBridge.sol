@@ -4,6 +4,10 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+// import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
+// import "@uniswap/v3-periphery/contracts/interfaces/IWETH9.sol";
+// import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "./interfaces/IBridgeVault.sol";
 import "./interfaces/ISuiBridge.sol";
 
@@ -13,6 +17,16 @@ contract SuiBridge is
     PausableUpgradeable,
     ReentrancyGuardUpgradeable
 {
+    using SafeMath for uint256;
+
+    // Define the Uniswap contract addresses
+    address public constant WETH9 = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public constant NONFUNGIBLE_POSITION_MANAGER = 0xC36442b4a4522E871399CD717aBDD847Ab11FE88;
+
+    // Define the Uniswap contract interfaces
+    INonfungiblePositionManager public nonfungiblePositionManager = INonfungiblePositionManager(NONFUNGIBLE_POSITION_MANAGER);
+    IWETH9 public weth9 = IWETH9(WETH9);
+
     IBridgeVault public vault;
     mapping(address => bool) public supportedTokens;
     uint256 public constant TOKEN_TRANSFER = 0;
@@ -59,9 +73,11 @@ contract SuiBridge is
     }
 
     // TODO: function interface may need to change depending on data needed in event
-    function bridgeToSui(address tokenAddress, address targetAddress, uint256 amount) public {
-        // TODO: round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
-        // note: still has 18 decimal places but only the first 8 can be greater than 0
+    function bridgeToSui(address tokenAddress, address targetAddress, uint256 amount) public {       
+        // Divide by 10^10 to remove the last 10 decimals. Multiply by 10^10 to restore the 18 decimals
+        // Note: still has 18 decimal places but only the first 8 can be greater than 0
+        // Use SafeMath to prevent overflows and underflows
+        amount = amount.div(10**10).mul(10**10);
 
         // Check that the token address is supported
         require(supportedTokens[tokenAddress], "Unsupported token");
@@ -82,11 +98,29 @@ contract SuiBridge is
         external
         payable
     {
-        // TODO: round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
+        // Round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
+        // Divide by 10^10 to remove the last 10 decimals. Multiply by 10^10 to restore the 18 decimals
+        // Use SafeMath to prevent overflows and underflows
+        amount = amount.div(10**10).mul(10**10);
 
-        // TODO: wrap ETH
-        address wETHAddress;
+        // Wrap ETH
+        // 1. Call the deposit function on the WETH contract
+        // 2. Send the ETH to the WETH contract
+        // 3. The WETH contract will return the same amount of WETH
+        weth9.deposit{value: amount}();
 
+    // (address pool, bool initialized) = nonfungiblePositionManager
+    //     .createAndInitializePoolIfNecessary(
+    //         WETH9,
+    //         tokenAddress,
+    //         3000, // fee
+    //         79228162514264337593543950336 // sqrtPriceX96
+    //     );
+
+    // Bridge to Sui
+    // Call the bridgeToSui function with the pool address, the target address, and the amount
+
+address wETHAddress;
         bridgeToSui(wETHAddress, targetAddress, amount);
     }
 
