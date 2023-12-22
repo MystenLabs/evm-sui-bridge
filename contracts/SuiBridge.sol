@@ -36,6 +36,7 @@ contract SuiBridge is
 
     address[] public supportedTokens;
 
+    // So _weth9 should be 0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2 on mainnet?
     function initialize(address[] memory _supportedTokens, address _vault, address _weth9)
         external
         initializer
@@ -43,11 +44,18 @@ contract SuiBridge is
         __Ownable_init();
         __ReentrancyGuard_init();
         __Pausable_init();
+
+        // need to init own chain id
+
         supportedTokens = _supportedTokens;
         vault = IBridgeVault(_vault);
         weth9 = IWETH9(_weth9);
     }
 
+    // can we have two different functions:
+    // 1. handleTokenTransfer(u8 mesasage_version, bytes memory payload) and
+    // 2. handleEmergencyOp(u8 mesasage_version, bytes memory payload) 
+    // the merit is no need for one more decoding in line 62
     function submitMessage(bytes memory message) external override onlyOwner nonReentrant {
         // Decode the message
         (uint256 nonce, uint256 version, uint256 messageType, bytes memory payload) =
@@ -126,11 +134,14 @@ contract SuiBridge is
             );
     }
 
+    // Same: pass the payload instead of the full message
     function _processTokenTransferMessage(bytes memory message) internal whenNotPaused {
         // Decode the message
+        // interesting, why? it does not look like a lot of data to decode
         // TODO: this is causing a "Stack Too Deep" error. Need to refactor
         // https://soliditydeveloper.com/stacktoodeep
         (
+            // Not all of the unit are unit256, please check the notion page
             uint256 nonce,
             uint256 version,
             uint256 messageType,
@@ -172,6 +183,8 @@ contract SuiBridge is
 
         // transfer tokens from vault to target address
         vault.transferERC20(tokenAddress, targetAddress, amount);
+
+        // Emit event here
 
         // increment token transfer nonce
         nonces[TOKEN_TRANSFER]++;

@@ -20,9 +20,11 @@ contract BridgeCommittee {
     mapping(address => uint256) public committee;
     // member address => is blocklisted
     mapping(address => bool) public blocklist;
+    // Can we use `processed` v.s. `approved`?
     // message hash => approved
-    mapping(bytes32 => bool) public messageApproved;
+    mapping(bytes32 => bool) public messageProcessed;
     // message type => required amount of approval stake
+    // Nit: `requiredApprovalStake`
     mapping(uint256 => uint256) public requiredApproval;
 
     /* ========== CONSTRUCTOR ========== */
@@ -30,6 +32,9 @@ contract BridgeCommittee {
     /// @notice Initializes the contract with the deployer as the admin.
     /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
     constructor(address[] memory _committee, uint256[] memory stake, address _bridge) {
+        
+        // need to init own chain id
+
         for (uint256 i = 0; i < _committee.length; i++) {
             committee[_committee[i]] = stake[i];
         }
@@ -52,13 +57,16 @@ contract BridgeCommittee {
         // Prepare the message hash
         bytes32 messageHash = getMessageHash(message);
         // Check that the message has not already been approved
-        require(messageApproved[messageHash], "BridgeCommittee: Message already approved");
+        // nit: `approved` => `processed`
+        require(!messageProcessed[messageHash], "BridgeCommittee: Message already approved");
 
+        // this does not match the encoding rules: `SUI_NATIVE_BRIDGE` should be prefixed to raw message instead of hash.
         bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("SUI_NATIVE_BRIDGE", messageHash));
 
         // Loop over the signatures and check if they are valid
         uint256 approvalStake;
         address signer;
+        // nit: constant
         uint256 signatureSize = 65;
         for (uint256 i = 0; i < signatures.length; i += signatureSize) {
             // Extract R, S, and V components from the signature
@@ -77,15 +85,27 @@ contract BridgeCommittee {
             approvalStake += committee[signer];
         }
 
+        // Need to check the message version matches a certain number here.
+
+        // I don't quite like that we decode the same message a few times. Can we decode it once here
+        // and pass the necessary decoded components to functions?
+        // For example, we could have a function `getMessageTypeAndThreshold`. `checkMessageApproval` 
+        // and `_processMessage` takes the threshold. 
+        // Also I doubt we need the full decoding for e.g. decodeMessageType, it could simply be
+        // the first 8 bytes for a u8 prefix. thoughts?
         if (checkMessageApproval(message, approvalStake)) {
             // approve message
-            messageApproved[getMessageHash(message)] = true;
             _processMessage(message);
+            // 1. we already have `messageHash` from earlier
+            // 2. renaming
+            messageProcessed[messageHash] = true;
         }
     }
 
     function _processMessage(bytes memory message) private {
         uint256 messageType = decodeMessageType(message);
+
+        // For non token transfer messages, the nonce must match the next available nonce, namely we always process them one by one
 
         if (messageType == BLOCKLIST) {
             (address[] memory validators, bool blocklisted) = decodeBlocklistMessage(message);
@@ -96,29 +116,36 @@ contract BridgeCommittee {
         } else if (messageType == BRIDGE_OWNERSHIP) {
             address newOwner = decodeBridgeOwnershipMessage(message);
             _transferBridgeOwnership(newOwner);
+        // Need to check the message type is legit (e.g. can't be 10000)
         } else {
             // if the message type is not for the committee, submit it to the bridge
             bridge.submitMessage(message);
         }
-        emit MessageProcessed(message);
+        emit MessageProcessedEvent(message);
     }
 
+    // Is this the regular way to upgrade?
     // TODO: going to need to test this method of upgrading
     // note: upgrading this way will not enable initialization using "upgradeToAndCall". explore more
     function _upgrade(address upgradeImplementation) internal returns (bool, bytes memory) {
         return address(bridge).call(
             abi.encodeWithSignature("upgradeTo(address)", upgradeImplementation)
         );
+        // emit event
     }
 
     function _transferBridgeOwnership(address newOwner) internal {
         bridge.transferOwnership(newOwner);
+        // emit event
     }
 
+    // Should we check the original value, for example, if the member is already blocklisted, 
+    // then a subsequent blocklist will fail. It feels more conceptually right
     function _updateBlocklist(address[] memory _blocklist, bool isBlocklisted) internal {
         for (uint256 i = 0; i < _blocklist.length; i++) {
             blocklist[_blocklist[i]] = isBlocklisted;
         }
+        // emit event
     }
 
     /* ========== VIEW FUNCTIONS ========== */
@@ -128,7 +155,8 @@ contract BridgeCommittee {
         view
         returns (bool)
     {
-        // Get the message type from the message hash.
+        // I don't quite like we decode the same message a few times to get different fields. Can 
+        // Get the message type from the message
         uint256 messageType = decodeMessageType(message);
         // Get the required stake for the message type
         uint256 requiredStake = requiredApproval[messageType];
@@ -136,12 +164,14 @@ contract BridgeCommittee {
             // decode the emergency op message
             bool isPausing = decodeEmergencyOpMessage(message);
             // if the message is to unpause the bridge, use the upgrade stake requirement
+            // Can we make a new constant instead of using BRIDGE_UPGRADE?
             if (!isPausing) requiredStake = requiredApproval[BRIDGE_UPGRADE];
         }
         // Compare the approval stake with the required stake and return the result
         return approvalStake >= requiredStake;
     }
 
+    // Please check encoding rule, the order is type (u8) +version (u8) +nonce (u64), ditto for other functions
     function decodeMessageType(bytes memory message) public pure returns (uint256) {
         // Check that the message is not empty
         require(message.length > 0, "Empty message");
@@ -158,6 +188,7 @@ contract BridgeCommittee {
             abi.decode(message, (uint256, uint256, uint256, uint256));
         // 0 = pausing
         // 1 = unpausing
+        // add check: assert opCode == 0 or == 1
         return (opCode == 0);
     }
 
@@ -186,8 +217,10 @@ contract BridgeCommittee {
             uint256 blocklistType,
             address[] memory validators
         ) = abi.decode(message, (uint256, uint256, uint256, uint256, address[]));
-        bool blocklisted = (blocklistType == 0) ? true : false;
-        return (validators, blocklisted);
+        // 0 = blocklist
+        // 1 = unblocklist
+        // add check: assert blocklistType == 0 or == 1
+        return (validators, blocklistType == 0);
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
@@ -198,6 +231,7 @@ contract BridgeCommittee {
         pure
         returns (bytes memory)
     {
+        require(index + length <= signatures.length, "extractSignatures is out of bounds");
         bytes memory signature = new bytes(size);
         for (uint256 i = 0; i < size; i++) {
             signature[i] = signatures[index + i];
@@ -295,5 +329,6 @@ contract BridgeCommittee {
 
     /* ========== EVENTS ========== */
 
-    event MessageProcessed(bytes message);
+    // Can we emit human readable events?
+    event MessageProcessedEvent(bytes message);
 }
