@@ -6,13 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IBridgeVault.sol";
 
 contract BridgeVault is Ownable, IBridgeVault {
-    address public bridge;
-
-    constructor(address _bridge) {
-        bridge = _bridge;
-        _transferOwnership(msg.sender);
-    }
-
     function transferERC20(address tokenAddress, address targetAddress, uint256 amount)
         external
         override
