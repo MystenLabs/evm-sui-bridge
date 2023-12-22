@@ -4,6 +4,8 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "./interfaces/IWETH9.sol";
 import "./interfaces/IBridgeVault.sol";
 import "./interfaces/ISuiBridge.sol";
 
@@ -13,38 +15,49 @@ contract SuiBridge is
     PausableUpgradeable,
     ReentrancyGuardUpgradeable
 {
+    using SafeMath for uint256;
+
     IBridgeVault public vault;
-    mapping(address => bool) public supportedTokens;
+    IWETH9 public weth9;
+
+    // message type => nonce
+    mapping(uint256 => uint256) public nonces;
+
+    // TODO: combine message types into one spot somehow?
     uint256 public constant TOKEN_TRANSFER = 0;
     uint256 public constant EMERGENCY_OP = 2;
 
-    function initialize(address[] memory _supportedTokens, address _vault) external initializer {
+    // tokenIds
+    uint256 public constant SUI = 0;
+    uint256 public constant BTC = 1;
+    uint256 public constant ETH = 2;
+    uint256 public constant USDC = 3;
+    uint256 public constant USDT = 4;
+
+    address[] public supportedTokens;
+
+    function initialize(address[] memory _supportedTokens, address _vault, address _weth9)
+        external
+        initializer
+    {
         __Ownable_init();
         __ReentrancyGuard_init();
         __Pausable_init();
-        for (uint256 i = 0; i < _supportedTokens.length; i++) {
-            supportedTokens[_supportedTokens[i]] = true;
-        }
-
+        supportedTokens = _supportedTokens;
         vault = IBridgeVault(_vault);
+        weth9 = IWETH9(_weth9);
     }
 
-    function submitMessage(bytes memory message)
-        external
-        override
-        onlyOwner
-        whenNotPaused
-        nonReentrant
-    {
+    function submitMessage(bytes memory message) external override onlyOwner nonReentrant {
         // Decode the message
         (uint256 nonce, uint256 version, uint256 messageType, bytes memory payload) =
             abi.decode(message, (uint256, uint256, uint256, bytes));
 
         // Decode the payload depending on the message type
         if (messageType == TOKEN_TRANSFER) {
-            _handleTokenTransferPayload(payload);
+            _processTokenTransferMessage(payload);
         } else if (messageType == EMERGENCY_OP) {
-            _handleEmergencyOpPayload(payload);
+            _processEmergencyOpMessage(payload);
         } else {
             revert("Invalid message type");
         }
@@ -58,65 +71,121 @@ contract SuiBridge is
         OwnableUpgradeable._transferOwnership(newOwner);
     }
 
-    // TODO: function interface may need to change depending on data needed in event
-    function bridgeToSui(address tokenAddress, address targetAddress, uint256 amount) public {
-        // TODO: round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
-        // note: still has 18 decimal places but only the first 8 can be greater than 0
+    function bridgeToSui(
+        uint256 tokenId,
+        uint256 amount,
+        bytes memory targetAddress,
+        uint256 destinationChainId
+    ) public whenNotPaused {
+        // Round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
+        amount = amount.div(10 ** 10).mul(10 ** 10);
 
-        // Check that the token address is supported
-        require(supportedTokens[tokenAddress], "Unsupported token");
+        // Check that the token address is supported (but not sui yet)
+        require(tokenId > SUI && tokenId <= USDT, "SuiBridge: Unsupported token");
+
+        address tokenAddress = supportedTokens[tokenId - 1];
 
         // check that the bridge contract has allowance to transfer the tokens
         require(
             IERC20(tokenAddress).allowance(msg.sender, address(this)) >= amount,
-            "Insufficient allowance"
+            "SuiBridge: Insufficient allowance"
         );
 
         // Transfer the tokens from the contract to the vault
         IERC20(tokenAddress).transferFrom(msg.sender, address(vault), amount);
 
-        emit TokensBridgedToSui(tokenAddress, targetAddress, amount);
+        // increment token transfer nonce
+        nonces[TOKEN_TRANSFER]++;
+
+        emit TokensBridgedToSui(
+            tokenId, amount, targetAddress, destinationChainId, nonces[TOKEN_TRANSFER]
+            );
     }
 
-    function bridgeETHToSui(address tokenAddress, address targetAddress, uint256 amount)
+    function bridgeETHToSui(bytes memory targetAddress, uint256 destinationChainId)
         external
         payable
-    {
-        // TODO: round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
-
-        // TODO: wrap ETH
-        address wETHAddress;
-
-        bridgeToSui(wETHAddress, targetAddress, amount);
-    }
-
-    function _transferTokens(address tokenAddress, address targetAddress, uint256 amount)
-        internal
         whenNotPaused
     {
+        // Round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
+        // Divide by 10^10 to remove the last 10 decimals. Multiply by 10^10 to restore the 18 decimals
+        // Use SafeMath to prevent overflows and underflows
+        uint256 amount = msg.value.div(10 ** 10).mul(10 ** 10);
+
+        // Wrap ETH
+        weth9.deposit{value: amount}();
+
+        // Transfer the wrapped ETH back to caller
+        weth9.transfer(address(vault), amount);
+
+        // increment token transfer nonce
+        nonces[TOKEN_TRANSFER]++;
+
+        emit TokensBridgedToSui(
+            ETH, amount, targetAddress, destinationChainId, nonces[TOKEN_TRANSFER]
+            );
+    }
+
+    function _processTokenTransferMessage(bytes memory message) internal whenNotPaused {
+        // Decode the message
+        // TODO: this is causing a "Stack Too Deep" error. Need to refactor
+        // https://soliditydeveloper.com/stacktoodeep
+        (
+            uint256 nonce,
+            uint256 version,
+            uint256 messageType,
+            uint256 sourceChain,
+            uint256 sourceChainTxIdLength,
+            uint256 sourceChainTxId,
+            uint256 sourceChainEventIndex,
+            uint256 senderAddressLength,
+            bytes memory senderAddress,
+            uint256 targetChain,
+            uint256 targetAddressLength,
+            address targetAddress,
+            uint256 tokenType,
+            uint256 amount
+        ) = abi.decode(
+            message,
+            (
+                uint256,
+                uint256,
+                uint256,
+                uint256,
+                uint256,
+                uint256,
+                uint256,
+                uint256,
+                bytes,
+                uint256,
+                uint256,
+                address,
+                uint256,
+                uint256
+            )
+        );
+
+        address tokenAddress = supportedTokens[tokenType];
+
         // Check that the token address is supported
-        require(supportedTokens[tokenAddress], "Unsupported token");
+        require(tokenAddress != address(0), "SuiBridge: Unsupported token");
 
-        // Get the token contract instance
+        // transfer tokens from vault to target address
         vault.transferERC20(tokenAddress, targetAddress, amount);
+
+        // increment token transfer nonce
+        nonces[TOKEN_TRANSFER]++;
     }
 
-    function _handleTokenTransferPayload(bytes memory payload) internal {
-        // Decode the payload
-        (address tokenAddress, address targetAddress, uint256 amount) =
-            abi.decode(payload, (address, address, uint256));
+    function _processEmergencyOpMessage(bytes memory message) internal {
+        (uint256 emergencyOpCode) = abi.decode(message, (uint256));
 
-        // Transfer the tokens from the contract to the target address
-        _transferTokens(tokenAddress, targetAddress, amount);
-    }
+        if (emergencyOpCode == 0) _freezeVault();
+        else if (emergencyOpCode == 1) _unfreezeVault();
+        else revert("SuiBridge: Invalid op code");
 
-    function _handleEmergencyOpPayload(bytes memory payload) internal {
-        // Decode the payload
-        (address tokenAddress, address targetAddress, uint256 amount) =
-            abi.decode(payload, (address, address, uint256));
-
-        // Transfer the tokens from the contract to the target address
-        _transferTokens(tokenAddress, targetAddress, amount);
+        // increment emergency op nonce
+        nonces[EMERGENCY_OP]++;
     }
 
     function _freezeVault() internal {
