@@ -3,20 +3,20 @@ pragma solidity ^0.8.0;
 
 interface ISuiBridge {
     struct Message {
-        uint256 nonce;
-        uint256 version;
-        uint256 messageType;
-        uint256 sourceChain;
-        uint256 sourceChainTxIdLength;
-        uint256 sourceChainTxId;
-        uint256 sourceChainEventIndex;
-        uint256 senderAddressLength;
+        uint8 messageType;
+        uint8 version;
+        uint64 nonce;
+        uint8 sourceChain;
+        uint8 sourceChainTxIdLength;
+        uint8 sourceChainTxId;
+        uint8 sourceChainEventIndex;
+        uint8 senderAddressLength;
         bytes senderAddress;
-        uint256 targetChain;
-        uint256 targetAddressLength;
+        uint8 targetChain;
+        uint8 targetAddressLength;
         address targetAddress;
-        uint256 tokenType;
-        uint256 amount;
+        uint8 tokenType;
+        uint64 amount;
     }
 
     function submitMessage(bytes memory message) external;
