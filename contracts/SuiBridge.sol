@@ -151,46 +151,46 @@ contract SuiBridge is
         // Create a scope for decoding the message
         {
             (
-                uint256 nonce,
-                uint256 version,
-                uint256 messageType,
-                uint256 sourceChain,
-                uint256 sourceChainTxIdLength,
-                uint256 sourceChainTxId,
-                uint256 sourceChainEventIndex,
-                uint256 senderAddressLength,
+                uint8 messageType,
+                uint8 version,
+                uint64 nonce,
+                uint8 sourceChain,
+                uint8 sourceChainTxIdLength,
+                uint8 sourceChainTxId,
+                uint8 sourceChainEventIndex,
+                uint8 senderAddressLength,
                 bytes memory senderAddress,
-                uint256 targetChain,
-                uint256 targetAddressLength,
+                uint8 targetChain,
+                uint8 targetAddressLength,
                 address targetAddress,
-                uint256 tokenType,
-                uint256 amount
+                uint8 tokenType,
+                uint64 amount
             ) = abi.decode(
                 message,
                 (
-                    uint256,
-                    uint256,
-                    uint256,
-                    uint256,
-                    uint256,
-                    uint256,
-                    uint256,
-                    uint256,
+                    uint8,
+                    uint8,
+                    uint64,
+                    uint8,
+                    uint8,
+                    uint8,
+                    uint8,
+                    uint8,
                     bytes,
-                    uint256,
-                    uint256,
+                    uint8,
+                    uint8,
                     address,
-                    uint256,
-                    uint256
+                    uint8,
+                    uint64
                 )
             );
 
             // Return a Message struct with the decoded values
             return
                 Message(
-                    nonce,
-                    version,
                     messageType,
+                    version,
+                    nonce,
                     sourceChain,
                     sourceChainTxIdLength,
                     sourceChainTxId,
