@@ -130,51 +130,80 @@ contract SuiBridge is
         // Decode the message
         // TODO: this is causing a "Stack Too Deep" error. Need to refactor
         // https://soliditydeveloper.com/stacktoodeep
-        (
-            uint256 nonce,
-            uint256 version,
-            uint256 messageType,
-            uint256 sourceChain,
-            uint256 sourceChainTxIdLength,
-            uint256 sourceChainTxId,
-            uint256 sourceChainEventIndex,
-            uint256 senderAddressLength,
-            bytes memory senderAddress,
-            uint256 targetChain,
-            uint256 targetAddressLength,
-            address targetAddress,
-            uint256 tokenType,
-            uint256 amount
-        ) = abi.decode(
-            message,
-            (
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                bytes,
-                uint256,
-                uint256,
-                address,
-                uint256,
-                uint256
-            )
-        );
 
-        address tokenAddress = supportedTokens[tokenType];
+        // Decode the message using the decodeMessage function
+        Message memory decodedMessage = decodeMessage(message);
+
+        address tokenAddress = supportedTokens[decodedMessage.tokenType];
 
         // Check that the token address is supported
         require(tokenAddress != address(0), "SuiBridge: Unsupported token");
 
         // transfer tokens from vault to target address
-        vault.transferERC20(tokenAddress, targetAddress, amount);
+        vault.transferERC20(tokenAddress, decodedMessage.targetAddress, decodedMessage.amount);
 
         // increment token transfer nonce
         nonces[TOKEN_TRANSFER]++;
+    }
+
+    // Define a function to decode the message bytes into a Message struct
+    function decodeMessage(bytes memory message) internal pure returns (Message memory) {
+        // Create a scope for decoding the message
+        {
+            (
+                uint256 nonce,
+                uint256 version,
+                uint256 messageType,
+                uint256 sourceChain,
+                uint256 sourceChainTxIdLength,
+                uint256 sourceChainTxId,
+                uint256 sourceChainEventIndex,
+                uint256 senderAddressLength,
+                bytes memory senderAddress,
+                uint256 targetChain,
+                uint256 targetAddressLength,
+                address targetAddress,
+                uint256 tokenType,
+                uint256 amount
+            ) = abi.decode(
+                message,
+                (
+                    uint256,
+                    uint256,
+                    uint256,
+                    uint256,
+                    uint256,
+                    uint256,
+                    uint256,
+                    uint256,
+                    bytes,
+                    uint256,
+                    uint256,
+                    address,
+                    uint256,
+                    uint256
+                )
+            );
+
+            // Return a Message struct with the decoded values
+            return
+                Message(
+                    nonce,
+                    version,
+                    messageType,
+                    sourceChain,
+                    sourceChainTxIdLength,
+                    sourceChainTxId,
+                    sourceChainEventIndex,
+                    senderAddressLength,
+                    senderAddress,
+                    targetChain,
+                    targetAddressLength,
+                    targetAddress,
+                    tokenType,
+                    amount
+                );
+        }
     }
 
     function _processEmergencyOpMessage(bytes memory message) internal {
