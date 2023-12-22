@@ -131,8 +131,7 @@ contract SuiBridge is
         // TODO: this is causing a "Stack Too Deep" error. Need to refactor
         // https://soliditydeveloper.com/stacktoodeep
 
-        // Decode the message using the decodeMessage function
-        Message memory decodedMessage = decodeMessage(message);
+        (Message memory decodedMessage) = abi.decode(message, (Message));
 
         address tokenAddress = supportedTokens[decodedMessage.tokenType];
 

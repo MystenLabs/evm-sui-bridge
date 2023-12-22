@@ -3,6 +3,6 @@ src = 'contracts'
 test = 'test'
 out = 'out'
 libs = ['lib']
-via_ir = true
+#via_ir = true
 [fmt] 
   line_length = 100
