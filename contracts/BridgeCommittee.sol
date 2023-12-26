@@ -55,7 +55,8 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         require(verifyMessageSignatures(signatures, message), "BridgeCommittee: Invalid signatures");
 
         // decode the blocklist payload
-        (bool isBlocklisted, address[] memory _blocklist) = decodeBlocklistPayload(_message.payload);
+        (bool isBlocklisted, address[] memory _blocklist) =
+            Messages.decodeBlocklistPayload(_message.payload);
 
         // update the blocklist
         _updateBlocklist(_blocklist, isBlocklisted);
@@ -81,7 +82,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         require(verifyMessageSignatures(signatures, message), "BridgeCommittee: Invalid signatures");
 
         // decode the upgrade payload
-        address implementationAddress = decodeUpgradePayload(_message.payload);
+        address implementationAddress = Messages.decodeUpgradePayload(_message.payload);
 
         // update the upgrade
         _upgradeCommittee(implementationAddress);
@@ -143,36 +144,12 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         uint256 requiredStake = requiredApprovalStake[_message.messageType];
         if (_message.messageType == Messages.EMERGENCY_OP) {
             // decode the emergency op message
-            bool isPausing = decodeEmergencyOpPayload(message);
+            bool isPausing = Messages.decodeEmergencyOpPayload(message);
             // if the message is to unpause the bridge, use the default stake requirement
             if (!isPausing) requiredStake = requiredApprovalStake[DEFAULT_STAKE_REQUIRED];
         }
         // Compare the approval stake with the required stake and return the result
         return approvalStake >= requiredStake;
-    }
-
-    // TODO: code redundancy. may want to move to library?
-    function decodeEmergencyOpPayload(bytes memory payload) public pure returns (bool) {
-        (uint256 opCode) = abi.decode(payload, (uint256));
-        // 0 = pausing
-        // 1 = unpausing
-        return (opCode == 0);
-    }
-
-    function decodeUpgradePayload(bytes memory payload) public pure returns (address) {
-        (address implementationAddress) = abi.decode(payload, (address));
-        return implementationAddress;
-    }
-
-    function decodeBlocklistPayload(bytes memory payload)
-        public
-        pure
-        returns (bool, address[] memory)
-    {
-        (uint256 blocklistType, address[] memory validators) =
-            abi.decode(payload, (uint256, address[]));
-        bool blocklisted = (blocklistType == 0) ? true : false;
-        return (blocklisted, validators);
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */

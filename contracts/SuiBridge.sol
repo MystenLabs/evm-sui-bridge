@@ -73,8 +73,8 @@ contract SuiBridge is
             "BridgeCommittee: message does not match type"
         );
 
-        TokenTransferPayload memory tokenTransferPayload =
-            decodeTokenTransferPayload(_message.payload);
+        Messages.TokenTransferPayload memory tokenTransferPayload =
+            Messages.decodeTokenTransferPayload(_message.payload);
 
         _transferTokensFromVault(
             tokenTransferPayload.tokenType,
@@ -113,7 +113,7 @@ contract SuiBridge is
             "BridgeCommittee: message does not match type"
         );
 
-        bool isFreezing = decodeEmergencyOpPayload(_message.payload);
+        bool isFreezing = Messages.decodeEmergencyOpPayload(_message.payload);
         if (isFreezing) _pause();
         else _unpause();
 
@@ -148,7 +148,7 @@ contract SuiBridge is
         );
 
         // decode the upgrade payload
-        address implementationAddress = decodeUpgradePayload(_message.payload);
+        address implementationAddress = Messages.decodeUpgradePayload(_message.payload);
 
         // update the upgrade
         _upgradeBridge(implementationAddress);
@@ -212,32 +212,6 @@ contract SuiBridge is
         emit TokensBridgedToSui(
             Messages.ETH, amount, targetAddress, destinationChainId, bridgeNonce
             );
-    }
-
-    /* ========== VIEW FUNCTIONS ========== */
-
-    function decodeTokenTransferPayload(bytes memory payload)
-        public
-        pure
-        returns (TokenTransferPayload memory)
-    {
-        (TokenTransferPayload memory tokenTransferPayload) =
-            abi.decode(payload, (TokenTransferPayload));
-
-        return tokenTransferPayload;
-    }
-
-    function decodeEmergencyOpPayload(bytes memory payload) public pure returns (bool) {
-        (uint256 emergencyOpCode) = abi.decode(payload, (uint256));
-        require(emergencyOpCode <= 1, "SuiBridge: Invalid op code");
-
-        if (emergencyOpCode == 0) return true;
-        else if (emergencyOpCode == 1) return false;
-    }
-
-    function decodeUpgradePayload(bytes memory payload) public pure returns (address) {
-        (address implementationAddress) = abi.decode(payload, (address));
-        return implementationAddress;
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
