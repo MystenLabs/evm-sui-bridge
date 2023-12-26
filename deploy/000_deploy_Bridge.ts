@@ -8,28 +8,12 @@ const func: DeployFunction = async function (
   let { ethers, deployments } = hardhat;
   const [owner] = await ethers.getSigners();
 
-  // deploy Messages Library contract
-  let messagesAddress = (await deployments.getOrNull("Messages"))?.address;
-  if (!messagesAddress) {
-    messagesAddress = (
-      await deployments.deploy("Messages", {
-        from: owner.address,
-        args: [],
-      })
-    ).address;
-  }
-
   // deploy Bridge Committee
   let bridgeCommitteeAddress = (await deployments.getOrNull("BridgeCommittee"))
     ?.address;
   if (!bridgeCommitteeAddress) {
     // TODO: get deployment args from a provided config file
     let bridgeCommitteeArgs = [[], []];
-    let factory = await ethers.getContractFactory("BridgeCommittee", {
-      libraries: {
-        Messages: messagesAddress,
-      },
-    });
     bridgeCommitteeAddress = await deployProxyAndSave(
       "BridgeCommittee",
       bridgeCommitteeArgs,
@@ -39,10 +23,10 @@ const func: DeployFunction = async function (
   }
 
   // deploy vault
-  let vaultAddress = (await deployments.getOrNull("Vault"))?.address;
+  let vaultAddress = (await deployments.getOrNull("BridgeVault"))?.address;
   if (!vaultAddress) {
     vaultAddress = (
-      await deployments.deploy("Vault", {
+      await deployments.deploy("BridgeVault", {
         from: owner.address,
         args: [],
       })
@@ -50,13 +34,13 @@ const func: DeployFunction = async function (
   }
 
   // deploy Sui Bridge
-  let bridgeAddress = (await deployments.getOrNull("Bridge"))?.address;
+  let bridgeAddress = (await deployments.getOrNull("SuiBridge"))?.address;
   if (!bridgeAddress) {
     // TODO: get deployment args from a provided config file
     const supportedTokens = [];
     const wETH = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1";
     bridgeCommitteeAddress = await deployProxyAndSave(
-      "BridgeCommittee",
+      "SuiBridge",
       [supportedTokens, bridgeCommitteeAddress, vaultAddress, wETH],
       hardhat,
       { kind: "uups" }

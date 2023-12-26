@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "scripts": {
     "chain": "yarn hardhat node --network hardhat --no-deploy",
+    "deploy": "yarn hardhat deploy --write true",
     "test": "forge test",
     "coverage": "forge coverage --report lcov",
     "compile": "yarn hardhat compile",

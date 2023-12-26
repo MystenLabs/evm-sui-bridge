@@ -28,7 +28,7 @@ library Messages {
         bytes payload;
     }
 
-    function decodeMessage(bytes memory message) public pure returns (Message memory) {
+    function decodeMessage(bytes memory message) internal pure returns (Message memory) {
         // Check that the message is not empty
         require(message.length > 0, "Empty message");
 

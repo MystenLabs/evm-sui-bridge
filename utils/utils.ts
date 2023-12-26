@@ -1,15 +1,25 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeploymentSubmission } from "hardhat-deploy/dist/types";
 import { DeployProxyOptions } from "@openzeppelin/hardhat-upgrades/dist/utils/options";
-import { ContractFactory, ethers } from "ethers";
+import { ethers } from "ethers";
 
 export const deployProxyAndSave = async (
   name: string,
-  factory: ContractFactory,
   args: any,
   hardhat: HardhatRuntimeEnvironment,
   deployOptions?: DeployProxyOptions
 ): Promise<string> => {
+  return await deployProxyAndSaveAs(name, name, args, hardhat, deployOptions);
+};
+
+export const deployProxyAndSaveAs = async (
+  factoryName: string,
+  name: string,
+  args: any,
+  hardhat: HardhatRuntimeEnvironment,
+  deployOptions?: DeployProxyOptions
+): Promise<string> => {
+  const contractFactory = await hardhat.ethers.getContractFactory(factoryName);
   let deployment = await hardhat.deployments.getOrNull(name);
 
   if (deployment) {
@@ -20,7 +30,7 @@ export const deployProxyAndSave = async (
   let abi = (await hardhat.artifacts.readArtifact(name)).abi;
 
   let contract = await hardhat.upgrades.deployProxy(
-    factory,
+    contractFactory,
     args,
     deployOptions
   );
