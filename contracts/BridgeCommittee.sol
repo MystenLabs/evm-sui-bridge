@@ -1,72 +1,124 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./interfaces/ISuiBridge.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "./interfaces/IBridgeCommittee.sol";
+import "./utils/Messages.sol";
 
-contract BridgeCommittee {
-    /* ========== TYPES ========== */
-
-    uint256 public constant TOKEN_TRANSFER = 0;
-    uint256 public constant BLOCKLIST = 1;
-    uint256 public constant EMERGENCY_OP = 2;
-    uint256 public constant BRIDGE_UPGRADE = 3;
-    uint256 public constant BRIDGE_OWNERSHIP = 4;
-
+contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
-    // address of the bridge contract
-    ISuiBridge public bridge;
     // member address => stake amount
     mapping(address => uint256) public committee;
     // member address => is blocklisted
     mapping(address => bool) public blocklist;
-    // message hash => approved
-    mapping(bytes32 => bool) public messageApproved;
     // message type => required amount of approval stake
-    mapping(uint256 => uint256) public requiredApproval;
+    mapping(uint256 => uint256) public requiredApprovalStake;
+
+    mapping(bytes32 => bool) public messageProcessed;
+
+    /* ========== CONSTANTS ========== */
+
+    uint256 public constant CHAIN_ID = 1;
+    uint256 public constant DEFAULT_STAKE_REQUIRED = 5001;
 
     /* ========== CONSTRUCTOR ========== */
 
     /// @notice Initializes the contract with the deployer as the admin.
     /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
-    constructor(address[] memory _committee, uint256[] memory stake, address _bridge) {
+    function initialize(address[] memory _committee, uint256[] memory stake) external initializer {
+        __UUPSUpgradeable_init();
         for (uint256 i = 0; i < _committee.length; i++) {
             committee[_committee[i]] = stake[i];
         }
-        bridge = ISuiBridge(_bridge);
-        // TOKEN_TRANSFER = 3334
-        requiredApproval[TOKEN_TRANSFER] = 3334;
-        // BLOCKLIST = 5001
-        requiredApproval[BLOCKLIST] = 5001;
-        // EMERGENCY_OP (pausing) = 450
-        requiredApproval[EMERGENCY_OP] = 450;
-        // BRIDGE_UPGRADE = 5001
-        requiredApproval[BRIDGE_UPGRADE] = 5001;
-        // BRIDGE_OWNERSHIP = 5001
-        requiredApproval[BRIDGE_OWNERSHIP] = 5001;
+        requiredApprovalStake[Messages.TOKEN_TRANSFER] = 3334;
+        requiredApprovalStake[Messages.BLOCKLIST] = 5001;
+        requiredApprovalStake[Messages.EMERGENCY_OP] = 450;
+        requiredApprovalStake[Messages.BRIDGE_UPGRADE] = 5001;
+        requiredApprovalStake[Messages.COMMITTEE_UPGRADE] = 5001;
     }
 
-    /* ========== MUTATIVE FUNCTIONS ========== */
+    /* ========== EXTERNAL FUNCTIONS ========== */
 
-    function submitMessageWithSignatures(bytes memory signatures, bytes memory message) external {
+    function updateBlocklistWithSignatures(bytes memory signatures, bytes memory message)
+        external
+    {
+        Messages.Message memory _message = Messages.decodeMessage(message);
+
+        // verify message type
+        require(
+            _message.messageType == Messages.BLOCKLIST,
+            "BridgeCommittee: message does not match type"
+        );
+
+        // verify signatures
+        require(verifyMessageSignatures(signatures, message), "BridgeCommittee: Invalid signatures");
+
+        // decode the blocklist payload
+        (bool isBlocklisted, address[] memory _blocklist) = decodeBlocklistPayload(_message.payload);
+
+        // update the blocklist
+        _updateBlocklist(_blocklist, isBlocklisted);
+
+        // TODO: emit event
+
+        // mark message as processed
+        messageProcessed[Messages.getHash(message)] = true;
+    }
+
+    function upgradeCommitteeWithSignatures(bytes memory signatures, bytes memory message)
+        external
+    {
+        Messages.Message memory _message = Messages.decodeMessage(message);
+
+        // verify message type
+        require(
+            _message.messageType == Messages.COMMITTEE_UPGRADE,
+            "BridgeCommittee: message does not match type"
+        );
+
+        // verify signatures
+        require(verifyMessageSignatures(signatures, message), "BridgeCommittee: Invalid signatures");
+
+        // decode the upgrade payload
+        address implementationAddress = decodeUpgradePayload(_message.payload);
+
+        // update the upgrade
+        _upgradeCommittee(implementationAddress);
+
+        // TODO: emit event
+
+        // mark message as processed
+        messageProcessed[Messages.getHash(message)] = true;
+    }
+
+    /* ========== VIEW FUNCTIONS ========== */
+
+    function verifyMessageSignatures(bytes memory signatures, bytes memory message)
+        public
+        view
+        override
+        returns (bool)
+    {
+        // reconstruct the message in byte format
+        bytes memory messageBytes = abi.encode(message);
         // Prepare the message hash
-        bytes32 messageHash = getMessageHash(message);
-        // Check that the message has not already been approved
-        require(messageApproved[messageHash], "BridgeCommittee: Message already approved");
+        bytes32 messageHash = Messages.getHash(messageBytes);
+        // Check that the message has not already been processed
+        require(messageProcessed[messageHash], "BridgeCommittee: Message already processed");
 
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("SUI_NATIVE_BRIDGE", messageHash));
+        bytes32 suiSignedMessageHash = keccak256(abi.encodePacked("SUI_NATIVE_BRIDGE", message));
 
         // Loop over the signatures and check if they are valid
         uint256 approvalStake;
         address signer;
-        uint256 signatureSize = 65;
-        for (uint256 i = 0; i < signatures.length; i += signatureSize) {
+        for (uint256 i = 0; i < signatures.length; i += Messages.SIGNATURE_SIZE) {
             // Extract R, S, and V components from the signature
-            bytes memory signature = extractSignature(signatures, i, signatureSize);
+            bytes memory signature = extractSignature(signatures, i, Messages.SIGNATURE_SIZE);
             (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
 
             // Recover the signer address
-            signer = ecrecover(ethSignedMessageHash, v, r, s);
+            signer = ecrecover(suiSignedMessageHash, v, r, s);
 
             // Check if the signer is a committee member and not already approved
             require(committee[signer] > 0, "BridgeCommittee: Not a committee member");
@@ -77,120 +129,70 @@ contract BridgeCommittee {
             approvalStake += committee[signer];
         }
 
-        if (checkMessageApproval(message, approvalStake)) {
-            // approve message
-            messageApproved[getMessageHash(message)] = true;
-            _processMessage(message);
-        }
+        return verifyMessageApprovalStake(message, approvalStake);
     }
 
-    function _processMessage(bytes memory message) private {
-        uint256 messageType = decodeMessageType(message);
-
-        if (messageType == BLOCKLIST) {
-            (address[] memory validators, bool blocklisted) = decodeBlocklistMessage(message);
-            _updateBlocklist(validators, blocklisted);
-        } else if (messageType == BRIDGE_UPGRADE) {
-            address upgradeImplementation = decodeBridgeUpgradeMessage(message);
-            _upgrade(upgradeImplementation);
-        } else if (messageType == BRIDGE_OWNERSHIP) {
-            address newOwner = decodeBridgeOwnershipMessage(message);
-            _transferBridgeOwnership(newOwner);
-        } else {
-            // if the message type is not for the committee, submit it to the bridge
-            bridge.submitMessage(message);
-        }
-        emit MessageProcessed(message);
-    }
-
-    // TODO: going to need to test this method of upgrading
-    // note: upgrading this way will not enable initialization using "upgradeToAndCall". explore more
-    function _upgrade(address upgradeImplementation) internal returns (bool, bytes memory) {
-        return address(bridge).call(
-            abi.encodeWithSignature("upgradeTo(address)", upgradeImplementation)
-        );
-    }
-
-    function _transferBridgeOwnership(address newOwner) internal {
-        bridge.transferOwnership(newOwner);
-    }
-
-    function _updateBlocklist(address[] memory _blocklist, bool isBlocklisted) internal {
-        for (uint256 i = 0; i < _blocklist.length; i++) {
-            blocklist[_blocklist[i]] = isBlocklisted;
-        }
-    }
-
-    /* ========== VIEW FUNCTIONS ========== */
-
-    function checkMessageApproval(bytes memory message, uint256 approvalStake)
+    function verifyMessageApprovalStake(bytes memory message, uint256 approvalStake)
         public
         view
         returns (bool)
     {
-        // Get the message type from the message hash.
-        uint256 messageType = decodeMessageType(message);
+        // TODO: Lu pointed out that it seems redundant to decode the message twice... explore alternatives
+        Messages.Message memory _message = Messages.decodeMessage(message);
         // Get the required stake for the message type
-        uint256 requiredStake = requiredApproval[messageType];
-        if (messageType == EMERGENCY_OP) {
+        uint256 requiredStake = requiredApprovalStake[_message.messageType];
+        if (_message.messageType == Messages.EMERGENCY_OP) {
             // decode the emergency op message
-            bool isPausing = decodeEmergencyOpMessage(message);
-            // if the message is to unpause the bridge, use the upgrade stake requirement
-            if (!isPausing) requiredStake = requiredApproval[BRIDGE_UPGRADE];
+            bool isPausing = decodeEmergencyOpPayload(message);
+            // if the message is to unpause the bridge, use the default stake requirement
+            if (!isPausing) requiredStake = requiredApprovalStake[DEFAULT_STAKE_REQUIRED];
         }
         // Compare the approval stake with the required stake and return the result
         return approvalStake >= requiredStake;
     }
 
-    function decodeMessageType(bytes memory message) public pure returns (uint256) {
-        // Check that the message is not empty
-        require(message.length > 0, "Empty message");
-
-        // decode nonce, version, and type from message
-        (uint256 nonce, uint256 version, uint256 messageType, bytes memory payload) =
-            abi.decode(message, (uint256, uint256, uint256, bytes));
-
-        return (messageType);
-    }
-
-    function decodeEmergencyOpMessage(bytes memory message) public pure returns (bool) {
-        (uint256 nonce, uint256 version, uint256 messageType, uint256 opCode) =
-            abi.decode(message, (uint256, uint256, uint256, uint256));
+    // TODO: code redundancy. may want to move to library?
+    function decodeEmergencyOpPayload(bytes memory payload) public pure returns (bool) {
+        (uint256 opCode) = abi.decode(payload, (uint256));
         // 0 = pausing
         // 1 = unpausing
         return (opCode == 0);
     }
 
-    function decodeBridgeUpgradeMessage(bytes memory message) public pure returns (address) {
-        (uint256 nonce, uint256 version, uint256 messageType, address implementationAddress) =
-            abi.decode(message, (uint256, uint256, uint256, address));
+    function decodeUpgradePayload(bytes memory payload) public pure returns (address) {
+        (address implementationAddress) = abi.decode(payload, (address));
         return implementationAddress;
     }
 
-    function decodeBridgeOwnershipMessage(bytes memory message) public pure returns (address) {
-        (uint256 nonce, uint256 version, uint256 messageType, address newOwner) =
-            abi.decode(message, (uint256, uint256, uint256, address));
-        return newOwner;
-    }
-
-    function decodeBlocklistMessage(bytes memory message)
+    function decodeBlocklistPayload(bytes memory payload)
         public
         pure
-        returns (address[] memory, bool)
+        returns (bool, address[] memory)
     {
-        // [message_type: u8][version:u8][nonce:u64][blocklist_type: u8][validator_pub_keys: byte[][]]
-        (
-            uint256 nonce,
-            uint256 version,
-            uint256 messageType,
-            uint256 blocklistType,
-            address[] memory validators
-        ) = abi.decode(message, (uint256, uint256, uint256, uint256, address[]));
+        (uint256 blocklistType, address[] memory validators) =
+            abi.decode(payload, (uint256, address[]));
         bool blocklisted = (blocklistType == 0) ? true : false;
-        return (validators, blocklisted);
+        return (blocklisted, validators);
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
+
+    // TODO: test this method of "self upgrading"
+    // note: upgrading this way will not enable initialization using "upgradeToAndCall". explore alternatives
+    function _upgradeCommittee(address upgradeImplementation)
+        internal
+        returns (bool, bytes memory)
+    {
+        return
+            address(this).call(abi.encodeWithSignature("upgradeTo(address)", upgradeImplementation));
+    }
+
+    function _updateBlocklist(address[] memory _blocklist, bool isBlocklisted) internal {
+        // check original blocklist value of each validator
+        for (uint256 i = 0; i < _blocklist.length; i++) {
+            blocklist[_blocklist[i]] = isBlocklisted;
+        }
+    }
 
     // Helper function to extract a signature from the array
     function extractSignature(bytes memory signatures, uint256 index, uint256 size)
@@ -198,6 +200,9 @@ contract BridgeCommittee {
         pure
         returns (bytes memory)
     {
+        require(
+            index + size <= signatures.length, "BridgeCommittee: extractSignatures is out of bounds"
+        );
         bytes memory signature = new bytes(size);
         for (uint256 i = 0; i < size; i++) {
             signature[i] = signatures[index + i];
@@ -222,10 +227,6 @@ contract BridgeCommittee {
             // final byte (first byte of the next 32 bytes)
             v := byte(0, mload(add(sig, 96)))
         }
-    }
-
-    function getMessageHash(bytes memory message) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(message));
     }
 
     // TODO: explore alternatives (OZ may have something)
@@ -291,6 +292,11 @@ contract BridgeCommittee {
         }
 
         return tempBytes;
+    }
+
+    // TODO:
+    function _authorizeUpgrade(address newImplementation) internal override {
+        // TODO: implement so only committee members can upgrade
     }
 
     /* ========== EVENTS ========== */

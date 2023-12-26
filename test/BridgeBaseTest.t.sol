@@ -37,15 +37,6 @@ contract BridgeBaseTest is Test {
         vm.deal(committeeMemberD, 1 ether);
         deployer = address(1);
         vm.startPrank(deployer);
-        vault = new BridgeVault();
-        address[] memory _supportedTokens = new address[](4);
-        _supportedTokens[0] = wBTC;
-        _supportedTokens[1] = wETH;
-        _supportedTokens[2] = USDC;
-        _supportedTokens[3] = USDT;
-        bridge = new SuiBridge();
-        bridge.initialize(_supportedTokens, address(vault), wETH);
-        vault.transferOwnership(address(bridge));
         address[] memory _committee = new address[](4);
         uint256[] memory _stake = new uint256[](4);
         _committee[0] = committeeMemberA;
@@ -56,7 +47,17 @@ contract BridgeBaseTest is Test {
         _stake[1] = 1000;
         _stake[2] = 1000;
         _stake[3] = 2000;
-        committee = new BridgeCommittee(_committee, _stake, address(bridge));
+        committee = new BridgeCommittee();
+        committee.initialize(_committee, _stake);
+        vault = new BridgeVault();
+        address[] memory _supportedTokens = new address[](4);
+        _supportedTokens[0] = wBTC;
+        _supportedTokens[1] = wETH;
+        _supportedTokens[2] = USDC;
+        _supportedTokens[3] = USDT;
+        bridge = new SuiBridge();
+        bridge.initialize(_supportedTokens, address(committee), address(vault), wETH);
+        vault.transferOwnership(address(bridge));
     }
 
     function test() public {}

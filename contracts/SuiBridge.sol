@@ -1,74 +1,163 @@
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./interfaces/IWETH9.sol";
 import "./interfaces/IBridgeVault.sol";
+import "./interfaces/IBridgeCommittee.sol";
 import "./interfaces/ISuiBridge.sol";
+import "./utils/Messages.sol";
 
 contract SuiBridge is
     ISuiBridge,
-    OwnableUpgradeable,
     PausableUpgradeable,
-    ReentrancyGuardUpgradeable
+    ReentrancyGuardUpgradeable,
+    UUPSUpgradeable
 {
     using SafeMath for uint256;
 
+    IBridgeCommittee public committee;
     IBridgeVault public vault;
     IWETH9 public weth9;
 
-    // message type => nonce
+    // messageHash => processed
+    mapping(bytes32 => bool) public messageProcessed;
+    // messageType => nonce
     mapping(uint256 => uint256) public nonces;
 
-    // TODO: combine message types into one spot somehow?
-    uint256 public constant TOKEN_TRANSFER = 0;
-    uint256 public constant EMERGENCY_OP = 2;
-
-    // tokenIds
-    uint256 public constant SUI = 0;
-    uint256 public constant BTC = 1;
-    uint256 public constant ETH = 2;
-    uint256 public constant USDC = 3;
-    uint256 public constant USDT = 4;
+    uint256 public bridgeNonce;
 
     address[] public supportedTokens;
 
-    function initialize(address[] memory _supportedTokens, address _vault, address _weth9)
-        external
-        initializer
-    {
-        __Ownable_init();
+    function initialize(
+        address[] memory _supportedTokens,
+        address _committee,
+        address _vault,
+        address _weth9
+    ) external initializer {
         __ReentrancyGuard_init();
         __Pausable_init();
+        __UUPSUpgradeable_init();
         supportedTokens = _supportedTokens;
+        committee = IBridgeCommittee(_committee);
         vault = IBridgeVault(_vault);
         weth9 = IWETH9(_weth9);
     }
 
-    function submitMessage(bytes memory message) external override onlyOwner nonReentrant {
-        // Decode the message
-        (uint256 nonce, uint256 version, uint256 messageType, bytes memory payload) =
-            abi.decode(message, (uint256, uint256, uint256, bytes));
+    /* ========== EXTERNAL FUNCTIONS ========== */
 
-        // Decode the payload depending on the message type
-        if (messageType == TOKEN_TRANSFER) {
-            _processTokenTransferMessage(payload);
-        } else if (messageType == EMERGENCY_OP) {
-            _processEmergencyOpMessage(payload);
-        } else {
-            revert("Invalid message type");
-        }
+    function transferTokensWithSignatures(bytes memory signatures, bytes memory message)
+        external
+        nonReentrant
+    {
+        Messages.Message memory _message = Messages.decodeMessage(message);
+
+        // get message hash
+        bytes32 messageHash = Messages.getHash(message);
+
+        // verify signatures
+        require(
+            committee.verifyMessageSignatures(signatures, message),
+            "BridgeCommittee: Invalid signatures"
+        );
+
+        // verify that message has not been processed
+        require(!messageProcessed[messageHash], "BridgeCommittee: Message already processed");
+
+        // verify message type
+        require(
+            _message.messageType == Messages.TOKEN_TRANSFER,
+            "BridgeCommittee: message does not match type"
+        );
+
+        TokenTransferPayload memory tokenTransferPayload =
+            decodeTokenTransferPayload(_message.payload);
+
+        _transferTokensFromVault(
+            tokenTransferPayload.tokenType,
+            tokenTransferPayload.targetAddress,
+            tokenTransferPayload.amount
+        );
+
+        // mark message as processed
+        messageProcessed[messageHash] = true;
     }
 
-    function transferOwnership(address newOwner)
-        public
-        override(ISuiBridge, OwnableUpgradeable)
-        onlyOwner
+    function executeEmergencyOpWithSignatures(bytes memory signatures, bytes memory message)
+        external
+        nonReentrant
     {
-        OwnableUpgradeable._transferOwnership(newOwner);
+        Messages.Message memory _message = Messages.decodeMessage(message);
+
+        // get message hash
+        bytes32 messageHash = Messages.getHash(message);
+
+        // verify message type nonce
+        require(_message.nonce == nonces[_message.messageType], "BridgeCommittee: Invalid nonce");
+
+        // verify signatures
+        require(
+            committee.verifyMessageSignatures(signatures, message),
+            "BridgeCommittee: Invalid signatures"
+        );
+
+        // verify that message has not been processed
+        require(!messageProcessed[messageHash], "BridgeCommittee: Message already processed");
+
+        // verify message type
+        require(
+            _message.messageType == Messages.EMERGENCY_OP,
+            "BridgeCommittee: message does not match type"
+        );
+
+        bool isFreezing = decodeEmergencyOpPayload(_message.payload);
+        if (isFreezing) _pause();
+        else _unpause();
+
+        // mark message as processed
+        messageProcessed[messageHash] = true;
+
+        // increment message type nonce
+        nonces[_message.messageType]++;
+    }
+
+    function upgradeBridgeWithSignatures(bytes memory signatures, bytes memory message) external {
+        Messages.Message memory _message = Messages.decodeMessage(message);
+
+        // get message hash
+        bytes32 messageHash = Messages.getHash(message);
+
+        // verify message type nonce
+        require(_message.nonce == nonces[_message.messageType], "BridgeCommittee: Invalid nonce");
+
+        // verify signatures
+        require(
+            committee.verifyMessageSignatures(signatures, message), "SuiBridge: Invalid signatures"
+        );
+
+        // verify that message has not been processed
+        require(!messageProcessed[messageHash], "BridgeCommittee: Message already processed");
+
+        // verify message type
+        require(
+            _message.messageType == Messages.COMMITTEE_UPGRADE,
+            "SuiBridge: message does not match type"
+        );
+
+        // decode the upgrade payload
+        address implementationAddress = decodeUpgradePayload(_message.payload);
+
+        // update the upgrade
+        _upgradeBridge(implementationAddress);
+
+        // mark message as processed
+        messageProcessed[messageHash] = true;
+
+        // increment message type nonce
+        nonces[_message.messageType]++;
     }
 
     function bridgeToSui(
@@ -76,12 +165,12 @@ contract SuiBridge is
         uint256 amount,
         bytes memory targetAddress,
         uint256 destinationChainId
-    ) public whenNotPaused {
+    ) external whenNotPaused nonReentrant {
         // Round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
         amount = amount.div(10 ** 10).mul(10 ** 10);
 
         // Check that the token address is supported (but not sui yet)
-        require(tokenId > SUI && tokenId <= USDT, "SuiBridge: Unsupported token");
+        require(tokenId > Messages.SUI && tokenId <= Messages.USDT, "SuiBridge: Unsupported token");
 
         address tokenAddress = supportedTokens[tokenId - 1];
 
@@ -94,18 +183,17 @@ contract SuiBridge is
         // Transfer the tokens from the contract to the vault
         IERC20(tokenAddress).transferFrom(msg.sender, address(vault), amount);
 
-        // increment token transfer nonce
-        nonces[TOKEN_TRANSFER]++;
+        // increment bridge nonce
+        bridgeNonce++;
 
-        emit TokensBridgedToSui(
-            tokenId, amount, targetAddress, destinationChainId, nonces[TOKEN_TRANSFER]
-            );
+        emit TokensBridgedToSui(tokenId, amount, targetAddress, destinationChainId, bridgeNonce);
     }
 
     function bridgeETHToSui(bytes memory targetAddress, uint256 destinationChainId)
         external
         payable
         whenNotPaused
+        nonReentrant
     {
         // Round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
         // Divide by 10^10 to remove the last 10 decimals. Multiply by 10^10 to restore the 18 decimals
@@ -118,53 +206,46 @@ contract SuiBridge is
         // Transfer the wrapped ETH back to caller
         weth9.transfer(address(vault), amount);
 
-        // increment token transfer nonce
-        nonces[TOKEN_TRANSFER]++;
+        // increment bridge nonce
+        bridgeNonce++;
 
         emit TokensBridgedToSui(
-            ETH, amount, targetAddress, destinationChainId, nonces[TOKEN_TRANSFER]
+            Messages.ETH, amount, targetAddress, destinationChainId, bridgeNonce
             );
     }
 
-    function _processTokenTransferMessage(bytes memory message) internal whenNotPaused {
-        // Decode the message
-        // TODO: this is causing a "Stack Too Deep" error. Need to refactor
-        // https://soliditydeveloper.com/stacktoodeep
-        (
-            uint256 nonce,
-            uint256 version,
-            uint256 messageType,
-            uint256 sourceChain,
-            uint256 sourceChainTxIdLength,
-            uint256 sourceChainTxId,
-            uint256 sourceChainEventIndex,
-            uint256 senderAddressLength,
-            bytes memory senderAddress,
-            uint256 targetChain,
-            uint256 targetAddressLength,
-            address targetAddress,
-            uint256 tokenType,
-            uint256 amount
-        ) = abi.decode(
-            message,
-            (
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                uint256,
-                bytes,
-                uint256,
-                uint256,
-                address,
-                uint256,
-                uint256
-            )
-        );
+    /* ========== VIEW FUNCTIONS ========== */
 
+    function decodeTokenTransferPayload(bytes memory payload)
+        public
+        pure
+        returns (TokenTransferPayload memory)
+    {
+        (TokenTransferPayload memory tokenTransferPayload) =
+            abi.decode(payload, (TokenTransferPayload));
+
+        return tokenTransferPayload;
+    }
+
+    function decodeEmergencyOpPayload(bytes memory payload) public pure returns (bool) {
+        (uint256 emergencyOpCode) = abi.decode(payload, (uint256));
+        require(emergencyOpCode <= 1, "SuiBridge: Invalid op code");
+
+        if (emergencyOpCode == 0) return true;
+        else if (emergencyOpCode == 1) return false;
+    }
+
+    function decodeUpgradePayload(bytes memory payload) public pure returns (address) {
+        (address implementationAddress) = abi.decode(payload, (address));
+        return implementationAddress;
+    }
+
+    /* ========== INTERNAL FUNCTIONS ========== */
+
+    function _transferTokensFromVault(uint256 tokenType, address targetAddress, uint256 amount)
+        internal
+        whenNotPaused
+    {
         address tokenAddress = supportedTokens[tokenType];
 
         // Check that the token address is supported
@@ -172,27 +253,17 @@ contract SuiBridge is
 
         // transfer tokens from vault to target address
         vault.transferERC20(tokenAddress, targetAddress, amount);
-
-        // increment token transfer nonce
-        nonces[TOKEN_TRANSFER]++;
     }
 
-    function _processEmergencyOpMessage(bytes memory message) internal {
-        (uint256 emergencyOpCode) = abi.decode(message, (uint256));
-
-        if (emergencyOpCode == 0) _freezeVault();
-        else if (emergencyOpCode == 1) _unfreezeVault();
-        else revert("SuiBridge: Invalid op code");
-
-        // increment emergency op nonce
-        nonces[EMERGENCY_OP]++;
+    // TODO: test this method of "self upgrading"
+    // note: upgrading this way will not enable initialization using "upgradeToAndCall". explore more
+    function _upgradeBridge(address upgradeImplementation) internal returns (bool, bytes memory) {
+        return
+            address(this).call(abi.encodeWithSignature("upgradeTo(address)", upgradeImplementation));
     }
 
-    function _freezeVault() internal {
-        _pause();
-    }
-
-    function _unfreezeVault() internal {
-        _unpause();
+    // TODO:
+    function _authorizeUpgrade(address newImplementation) internal override {
+        // TODO: implement so only committee members can upgrade
     }
 }

@@ -10,13 +10,15 @@ contract SuiBridgeTest is BridgeBaseTest {
     }
 
     function testSuiBridgeInitialization() public {
-        // TODO: test rest of committee state initialization
+        // TODO: test bridge initialization
     }
 
     // TESTS:
-    // - testSubmitTokenTransferMessage
-    // - testFreezeBridgeMessage
-    // - testUnfreezeBridgeMessage
+    // - testTransferTokensWithValidSignatures
+    // - testTransferTokensWithInvalidSignatures
+    // - testFreezeBridgeEmergencyOp
+    // - testUnfreezeBridgeEmergencyOp
     // - testBridgeToSui
     // - testBridgeEthToSui
+    // - testUpgradeBridge
 }
