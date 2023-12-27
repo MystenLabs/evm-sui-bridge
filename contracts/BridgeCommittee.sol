@@ -5,6 +5,9 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IBridgeCommittee.sol";
 import "./utils/Messages.sol";
 
+// TODO: remove (ref: https://book.getfoundry.sh/reference/forge-std/console-log)
+import "forge-std/Test.sol";
+
 contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     /* ========== CONSTANTS ========== */
 
@@ -33,7 +36,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
-    function updateBlocklistWithSignatures(bytes memory signatures, bytes memory message)
+    function updateBlocklistWithSignatures(bytes[] memory signatures, bytes memory message)
         external
     {
         Messages.Message memory _message = Messages.decodeMessage(message);
@@ -66,7 +69,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         // TODO: emit event
     }
 
-    function upgradeCommitteeWithSignatures(bytes memory signatures, bytes memory message)
+    function upgradeCommitteeWithSignatures(bytes[] memory signatures, bytes memory message)
         external
     {
         Messages.Message memory _message = Messages.decodeMessage(message);
@@ -101,22 +104,23 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     /* ========== VIEW FUNCTIONS ========== */
 
     function verifyMessageSignatures(
-        bytes memory signatures, // Why is this a bytes and not a bytes[]?
-        bytes memory message, // Why is this a bytes and not a Message?
-        uint256 requiredStake // Is it a good idea to have this as a parameter?
+        bytes[] memory signatures,
+        bytes memory message,
+        uint256 requiredStake
     ) public view override returns (bool) {
-        bytes32 suiSignedMessageHash = keccak256(abi.encodePacked("SUI_NATIVE_BRIDGE", message));
+        // TODO: make sure this works
+        bytes32 suiSignedMessage = keccak256(abi.encodePacked("SUI_NATIVE_BRIDGE", message));
 
         // Loop over the signatures and check if they are valid
         uint256 approvalStake;
         address signer;
-        for (uint256 i = 0; i < signatures.length; i += Messages.SIGNATURE_SIZE) {
+        for (uint256 i = 0; i < signatures.length; i++) {
+            bytes memory signature = signatures[i];
             // Extract R, S, and V components from the signature
-            bytes memory signature = extractSignature(signatures, i, Messages.SIGNATURE_SIZE);
             (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
 
             // Recover the signer address
-            signer = ecrecover(suiSignedMessageHash, v, r, s);
+            signer = ecrecover(suiSignedMessage, v, r, s);
 
             // Check if the signer is a committee member and not already approved
             require(committee[signer] > 0, "BridgeCommittee: Not a committee member");
@@ -151,22 +155,6 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         returns (bool, bytes memory)
     {
         // return upgradeTo(upgradeImplementation);
-    }
-
-    // Helper function to extract a signature from the array
-    function extractSignature(bytes memory signatures, uint256 index, uint256 size)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        require(
-            index + size <= signatures.length, "BridgeCommittee: extractSignatures is out of bounds"
-        );
-        bytes memory signature = new bytes(size);
-        for (uint256 i = 0; i < size; i++) {
-            signature[i] = signatures[index + i];
-        }
-        return signature;
     }
 
     // TODO: see if can pull from OpenZeppelin

@@ -62,7 +62,7 @@ contract SuiBridge is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
-    function transferTokensWithSignatures(bytes memory signatures, bytes memory message)
+    function transferTokensWithSignatures(bytes[] memory signatures, bytes memory message)
         external
         nonReentrant
     {
@@ -96,7 +96,7 @@ contract SuiBridge is
         messageProcessed[_message.nonce] = true;
     }
 
-    function executeEmergencyOpWithSignatures(bytes memory signatures, bytes memory message)
+    function executeEmergencyOpWithSignatures(bytes[] memory signatures, bytes memory message)
         external
         nonReentrant
     {
@@ -132,7 +132,9 @@ contract SuiBridge is
         nonces[Messages.EMERGENCY_OP]++;
     }
 
-    function upgradeBridgeWithSignatures(bytes memory signatures, bytes memory message) external {
+    function upgradeBridgeWithSignatures(bytes[] memory signatures, bytes memory message)
+        external
+    {
         Messages.Message memory _message = Messages.decodeMessage(message);
 
         // verify message type nonce
