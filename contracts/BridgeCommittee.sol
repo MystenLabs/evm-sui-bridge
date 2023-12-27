@@ -14,17 +14,17 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
     // member address => stake amount
-    mapping(address => uint256) public committee;
+    mapping(address => uint16) public committee;
     // member address => is blocklisted
     mapping(address => bool) public blocklist;
     // messageType => nonce
-    mapping(uint256 => uint256) public nonces;
+    mapping(uint8 => uint64) public nonces;
 
     /* ========== INITIALIZER ========== */
 
     /// @notice Initializes the contract with the deployer as the admin.
     /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
-    function initialize(address[] memory _committee, uint256[] memory stake) external initializer {
+    function initialize(address[] memory _committee, uint16[] memory stake) external initializer {
         __UUPSUpgradeable_init();
         for (uint256 i = 0; i < _committee.length; i++) {
             committee[_committee[i]] = stake[i];
@@ -101,9 +101,9 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     /* ========== VIEW FUNCTIONS ========== */
 
     function verifyMessageSignatures(
-        bytes memory signatures,
-        bytes memory message,
-        uint256 requiredStake
+        bytes memory signatures, // Why is this a bytes and not a bytes[]?
+        bytes memory message, // Why is this a bytes and not a Message?
+        uint256 requiredStake // Is it a good idea to have this as a parameter?
     ) public view override returns (bool) {
         bytes32 suiSignedMessageHash = keccak256(abi.encodePacked("SUI_NATIVE_BRIDGE", message));
 
