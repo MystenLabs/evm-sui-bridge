@@ -7,6 +7,7 @@ interface ISuiBridge {
         uint256 amount,
         bytes targetAddress,
         uint256 destinationChainId,
+        uint256 sourceChainId,
         uint256 nonce
     );
 }

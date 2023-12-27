@@ -6,23 +6,21 @@ import "./interfaces/IBridgeCommittee.sol";
 import "./utils/Messages.sol";
 
 contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
+    /* ========== CONSTANTS ========== */
+
+    uint256 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
+    uint256 public constant COMMITTEE_UPGRADE_STAKE_REQUIRED = 5001;
+
     /* ========== STATE VARIABLES ========== */
 
     // member address => stake amount
     mapping(address => uint256) public committee;
     // member address => is blocklisted
     mapping(address => bool) public blocklist;
-    // message type => required amount of approval stake
-    mapping(uint256 => uint256) public requiredApprovalStake;
+    // messageType => nonce
+    mapping(uint256 => uint256) public nonces;
 
-    mapping(bytes32 => bool) public messageProcessed;
-
-    /* ========== CONSTANTS ========== */
-
-    uint256 public constant CHAIN_ID = 1;
-    uint256 public constant DEFAULT_STAKE_REQUIRED = 5001;
-
-    /* ========== CONSTRUCTOR ========== */
+    /* ========== INITIALIZER ========== */
 
     /// @notice Initializes the contract with the deployer as the admin.
     /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
@@ -31,11 +29,6 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         for (uint256 i = 0; i < _committee.length; i++) {
             committee[_committee[i]] = stake[i];
         }
-        requiredApprovalStake[Messages.TOKEN_TRANSFER] = 3334;
-        requiredApprovalStake[Messages.BLOCKLIST] = 5001;
-        requiredApprovalStake[Messages.EMERGENCY_OP] = 450;
-        requiredApprovalStake[Messages.BRIDGE_UPGRADE] = 5001;
-        requiredApprovalStake[Messages.COMMITTEE_UPGRADE] = 5001;
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
@@ -45,6 +38,9 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     {
         Messages.Message memory _message = Messages.decodeMessage(message);
 
+        // verify message type nonce
+        require(_message.nonce == nonces[_message.messageType], "BridgeCommittee: Invalid nonce");
+
         // verify message type
         require(
             _message.messageType == Messages.BLOCKLIST,
@@ -52,7 +48,10 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         );
 
         // verify signatures
-        require(verifyMessageSignatures(signatures, message), "BridgeCommittee: Invalid signatures");
+        require(
+            verifyMessageSignatures(signatures, message, BLOCKLIST_STAKE_REQUIRED),
+            "BridgeCommittee: Invalid signatures"
+        );
 
         // decode the blocklist payload
         (bool isBlocklisted, address[] memory _blocklist) =
@@ -61,10 +60,10 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         // update the blocklist
         _updateBlocklist(_blocklist, isBlocklisted);
 
-        // TODO: emit event
+        // increment message type nonce
+        nonces[Messages.BLOCKLIST]++;
 
-        // mark message as processed
-        messageProcessed[Messages.getHash(message)] = true;
+        // TODO: emit event
     }
 
     function upgradeCommitteeWithSignatures(bytes memory signatures, bytes memory message)
@@ -78,8 +77,14 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
             "BridgeCommittee: message does not match type"
         );
 
+        // verify message type nonce
+        require(_message.nonce == nonces[_message.messageType], "BridgeCommittee: Invalid nonce");
+
         // verify signatures
-        require(verifyMessageSignatures(signatures, message), "BridgeCommittee: Invalid signatures");
+        require(
+            verifyMessageSignatures(signatures, message, COMMITTEE_UPGRADE_STAKE_REQUIRED),
+            "BridgeCommittee: Invalid signatures"
+        );
 
         // decode the upgrade payload
         address implementationAddress = Messages.decodeUpgradePayload(_message.payload);
@@ -87,27 +92,19 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         // update the upgrade
         _upgradeCommittee(implementationAddress);
 
-        // TODO: emit event
+        // increment message type nonce
+        nonces[Messages.COMMITTEE_UPGRADE]++;
 
-        // mark message as processed
-        messageProcessed[Messages.getHash(message)] = true;
+        // TODO: emit event
     }
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    function verifyMessageSignatures(bytes memory signatures, bytes memory message)
-        public
-        view
-        override
-        returns (bool)
-    {
-        // reconstruct the message in byte format
-        bytes memory messageBytes = abi.encode(message);
-        // Prepare the message hash
-        bytes32 messageHash = Messages.getHash(messageBytes);
-        // Check that the message has not already been processed
-        require(messageProcessed[messageHash], "BridgeCommittee: Message already processed");
-
+    function verifyMessageSignatures(
+        bytes memory signatures,
+        bytes memory message,
+        uint256 requiredStake
+    ) public view override returns (bool) {
         bytes32 suiSignedMessageHash = keccak256(abi.encodePacked("SUI_NATIVE_BRIDGE", message));
 
         // Loop over the signatures and check if they are valid
@@ -130,45 +127,30 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
             approvalStake += committee[signer];
         }
 
-        return verifyMessageApprovalStake(message, approvalStake);
-    }
-
-    function verifyMessageApprovalStake(bytes memory message, uint256 approvalStake)
-        public
-        view
-        returns (bool)
-    {
-        // TODO: Lu pointed out that it seems redundant to decode the message twice... explore alternatives
-        Messages.Message memory _message = Messages.decodeMessage(message);
-        // Get the required stake for the message type
-        uint256 requiredStake = requiredApprovalStake[_message.messageType];
-        if (_message.messageType == Messages.EMERGENCY_OP) {
-            // decode the emergency op message
-            bool isPausing = Messages.decodeEmergencyOpPayload(message);
-            // if the message is to unpause the bridge, use the default stake requirement
-            if (!isPausing) requiredStake = requiredApprovalStake[DEFAULT_STAKE_REQUIRED];
-        }
-        // Compare the approval stake with the required stake and return the result
         return approvalStake >= requiredStake;
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
-
-    // TODO: test this method of "self upgrading"
-    // note: upgrading this way will not enable initialization using "upgradeToAndCall". explore alternatives
-    function _upgradeCommittee(address upgradeImplementation)
-        internal
-        returns (bool, bytes memory)
-    {
-        return
-            address(this).call(abi.encodeWithSignature("upgradeTo(address)", upgradeImplementation));
-    }
 
     function _updateBlocklist(address[] memory _blocklist, bool isBlocklisted) internal {
         // check original blocklist value of each validator
         for (uint256 i = 0; i < _blocklist.length; i++) {
             blocklist[_blocklist[i]] = isBlocklisted;
         }
+    }
+
+    // TODO:
+    function _authorizeUpgrade(address newImplementation) internal override {
+        // TODO: implement so only committee members can upgrade
+    }
+
+    // TODO: "self upgrading"
+    // note: do we want to use "upgradeToAndCall" instead?
+    function _upgradeCommittee(address upgradeImplementation)
+        internal
+        returns (bool, bytes memory)
+    {
+        // return upgradeTo(upgradeImplementation);
     }
 
     // Helper function to extract a signature from the array
@@ -269,11 +251,6 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         }
 
         return tempBytes;
-    }
-
-    // TODO:
-    function _authorizeUpgrade(address newImplementation) internal override {
-        // TODO: implement so only committee members can upgrade
     }
 
     /* ========== EVENTS ========== */

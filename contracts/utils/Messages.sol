@@ -1,6 +1,3 @@
-// TODO: thought. Updates to this library may require upgrades to both SuiBridge and BridgeCommittee contracts.
-// problematic?
-
 library Messages {
     // message Ids
     uint256 public constant TOKEN_TRANSFER = 0;
@@ -85,9 +82,5 @@ library Messages {
             abi.decode(payload, (TokenTransferPayload));
 
         return tokenTransferPayload;
-    }
-
-    function getHash(bytes memory message) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(message));
     }
 }

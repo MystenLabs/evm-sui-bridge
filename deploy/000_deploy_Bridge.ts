@@ -39,9 +39,16 @@ const func: DeployFunction = async function (
     // TODO: get deployment args from a provided config file
     const supportedTokens = [];
     const wETH = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1";
+    const sourceChainId = 0;
     bridgeCommitteeAddress = await deployProxyAndSave(
       "SuiBridge",
-      [supportedTokens, bridgeCommitteeAddress, vaultAddress, wETH],
+      [
+        supportedTokens,
+        bridgeCommitteeAddress,
+        vaultAddress,
+        wETH,
+        sourceChainId,
+      ],
       hardhat,
       { kind: "uups" }
     );

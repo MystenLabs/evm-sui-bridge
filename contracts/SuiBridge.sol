@@ -19,24 +19,36 @@ contract SuiBridge is
 {
     using SafeMath for uint256;
 
+    /* ========== CONSTANTS ========== */
+
+    uint256 public constant TRANSFER_STAKE_REQUIRED = 5001;
+    uint256 public constant FREEZING_STAKE_REQUIRED = 450;
+    uint256 public constant UNFREEZING_STAKE_REQUIRED = 5001;
+    uint256 public constant BRIDGE_UPGRADE_STAKE_REQUIRED = 5001;
+
+    /* ========== STATE VARIABLES ========== */
+
     IBridgeCommittee public committee;
     IBridgeVault public vault;
     IWETH9 public weth9;
-
-    // messageHash => processed
-    mapping(bytes32 => bool) public messageProcessed;
+    uint256 public chainId;
+    address[] public supportedTokens;
+    // message type => required amount of approval stake
+    mapping(uint256 => uint256) public requiredApprovalStake;
+    // message nonce => processed
+    mapping(uint256 => bool) public messageProcessed;
+    // TODO: check that garbage collection is not needed for this ^^
     // messageType => nonce
     mapping(uint256 => uint256) public nonces;
 
-    uint256 public bridgeNonce;
-
-    address[] public supportedTokens;
+    /* ========== INITIALIZER ========== */
 
     function initialize(
         address[] memory _supportedTokens,
         address _committee,
         address _vault,
-        address _weth9
+        address _weth9,
+        uint256 _chainId
     ) external initializer {
         __ReentrancyGuard_init();
         __Pausable_init();
@@ -45,6 +57,7 @@ contract SuiBridge is
         committee = IBridgeCommittee(_committee);
         vault = IBridgeVault(_vault);
         weth9 = IWETH9(_weth9);
+        chainId = _chainId;
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
@@ -55,22 +68,19 @@ contract SuiBridge is
     {
         Messages.Message memory _message = Messages.decodeMessage(message);
 
-        // get message hash
-        bytes32 messageHash = Messages.getHash(message);
-
-        // verify signatures
-        require(
-            committee.verifyMessageSignatures(signatures, message),
-            "BridgeCommittee: Invalid signatures"
-        );
-
-        // verify that message has not been processed
-        require(!messageProcessed[messageHash], "BridgeCommittee: Message already processed");
-
         // verify message type
         require(
             _message.messageType == Messages.TOKEN_TRANSFER,
-            "BridgeCommittee: message does not match type"
+            "SuiBridge: message does not match type"
+        );
+
+        // verify that message has not been processed
+        require(!messageProcessed[_message.nonce], "SuiBridge: Message already processed");
+
+        // verify signatures
+        require(
+            committee.verifyMessageSignatures(signatures, message, TRANSFER_STAKE_REQUIRED),
+            "SuiBridge: Invalid signatures"
         );
 
         Messages.TokenTransferPayload memory tokenTransferPayload =
@@ -83,7 +93,7 @@ contract SuiBridge is
         );
 
         // mark message as processed
-        messageProcessed[messageHash] = true;
+        messageProcessed[_message.nonce] = true;
     }
 
     function executeEmergencyOpWithSignatures(bytes memory signatures, bytes memory message)
@@ -92,59 +102,52 @@ contract SuiBridge is
     {
         Messages.Message memory _message = Messages.decodeMessage(message);
 
-        // get message hash
-        bytes32 messageHash = Messages.getHash(message);
-
         // verify message type nonce
-        require(_message.nonce == nonces[_message.messageType], "BridgeCommittee: Invalid nonce");
-
-        // verify signatures
-        require(
-            committee.verifyMessageSignatures(signatures, message),
-            "BridgeCommittee: Invalid signatures"
-        );
-
-        // verify that message has not been processed
-        require(!messageProcessed[messageHash], "BridgeCommittee: Message already processed");
+        require(_message.nonce == nonces[_message.messageType], "SuiBridge: Invalid nonce");
 
         // verify message type
         require(
-            _message.messageType == Messages.EMERGENCY_OP,
-            "BridgeCommittee: message does not match type"
+            _message.messageType == Messages.EMERGENCY_OP, "SuiBridge: message does not match type"
         );
 
+        // calculate required stake
+        uint256 stakeRequired = UNFREEZING_STAKE_REQUIRED;
+
+        // decode the emergency op message
         bool isFreezing = Messages.decodeEmergencyOpPayload(_message.payload);
+
+        // if the message is to unpause the bridge, use the default stake requirement
+        if (isFreezing) stakeRequired = FREEZING_STAKE_REQUIRED;
+
+        // verify signatures
+        require(
+            committee.verifyMessageSignatures(signatures, message, stakeRequired),
+            "SuiBridge: Invalid signatures"
+        );
+
         if (isFreezing) _pause();
         else _unpause();
 
-        // mark message as processed
-        messageProcessed[messageHash] = true;
-
         // increment message type nonce
-        nonces[_message.messageType]++;
+        nonces[Messages.EMERGENCY_OP]++;
     }
 
     function upgradeBridgeWithSignatures(bytes memory signatures, bytes memory message) external {
         Messages.Message memory _message = Messages.decodeMessage(message);
 
-        // get message hash
-        bytes32 messageHash = Messages.getHash(message);
-
         // verify message type nonce
-        require(_message.nonce == nonces[_message.messageType], "BridgeCommittee: Invalid nonce");
-
-        // verify signatures
-        require(
-            committee.verifyMessageSignatures(signatures, message), "SuiBridge: Invalid signatures"
-        );
-
-        // verify that message has not been processed
-        require(!messageProcessed[messageHash], "BridgeCommittee: Message already processed");
+        require(_message.nonce == nonces[_message.messageType], "SuiBridge: Invalid nonce");
 
         // verify message type
         require(
-            _message.messageType == Messages.COMMITTEE_UPGRADE,
+            _message.messageType == Messages.BRIDGE_UPGRADE,
             "SuiBridge: message does not match type"
+        );
+
+        // verify signatures
+        require(
+            committee.verifyMessageSignatures(signatures, message, BRIDGE_UPGRADE_STAKE_REQUIRED),
+            "SuiBridge: Invalid signatures"
         );
 
         // decode the upgrade payload
@@ -153,11 +156,8 @@ contract SuiBridge is
         // update the upgrade
         _upgradeBridge(implementationAddress);
 
-        // mark message as processed
-        messageProcessed[messageHash] = true;
-
         // increment message type nonce
-        nonces[_message.messageType]++;
+        nonces[Messages.BRIDGE_UPGRADE]++;
     }
 
     function bridgeToSui(
@@ -183,10 +183,17 @@ contract SuiBridge is
         // Transfer the tokens from the contract to the vault
         IERC20(tokenAddress).transferFrom(msg.sender, address(vault), amount);
 
-        // increment bridge nonce
-        bridgeNonce++;
+        // increment token transfer nonce
+        nonces[Messages.TOKEN_TRANSFER]++;
 
-        emit TokensBridgedToSui(tokenId, amount, targetAddress, destinationChainId, bridgeNonce);
+        emit TokensBridgedToSui(
+            tokenId,
+            amount,
+            targetAddress,
+            destinationChainId,
+            chainId,
+            nonces[Messages.TOKEN_TRANSFER]
+            );
     }
 
     function bridgeETHToSui(bytes memory targetAddress, uint256 destinationChainId)
@@ -206,11 +213,16 @@ contract SuiBridge is
         // Transfer the wrapped ETH back to caller
         weth9.transfer(address(vault), amount);
 
-        // increment bridge nonce
-        bridgeNonce++;
+        // increment token transfer nonce
+        nonces[Messages.TOKEN_TRANSFER]++;
 
         emit TokensBridgedToSui(
-            Messages.ETH, amount, targetAddress, destinationChainId, bridgeNonce
+            Messages.ETH,
+            amount,
+            targetAddress,
+            destinationChainId,
+            chainId,
+            nonces[Messages.TOKEN_TRANSFER]
             );
     }
 
@@ -229,11 +241,10 @@ contract SuiBridge is
         vault.transferERC20(tokenAddress, targetAddress, amount);
     }
 
-    // TODO: test this method of "self upgrading"
-    // note: upgrading this way will not enable initialization using "upgradeToAndCall". explore more
+    // TODO: "self upgrading"
+    // note: do we want to use "upgradeToAndCall" instead?
     function _upgradeBridge(address upgradeImplementation) internal returns (bool, bytes memory) {
-        return
-            address(this).call(abi.encodeWithSignature("upgradeTo(address)", upgradeImplementation));
+        // return upgradeTo(upgradeImplementation);
     }
 
     // TODO:

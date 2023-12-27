@@ -57,7 +57,6 @@ contract BridgeBaseTest is Test {
         _supportedTokens[3] = USDT;
         bridge = new SuiBridge();
         bridge.initialize(_supportedTokens, address(committee), address(vault), wETH);
-        vault.transferOwnership(address(bridge));
     }
 
     function test() public {}
