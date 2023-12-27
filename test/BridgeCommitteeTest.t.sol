@@ -44,12 +44,13 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         uint256 requiredStake = 500;
 
         // Call the verifyMessageSignatures function and assert that it returns true
-        bool result = committee.verifyMessageSignatures(
-            signatures,
-            messageBytes,
-            requiredStake
+        assertTrue(
+            committee.verifyMessageSignatures(
+                signatures,
+                messageBytes,
+                requiredStake
+            )
         );
-        assertTrue(result);
     }
 
     function testVerifyMessageSignaturesWithInvalidSignatures() public {
@@ -243,9 +244,28 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         Messages.decodeUpgradePayload(payload);
     }
 
-    function testDecodeBlocklistPayload() public {}
+    function testDecodeBlocklistPayload() public {
+        bytes memory payload = abi.encodePacked(
+            uint256(0),
+            [address(committeeMemberA), address(committeeMemberB)]
+        );
 
-    function testUpgradeCommitteeContract() public {}
+        // Call the function with the test inputs
+        (bool result, address[] memory validators) = Messages
+            .decodeBlocklistPayload(payload);
+
+        assertTrue(result);
+        assertEq(validators[0], address(committeeMemberA));
+        assertEq(validators[1], address(committeeMemberB));
+    }
+
+    function testUpgradeCommitteeContract() public {
+        bytes memory payload = abi.encode(address(committeeMemberA));
+
+        address implementationAddress = Messages.decodeUpgradePayload(payload);
+
+        assertEq(implementationAddress, address(committeeMemberA));
+    }
 
     // Helper function to get the signature components from an address
     function getSignature(
