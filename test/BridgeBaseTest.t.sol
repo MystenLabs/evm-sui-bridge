@@ -44,7 +44,7 @@ contract BridgeBaseTest is Test {
         deployer = address(1);
         vm.startPrank(deployer);
         address[] memory _committee = new address[](4);
-        uint256[] memory _stake = new uint256[](4);
+        uint16[] memory _stake = new uint16[](4);
         _committee[0] = committeeMemberA;
         _committee[1] = committeeMemberB;
         _committee[2] = committeeMemberC;

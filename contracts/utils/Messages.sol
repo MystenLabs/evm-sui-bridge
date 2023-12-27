@@ -3,11 +3,11 @@ pragma solidity ^0.8.0;
 
 library Messages {
     // message Ids
-    uint256 public constant TOKEN_TRANSFER = 0;
-    uint256 public constant BLOCKLIST = 1;
-    uint256 public constant EMERGENCY_OP = 2;
-    uint256 public constant BRIDGE_UPGRADE = 3;
-    uint256 public constant COMMITTEE_UPGRADE = 4;
+    uint8 public constant TOKEN_TRANSFER = 0;
+    uint8 public constant BLOCKLIST = 1;
+    uint8 public constant EMERGENCY_OP = 2;
+    uint8 public constant BRIDGE_UPGRADE = 3;
+    uint8 public constant COMMITTEE_UPGRADE = 4;
 
     // token Ids
     uint256 public constant SUI = 0;
@@ -46,8 +46,8 @@ library Messages {
         require(message.length > 0, "Empty message");
 
         // decode nonce, version, and type from message
-        (uint256 messageType, uint256 version, uint256 nonce, uint256 chainId, bytes memory payload)
-        = abi.decode(message, (uint256, uint256, uint256, uint256, bytes));
+        (uint8 messageType, uint8 version, uint64 nonce, uint8 chainId, bytes memory payload)
+        = abi.decode(message, (uint8, uint8, uint64, uint8, bytes));
 
         return Message(messageType, version, nonce, chainId, payload);
     }
