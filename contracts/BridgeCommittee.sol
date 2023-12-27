@@ -18,7 +18,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     // member address => is blocklisted
     mapping(address => bool) public blocklist;
     // messageType => nonce
-    mapping(uint256 => uint64) public nonces;
+    mapping(uint8 => uint64) public nonces;
 
     /* ========== INITIALIZER ========== */
 
