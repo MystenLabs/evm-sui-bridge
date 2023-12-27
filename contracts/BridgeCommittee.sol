@@ -14,11 +14,11 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
     // member address => stake amount
-    mapping(address => uint256) public committee;
+    mapping(address => uint16) public committee;
     // member address => is blocklisted
     mapping(address => bool) public blocklist;
     // messageType => nonce
-    mapping(uint256 => uint256) public nonces;
+    mapping(uint256 => uint64) public nonces;
 
     /* ========== INITIALIZER ========== */
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
 library Messages {
     // message Ids
     uint256 public constant TOKEN_TRANSFER = 0;
@@ -18,10 +21,10 @@ library Messages {
     uint256 public constant SIGNATURE_SIZE = 65;
 
     struct Message {
-        uint256 messageType;
-        uint256 version;
-        uint256 nonce;
-        uint256 chainID;
+        uint8 messageType;
+        uint8 version;
+        uint64 nonce;
+        uint8 chainID;
         bytes payload;
     }
 

@@ -11,6 +11,12 @@ contract BridgeBaseTest is Test {
     address committeeMemberB;
     address committeeMemberC;
     address committeeMemberD;
+
+    uint256 committeeMemberPkA;
+    uint256 committeeMemberPkB;
+    uint256 committeeMemberPkC;
+    uint256 committeeMemberPkD;
+
     address deployer;
 
     // TODO: double check these addresses (they're from co-pilot)
@@ -27,10 +33,10 @@ contract BridgeBaseTest is Test {
         vm.createSelectFork(
             string.concat("https://mainnet.infura.io/v3/", vm.envString("INFURA_API_KEY"))
         );
-        committeeMemberA = makeAddr("a");
-        committeeMemberB = makeAddr("b");
-        committeeMemberC = makeAddr("c");
-        committeeMemberD = makeAddr("d");
+        (committeeMemberA, committeeMemberPkA) = makeAddrAndKey("a");
+        (committeeMemberB, committeeMemberPkB) = makeAddrAndKey("b");
+        (committeeMemberC, committeeMemberPkC) = makeAddrAndKey("c");
+        (committeeMemberD, committeeMemberPkD) = makeAddrAndKey("d");
         vm.deal(committeeMemberA, 1 ether);
         vm.deal(committeeMemberB, 1 ether);
         vm.deal(committeeMemberC, 1 ether);
@@ -56,7 +62,8 @@ contract BridgeBaseTest is Test {
         _supportedTokens[2] = USDC;
         _supportedTokens[3] = USDT;
         bridge = new SuiBridge();
-        bridge.initialize(_supportedTokens, address(committee), address(vault), wETH);
+        uint256 _chainId = 1;
+        bridge.initialize(_supportedTokens, address(committee), address(vault), wETH, _chainId);
     }
 
     function test() public {}
