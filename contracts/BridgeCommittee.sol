@@ -101,9 +101,9 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     /* ========== VIEW FUNCTIONS ========== */
 
     function verifyMessageSignatures(
-        bytes memory signatures,
-        bytes memory message,
-        uint256 requiredStake
+        bytes memory signatures, // Why is this a bytes and not a Signature[]?
+        bytes memory message, // Why is this a bytes and not a Message?
+        uint256 requiredStake // Is it a good idea to have this as a parameter?
     ) public view override returns (bool) {
         bytes32 suiSignedMessageHash = keccak256(abi.encodePacked("SUI_NATIVE_BRIDGE", message));
 
