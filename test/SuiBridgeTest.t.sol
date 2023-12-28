@@ -32,7 +32,7 @@ contract SuiBridgeTest is BridgeBaseTest {
             targetChain: 1,
             targetAddressLength: 0,
             targetAddress: bridgerA,
-            tokenType: 1,
+            tokenType: Messages.ETH,
             amount: 1 ether
         });
 
@@ -61,15 +61,121 @@ contract SuiBridgeTest is BridgeBaseTest {
         assert(IERC20(wETH).balanceOf(bridgerA) == 1 ether);
     }
 
-    function testTransferUSDCWithValidSignatures() public {}
+    function testTransferUSDCWithValidSignatures() public {
+        // Fill vault with USDC
+        changePrank(USDCWhale);
+        IERC20(USDC).transfer(address(vault), 1000000);
+        changePrank(deployer);
+        // Create transfer message
+        Messages.TokenTransferPayload memory payload = Messages.TokenTransferPayload({
+            senderAddressLength: 0,
+            senderAddress: abi.encode(0),
+            targetChain: 1,
+            targetAddressLength: 0,
+            targetAddress: bridgerA,
+            tokenType: Messages.USDC,
+            amount: 10000
+        });
 
-    function testFreezeBridgeEmergencyOp() public {}
+        Messages.Message memory message = Messages.Message({
+            messageType: Messages.TOKEN_TRANSFER,
+            version: 1,
+            nonce: 1,
+            chainID: 1,
+            payload: abi.encode(payload)
+        });
 
-    function testUnfreezeBridgeEmergencyOp() public {}
+        bytes memory encodedMessage = encodeMessage(message);
 
-    function testBridgeToSui() public {}
+        bytes32 messageHash = keccak256(encodedMessage);
 
-    function testBridgeEthToSui() public {}
+        bytes[] memory signatures = new bytes[](4);
 
+        // Create signatures from alice, bob, and charlie
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        assert(IERC20(USDC).balanceOf(bridgerA) == 0);
+        bridge.transferTokensWithSignatures(signatures, message);
+        assert(IERC20(USDC).balanceOf(bridgerA) == 10000);
+    }
+
+    function testFreezeBridgeEmergencyOp() public {
+        // Create emergency op message
+        Messages.Message memory message = Messages.Message({
+            messageType: Messages.EMERGENCY_OP,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: abi.encode(0)
+        });
+
+        bytes memory encodedMessage = encodeMessage(message);
+
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from alice, bob, and charlie
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        assertFalse(bridge.paused());
+        bridge.executeEmergencyOpWithSignatures(signatures, message);
+        assertTrue(bridge.paused());
+    }
+
+    function testUnfreezeBridgeEmergencyOp() public {
+        testFreezeBridgeEmergencyOp();
+        // Create emergency op message
+        Messages.Message memory message = Messages.Message({
+            messageType: Messages.EMERGENCY_OP,
+            version: 1,
+            nonce: 1,
+            chainID: 1,
+            payload: abi.encode(1)
+        });
+
+        bytes memory encodedMessage = encodeMessage(message);
+
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from alice, bob, and charlie
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        bridge.executeEmergencyOpWithSignatures(signatures, message);
+        assertFalse(bridge.paused());
+    }
+
+    function testBridgeToSui() public {
+        changePrank(deployer);
+        IWETH9(wETH).deposit{value: 10 ether}();
+        IERC20(wETH).approve(address(bridge), 10 ether);
+        assertEq(IERC20(wETH).balanceOf(address(vault)), 0);
+        uint256 balance = IERC20(wETH).balanceOf(deployer);
+        bridge.bridgeToSui(Messages.ETH, 1 ether, abi.encode("suiAddress"), 0);
+        assertEq(IERC20(wETH).balanceOf(address(vault)), 1 ether);
+        assertEq(IERC20(wETH).balanceOf(deployer), balance - 1 ether);
+    }
+
+    function testBridgeEthToSui() public {
+        changePrank(deployer);
+        assertEq(IERC20(wETH).balanceOf(address(vault)), 0);
+        uint256 balance = deployer.balance;
+        bridge.bridgeETHToSui{value: 1 ether}(abi.encode("suiAddress"), 0);
+        assertEq(IERC20(wETH).balanceOf(address(vault)), 1 ether);
+        assertEq(deployer.balance, balance - 1 ether);
+    }
+
+    // TODO:
     function testUpgradeBridge() public {}
 }

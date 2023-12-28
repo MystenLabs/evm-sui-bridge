@@ -9,7 +9,8 @@
     "compile": "yarn hardhat compile",
     "deploy-local": "yarn hardhat deploy --write true --network localhost",
     "clean-local-deployments": "rm -rf deployments/localhost/*",
-    "clean": "yarn hardhat clean"
+    "clean": "yarn hardhat clean",
+    "verify": "yarn hardhat verify"
   },
   "license": "MIT",
   "devDependencies": {

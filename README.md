@@ -44,6 +44,9 @@ yarn deploy --network <network>
 
 #### Contract Verification
 
+> **Note**
+> This does not work with `hardhat` network.
+
 ```bash
 yarn verify --network <network> <contract_address>
 ```

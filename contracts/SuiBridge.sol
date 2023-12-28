@@ -237,7 +237,7 @@ contract SuiBridge is
         internal
         whenNotPaused
     {
-        address tokenAddress = supportedTokens[tokenType];
+        address tokenAddress = supportedTokens[tokenType - 1];
 
         // Check that the token address is supported
         require(tokenAddress != address(0), "SuiBridge: Unsupported token");

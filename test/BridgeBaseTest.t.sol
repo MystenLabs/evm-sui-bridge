@@ -30,6 +30,8 @@ contract BridgeBaseTest is Test {
     address USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
     address wBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
 
+    address USDCWhale = 0x51eDF02152EBfb338e03E30d65C15fBf06cc9ECC;
+
     BridgeCommittee public committee;
     SuiBridge public bridge;
     BridgeVault public vault;
