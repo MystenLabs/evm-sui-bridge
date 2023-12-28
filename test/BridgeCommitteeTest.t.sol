@@ -128,6 +128,20 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertTrue(blocklisted);
     }
 
+    function testFuzzDecodeBlocklistPayload(address committeeMember) public {
+        // create payload
+        address[] memory _blocklist = new address[](1);
+        _blocklist[0] = committeeMember;
+        bytes memory payload = abi.encode(uint8(0), _blocklist);
+
+        // decode the payload
+        (bool blocklisted, address[] memory validators) = committee.decodeBlocklistPayload(payload);
+
+        // assert that the blocklist contains the correct address
+        assertEq(validators[0], committeeMember);
+        assertTrue(blocklisted);
+    }
+
     function testAddToBlocklist() public {
         // create payload
         address[] memory _blocklist = new address[](1);
