@@ -14,11 +14,11 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertEq(committee.committee(committeeMemberA), 1000);
         assertEq(committee.committee(committeeMemberB), 1000);
         assertEq(committee.committee(committeeMemberC), 1000);
-        assertEq(committee.committee(committeeMemberD), 2000);
+        assertEq(committee.committee(committeeMemberD), 2002);
     }
 
     function testVerifyMessageSignaturesWithValidSignatures() public {
-        // 1. Create a message and hash it
+        // Create a message
         Messages.Message memory message = Messages.Message({
             messageType: Messages.TOKEN_TRANSFER,
             version: 1,
@@ -27,166 +27,142 @@ contract BridgeCommitteeTest is BridgeBaseTest {
             payload: "0x0"
         });
 
-        bytes memory messageBytes = messageToBytes(message);
+        bytes memory messageBytes = encodeMessage(message);
 
-        bytes32 suiSignedMessage = keccak256(abi.encodePacked("SUI_NATIVE_BRIDGE", messageBytes));
+        bytes32 messageHash = keccak256(messageBytes);
 
         bytes[] memory signatures = new bytes[](3);
 
-        // Create signatures from alice, bob, and charlie
-        signatures[0] = getSignature(suiSignedMessage, committeeMemberPkA);
-        signatures[1] = getSignature(suiSignedMessage, committeeMemberPkB);
-        signatures[2] = getSignature(suiSignedMessage, committeeMemberPkC);
+        // Create signatures from A - D
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
 
         // Set the required stake to 500
         uint256 requiredStake = 500;
 
         // Call the verifyMessageSignatures function and assert that it returns true
-        bool result = committee.verifyMessageSignatures(signatures, messageBytes, requiredStake);
+        bool result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
         assertTrue(result);
     }
 
-    // function testVerifyMessageWithInvalidSignatures() public {
-    //     // 1. Create a message and hash it
-    //     Messages.Message memory message = Messages.Message({
-    //         messageType: Messages.TOKEN_TRANSFER,
-    //         version: 1,
-    //         nonce: 1,
-    //         chainID: 1,
-    //         payload: "0x0"
-    //     });
-    //     bytes32 msgHash = keccak256(
-    //         abi.encodePacked("SUI_NATIVE_BRIDGE", message)
-    //     );
+    function testVerifyMessageSignaturesWithInvalidSignatures() public {
+        // Create a message
+        Messages.Message memory message = Messages.Message({
+            messageType: Messages.TOKEN_TRANSFER,
+            version: 1,
+            nonce: 1,
+            chainID: 1,
+            payload: "0x0"
+        });
 
-    //     // 2. Create signatures from committeeMemberA, committeeMemberB, committeeMemberC, and committeeMemberD
-    //     bytes memory signatures = new bytes(192);
-    //     (signatures[0], signatures[1], signatures[2]) = getSignature(
-    //         msgHash,
-    //         committeeMemberA
-    //     );
-    //     (signatures[64], signatures[65], signatures[66]) = getSignature(
-    //         msgHash,
-    //         committeeMemberB
-    //     );
-    //     (signatures[128], signatures[129], signatures[130]) = getSignature(
-    //         msgHash,
-    //         committeeMemberC
-    //     );
-    //     (signatures[192], signatures[193], signatures[194]) = getSignature(
-    //         msgHash,
-    //         committeeMemberD
-    //     );
+        bytes memory messageBytes = encodeMessage(message);
 
-    //     // 3. Set the required stake to 500
-    //     uint256 requiredStake = 500;
+        bytes32 messageHash = keccak256(messageBytes);
 
-    //     // 4. Call the verifyMessageSignatures function and assert that it returns true
-    //     bool result = committee.verifyMessageSignatures(
-    //         signatures,
-    //         message,
-    //         requiredStake
-    //     );
-    //     assertEq(result, true);
-    // }
+        bytes[] memory signatures = new bytes[](3);
 
-    function testAddToBlocklist() public {}
+        // Create signatures from A - D
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
 
-    function testRemoveFromBlocklist() public {}
+        // Set the required stake to 500
+        uint256 requiredStake = 5000;
 
-    function testDecodeEmergencyOpPayload() public {}
+        // Call the verifyMessageSignatures function and assert that it returns true
+        bool result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
+        assertFalse(result);
+    }
 
+    function testDecodeBlocklistPayload() public {
+        // create payload
+        address[] memory _blocklist = new address[](1);
+        _blocklist[0] = committeeMemberA;
+        bytes memory payload = abi.encode(uint8(0), _blocklist);
+
+        // decode the payload
+        (bool blocklisted, address[] memory validators) = committee.decodeBlocklistPayload(payload);
+
+        // assert that the blocklist contains the correct address
+        assertEq(validators[0], committeeMemberA);
+        assertTrue(blocklisted);
+    }
+
+    function testAddToBlocklist() public {
+        // create payload
+        address[] memory _blocklist = new address[](1);
+        _blocklist[0] = committeeMemberA;
+        bytes memory payload = abi.encode(uint8(0), _blocklist);
+
+        // Create a message
+        Messages.Message memory message = Messages.Message({
+            messageType: Messages.BLOCKLIST,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: payload
+        });
+
+        bytes memory messageBytes = encodeMessage(message);
+        bytes32 messageHash = keccak256(messageBytes);
+        bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from A - D
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        // Set the required stake to 500
+        uint256 requiredStake = 5000;
+
+        // verify CommitteeMemberA's signature is still valid
+        bool result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
+        assertTrue(result);
+
+        committee.updateBlocklistWithSignatures(signatures, message);
+
+        // verify CommitteeMemberA's signature is no longer valid
+        result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
+        assertFalse(result);
+        assertTrue(committee.blocklist(committeeMemberA));
+    }
+
+    function testRemoveFromBlocklist() public {
+        testAddToBlocklist();
+
+        // create payload
+        address[] memory _blocklist = new address[](1);
+        _blocklist[0] = committeeMemberA;
+        bytes memory payload = abi.encode(uint8(1), _blocklist);
+
+        // Create a message
+        Messages.Message memory message = Messages.Message({
+            messageType: Messages.BLOCKLIST,
+            version: 1,
+            nonce: 1,
+            chainID: 1,
+            payload: payload
+        });
+
+        bytes memory messageBytes = encodeMessage(message);
+        bytes32 messageHash = keccak256(messageBytes);
+        bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from B - E
+        signatures[0] = getSignature(messageHash, committeeMemberPkB);
+        signatures[1] = getSignature(messageHash, committeeMemberPkC);
+        signatures[2] = getSignature(messageHash, committeeMemberPkD);
+        signatures[3] = getSignature(messageHash, committeeMemberPkE);
+
+        committee.updateBlocklistWithSignatures(signatures, message);
+
+        // verify CommitteeMemberA is no longer blocklisted
+        assertFalse(committee.blocklist(committeeMemberA));
+    }
+
+    // TODO
     function testDecodeUpgradePayload() public {}
-
-    function testDecodeBlocklistPayload() public {}
-
     function testUpgradeCommitteeContract() public {}
-
-    // function testVerifyMessageSignaturesWithValidSignatures() public {}
-
-    // function testVerifyMessageSignaturesWithInvalidSignatures() public {
-    //     // Create a message and hash it
-    //     bytes memory message = "Hello, world!";
-    //     bytes32 suiSignedMessage = keccak256(
-    //         abi.encodePacked("SUI_NATIVE_BRIDGE", message)
-    //     );
-
-    //     // Create signatures from alice, bob, and dave
-    //     bytes memory signatures = new bytes(192);
-    //     (signatures[0], signatures[1], signatures[2]) = getSignature(
-    //         suiSignedMessage,
-    //         alice
-    //     );
-    //     (signatures[64], signatures[65], signatures[66]) = getSignature(
-    //         suiSignedMessage,
-    //         bob
-    //     );
-    //     (signatures[128], signatures[129], signatures[130]) = getSignature(
-    //         suiSignedMessage,
-    //         dave
-    //     );
-
-    //     // Set the required stake to 500
-    //     uint256 requiredStake = 500;
-
-    //     // Call the verifyMessageSignatures function and assert that it returns false
-    //     bool result = committee.verifyMessageSignatures(
-    //         signatures,
-    //         message,
-    //         requiredStake
-    //     );
-    //     assertEq(result, false);
-    // }
-
-    // function testVerifyMessageSignaturesWithRevert() public {
-    //     // Create a message and hash it
-    //     bytes memory message = "Hello, world!";
-    //     bytes32 suiSignedMessage = keccak256(
-    //         abi.encodePacked("SUI_NATIVE_BRIDGE", message)
-    //     );
-
-    //     // Create signatures from alice, bob, and charlie
-    //     bytes memory signatures = new bytes(192);
-    //     (signatures[0], signatures[1], signatures[2]) = getSignature(
-    //         suiSignedMessage,
-    //         alice
-    //     );
-    //     (signatures[64], signatures[65], signatures[66]) = getSignature(
-    //         suiSignedMessage,
-    //         bob
-    //     );
-    //     (signatures[128], signatures[129], signatures[130]) = getSignature(
-    //         suiSignedMessage,
-    //         charlie
-    //     );
-
-    //     // Set the required stake to 1000
-    //     uint256 requiredStake = 1000;
-
-    //     // Call the verifyMessageSignatures function and assert that it reverts with "BridgeCommittee: Not enough stake"
-    //     vm.expectRevert("BridgeCommittee: Not enough stake");
-    //     committee.verifyMessageSignatures(signatures, message, requiredStake);
-    // }
-
-    // Helper function to get the signature components from an address
-    function getSignature(bytes32 digest, uint256 privateKey) private view returns (bytes memory) {
-        // r and s are the outputs of the ECDSA signature
-        // r,s and v are packed into the signature. It should be 65 bytes: 32 + 32 + 1
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
-
-        // pack v, r, s into 65bytes signature
-        // bytes memory signature = abi.encodePacked(r, s, v);
-        return abi.encodePacked(r, s, v);
-    }
-
-    function messageToBytes(Messages.Message memory message) private pure returns (bytes memory) {
-        return abi.encodePacked(
-            "SUI_NATIVE_BRIDGE",
-            message.messageType,
-            message.version,
-            message.nonce,
-            message.chainID,
-            message.payload
-        );
-    }
 }

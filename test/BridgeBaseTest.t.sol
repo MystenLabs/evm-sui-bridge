@@ -11,11 +11,16 @@ contract BridgeBaseTest is Test {
     address committeeMemberB;
     address committeeMemberC;
     address committeeMemberD;
+    address committeeMemberE;
 
     uint256 committeeMemberPkA;
     uint256 committeeMemberPkB;
     uint256 committeeMemberPkC;
     uint256 committeeMemberPkD;
+    uint256 committeeMemberPkE;
+
+    address bridgerA;
+    address bridgerB;
 
     address deployer;
 
@@ -37,22 +42,30 @@ contract BridgeBaseTest is Test {
         (committeeMemberB, committeeMemberPkB) = makeAddrAndKey("b");
         (committeeMemberC, committeeMemberPkC) = makeAddrAndKey("c");
         (committeeMemberD, committeeMemberPkD) = makeAddrAndKey("d");
+        (committeeMemberE, committeeMemberPkE) = makeAddrAndKey("e");
+        bridgerA = makeAddr("bridgerA");
+        bridgerB = makeAddr("bridgerB");
         vm.deal(committeeMemberA, 1 ether);
         vm.deal(committeeMemberB, 1 ether);
         vm.deal(committeeMemberC, 1 ether);
         vm.deal(committeeMemberD, 1 ether);
+        vm.deal(committeeMemberE, 1 ether);
+        vm.deal(bridgerA, 1 ether);
+        vm.deal(bridgerB, 1 ether);
         deployer = address(1);
         vm.startPrank(deployer);
-        address[] memory _committee = new address[](4);
-        uint16[] memory _stake = new uint16[](4);
+        address[] memory _committee = new address[](5);
+        uint16[] memory _stake = new uint16[](5);
         _committee[0] = committeeMemberA;
         _committee[1] = committeeMemberB;
         _committee[2] = committeeMemberC;
         _committee[3] = committeeMemberD;
+        _committee[4] = committeeMemberE;
         _stake[0] = 1000;
         _stake[1] = 1000;
         _stake[2] = 1000;
-        _stake[3] = 2000;
+        _stake[3] = 2002;
+        _stake[4] = 1000;
         committee = new BridgeCommittee();
         committee.initialize(_committee, _stake);
         vault = new BridgeVault();
@@ -64,7 +77,29 @@ contract BridgeBaseTest is Test {
         bridge = new SuiBridge();
         uint256 _chainId = 1;
         bridge.initialize(_supportedTokens, address(committee), address(vault), wETH, _chainId);
+        vault.transferOwnership(address(bridge));
     }
 
     function test() public {}
+
+    // Helper function to get the signature components from an address
+    function getSignature(bytes32 digest, uint256 privateKey) public pure returns (bytes memory) {
+        // r and s are the outputs of the ECDSA signature
+        // r,s and v are packed into the signature. It should be 65 bytes: 32 + 32 + 1
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+
+        // pack v, r, s into 65bytes signature
+        return abi.encodePacked(r, s, v);
+    }
+
+    function encodeMessage(Messages.Message memory message) public pure returns (bytes memory) {
+        return abi.encodePacked(
+            "SUI_NATIVE_BRIDGE",
+            message.messageType,
+            message.version,
+            message.nonce,
+            message.chainID,
+            message.payload
+        );
+    }
 }

@@ -62,29 +62,29 @@ contract SuiBridge is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
-    function transferTokensWithSignatures(bytes[] memory signatures, bytes memory message)
-        external
-        nonReentrant
-    {
-        Messages.Message memory _message = Messages.decodeMessage(message);
-
+    function transferTokensWithSignatures(
+        bytes[] memory signatures,
+        Messages.Message memory message
+    ) external nonReentrant {
         // verify message type
         require(
-            _message.messageType == Messages.TOKEN_TRANSFER,
-            "SuiBridge: message does not match type"
+            message.messageType == Messages.TOKEN_TRANSFER, "SuiBridge: message does not match type"
         );
 
         // verify that message has not been processed
-        require(!messageProcessed[_message.nonce], "SuiBridge: Message already processed");
+        require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
+
+        // compute message hash
+        bytes32 messageHash = Messages.getMessageHash(message);
 
         // verify signatures
         require(
-            committee.verifyMessageSignatures(signatures, message, TRANSFER_STAKE_REQUIRED),
+            committee.verifyMessageSignatures(signatures, messageHash, TRANSFER_STAKE_REQUIRED),
             "SuiBridge: Invalid signatures"
         );
 
         Messages.TokenTransferPayload memory tokenTransferPayload =
-            Messages.decodeTokenTransferPayload(_message.payload);
+            decodeTokenTransferPayload(message.payload);
 
         _transferTokensFromVault(
             tokenTransferPayload.tokenType,
@@ -93,35 +93,36 @@ contract SuiBridge is
         );
 
         // mark message as processed
-        messageProcessed[_message.nonce] = true;
+        messageProcessed[message.nonce] = true;
     }
 
-    function executeEmergencyOpWithSignatures(bytes[] memory signatures, bytes memory message)
-        external
-        nonReentrant
-    {
-        Messages.Message memory _message = Messages.decodeMessage(message);
-
+    function executeEmergencyOpWithSignatures(
+        bytes[] memory signatures,
+        Messages.Message memory message
+    ) external nonReentrant {
         // verify message type nonce
-        require(_message.nonce == nonces[_message.messageType], "SuiBridge: Invalid nonce");
+        require(message.nonce == nonces[message.messageType], "SuiBridge: Invalid nonce");
 
         // verify message type
         require(
-            _message.messageType == Messages.EMERGENCY_OP, "SuiBridge: message does not match type"
+            message.messageType == Messages.EMERGENCY_OP, "SuiBridge: message does not match type"
         );
 
         // calculate required stake
         uint256 stakeRequired = UNFREEZING_STAKE_REQUIRED;
 
         // decode the emergency op message
-        bool isFreezing = Messages.decodeEmergencyOpPayload(_message.payload);
+        bool isFreezing = decodeEmergencyOpPayload(message.payload);
 
         // if the message is to unpause the bridge, use the default stake requirement
         if (isFreezing) stakeRequired = FREEZING_STAKE_REQUIRED;
 
+        // compute message hash
+        bytes32 messageHash = Messages.getMessageHash(message);
+
         // verify signatures
         require(
-            committee.verifyMessageSignatures(signatures, message, stakeRequired),
+            committee.verifyMessageSignatures(signatures, messageHash, stakeRequired),
             "SuiBridge: Invalid signatures"
         );
 
@@ -132,28 +133,30 @@ contract SuiBridge is
         nonces[Messages.EMERGENCY_OP]++;
     }
 
-    function upgradeBridgeWithSignatures(bytes[] memory signatures, bytes memory message)
+    function upgradeBridgeWithSignatures(bytes[] memory signatures, Messages.Message memory message)
         external
     {
-        Messages.Message memory _message = Messages.decodeMessage(message);
-
         // verify message type nonce
-        require(_message.nonce == nonces[_message.messageType], "SuiBridge: Invalid nonce");
+        require(message.nonce == nonces[message.messageType], "SuiBridge: Invalid nonce");
 
         // verify message type
         require(
-            _message.messageType == Messages.BRIDGE_UPGRADE,
-            "SuiBridge: message does not match type"
+            message.messageType == Messages.BRIDGE_UPGRADE, "SuiBridge: message does not match type"
         );
+
+        // compute message hash
+        bytes32 messageHash = Messages.getMessageHash(message);
 
         // verify signatures
         require(
-            committee.verifyMessageSignatures(signatures, message, BRIDGE_UPGRADE_STAKE_REQUIRED),
+            committee.verifyMessageSignatures(
+                signatures, messageHash, BRIDGE_UPGRADE_STAKE_REQUIRED
+            ),
             "SuiBridge: Invalid signatures"
         );
 
         // decode the upgrade payload
-        address implementationAddress = Messages.decodeUpgradePayload(_message.payload);
+        address implementationAddress = decodeUpgradePayload(message.payload);
 
         // update the upgrade
         _upgradeBridge(implementationAddress);
@@ -239,8 +242,34 @@ contract SuiBridge is
         // Check that the token address is supported
         require(tokenAddress != address(0), "SuiBridge: Unsupported token");
 
+        // TODO: convert amount to relevant decimals
+
         // transfer tokens from vault to target address
         vault.transferERC20(tokenAddress, targetAddress, amount);
+    }
+
+    function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
+        (uint256 emergencyOpCode) = abi.decode(payload, (uint256));
+        require(emergencyOpCode <= 1, "Messages: Invalid op code");
+
+        if (emergencyOpCode == 0) return true;
+        else if (emergencyOpCode == 1) return false;
+    }
+
+    function decodeTokenTransferPayload(bytes memory payload)
+        internal
+        pure
+        returns (Messages.TokenTransferPayload memory)
+    {
+        (Messages.TokenTransferPayload memory tokenTransferPayload) =
+            abi.decode(payload, (Messages.TokenTransferPayload));
+
+        return tokenTransferPayload;
+    }
+
+    function decodeUpgradePayload(bytes memory payload) internal pure returns (address) {
+        (address implementationAddress) = abi.decode(payload, (address));
+        return implementationAddress;
     }
 
     // TODO: "self upgrading"

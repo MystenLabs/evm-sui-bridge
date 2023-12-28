@@ -6,7 +6,7 @@ import "../utils/Messages.sol";
 interface IBridgeCommittee {
     function verifyMessageSignatures(
         bytes[] memory signatures,
-        bytes memory message,
+        bytes32 messageHash,
         uint256 verifyMessageSignatures
     ) external view returns (bool);
 }

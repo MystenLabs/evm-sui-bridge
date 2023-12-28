@@ -14,6 +14,8 @@ contract BridgeVault is Ownable, IBridgeVault {
         // Get the token contract instance
         IERC20 token = IERC20(tokenAddress);
 
+        // TODO: if token is wETH, unwrap and transfer ETH instead
+
         // Transfer the tokens from the contract to the target address
         bool success = token.transfer(targetAddress, amount);
 
