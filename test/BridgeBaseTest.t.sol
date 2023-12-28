@@ -67,7 +67,7 @@ contract BridgeBaseTest is Test {
         _stake[1] = 1000;
         _stake[2] = 1000;
         _stake[3] = 2002;
-        _stake[4] = 1000;
+        _stake[4] = 4998;
         committee = new BridgeCommittee();
         committee.initialize(_committee, _stake);
         vault = new BridgeVault();
@@ -77,7 +77,7 @@ contract BridgeBaseTest is Test {
         _supportedTokens[2] = USDC;
         _supportedTokens[3] = USDT;
         bridge = new SuiBridge();
-        uint256 _chainId = 1;
+        uint8 _chainId = 1;
         bridge.initialize(_supportedTokens, address(committee), address(vault), wETH, _chainId);
         vault.transferOwnership(address(bridge));
     }

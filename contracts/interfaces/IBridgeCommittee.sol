@@ -7,6 +7,6 @@ interface IBridgeCommittee {
     function verifyMessageSignatures(
         bytes[] memory signatures,
         bytes32 messageHash,
-        uint256 verifyMessageSignatures
+        uint16 verifyMessageSignatures
     ) external view returns (bool);
 }

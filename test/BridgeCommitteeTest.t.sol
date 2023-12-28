@@ -15,6 +15,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertEq(committee.committee(committeeMemberB), 1000);
         assertEq(committee.committee(committeeMemberC), 1000);
         assertEq(committee.committee(committeeMemberD), 2002);
+        assertEq(committee.committee(committeeMemberE), 4998);
     }
 
     function testVerifyMessageSignaturesWithValidSignatures() public {
@@ -39,7 +40,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
 
         // Set the required stake to 500
-        uint256 requiredStake = 500;
+        uint16 requiredStake = 500;
 
         // Call the verifyMessageSignatures function and assert that it returns true
         bool result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
@@ -68,7 +69,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
 
         // Set the required stake to 500
-        uint256 requiredStake = 5000;
+        uint16 requiredStake = 5000;
 
         // Call the verifyMessageSignatures function and assert that it returns true
         bool result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
@@ -115,7 +116,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
 
         // Set the required stake to 500
-        uint256 requiredStake = 5000;
+        uint16 requiredStake = 5000;
 
         // verify CommitteeMemberA's signature is still valid
         bool result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
