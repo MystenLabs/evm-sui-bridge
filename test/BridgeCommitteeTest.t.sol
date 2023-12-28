@@ -167,7 +167,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
 
-        // Set the required stake to 500
+        // Set the required stake to 5000
         uint16 requiredStake = 5000;
 
         // verify CommitteeMemberA's signature is still valid
