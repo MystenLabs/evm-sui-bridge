@@ -90,6 +90,10 @@ contract BridgeBaseTest is InvariantTest, Test {
             _chainId
         );
         vault.transferOwnership(address(bridge));
+
+        targetContract(address(committee));
+        targetContract(address(vault));
+        targetContract(address(bridge));
     }
 
     function test() public {}
