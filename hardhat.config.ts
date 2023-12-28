@@ -78,6 +78,9 @@ const config: HardhatUserConfig = {
     deploy: "./deploy",
     imports: "./artifacts",
   },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
   preprocess: {
     eachLine: (hre) => ({
       transform: (line) => {

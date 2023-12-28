@@ -14,6 +14,7 @@ yarn install
 
 ```bash
 INFURA_API_KEY=<YOUR_API_KEY>
+ETHERSCAN_API_KEY=<YOUR_API_KEY>
 ```
 
 #### Compilation
