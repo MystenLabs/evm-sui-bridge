@@ -76,7 +76,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertFalse(result);
     }
 
-    function testFuzzVerifyMessageSignaturesWithValidSignatures(
+    function invariant_testVerifyMessageSignaturesWithValidSignatures(
         uint8 _version,
         uint64 _nonce,
         uint8 _chainID,
@@ -128,7 +128,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertTrue(blocklisted);
     }
 
-    function testFuzzDecodeBlocklistPayload(address committeeMember) public {
+    function invariant_testDecodeBlocklistPayload(address committeeMember) public {
         // create payload
         address[] memory _blocklist = new address[](1);
         _blocklist[0] = committeeMember;
@@ -182,7 +182,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertTrue(committee.blocklist(committeeMemberA));
     }
 
-    function testFuzzAddToBlocklist(
+    function invariant_testAddToBlocklist(
         address committeeMember,
         uint8 _version,
         uint64 _nonce,
