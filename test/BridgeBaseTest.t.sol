@@ -2,11 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
+import {InvariantTest} from "forge-std/InvariantTest.sol";
 import "../contracts/BridgeCommittee.sol";
 import "../contracts/BridgeVault.sol";
 import "../contracts/SuiBridge.sol";
 
-contract BridgeBaseTest is Test {
+contract BridgeBaseTest is InvariantTest, Test {
     address committeeMemberA;
     address committeeMemberB;
     address committeeMemberC;
@@ -80,6 +81,10 @@ contract BridgeBaseTest is Test {
         uint8 _chainId = 1;
         bridge.initialize(_supportedTokens, address(committee), address(vault), wETH, _chainId);
         vault.transferOwnership(address(bridge));
+
+        targetContract(address(committee));
+        targetContract(address(vault));
+        targetContract(address(bridge));
     }
 
     function test() public {}
