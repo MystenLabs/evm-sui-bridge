@@ -8,6 +8,7 @@ interface ISuiBridge {
         uint8 indexed destinationChainId,
         uint8 tokenCode,
         uint256 amount,
+        address sourceAddress,
         bytes targetAddress
     );
 }

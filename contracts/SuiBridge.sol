@@ -198,6 +198,7 @@ contract SuiBridge is
             destinationChainId,
             tokenId,
             amount,
+            msg.sender,
             targetAddress
         );
     }
@@ -228,6 +229,7 @@ contract SuiBridge is
             destinationChainId,
             Messages.ETH,
             amount,
+            msg.sender,
             targetAddress
         );
     }
