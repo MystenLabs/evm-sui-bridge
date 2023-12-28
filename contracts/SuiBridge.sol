@@ -193,12 +193,12 @@ contract SuiBridge is
         nonces[Messages.TOKEN_TRANSFER]++;
 
         emit TokensBridgedToSui(
+            chainId,
+            nonces[Messages.TOKEN_TRANSFER],
+            destinationChainId,
             tokenId,
             amount,
-            targetAddress,
-            destinationChainId,
-            chainId,
-            nonces[Messages.TOKEN_TRANSFER]
+            targetAddress
         );
     }
 
@@ -223,12 +223,12 @@ contract SuiBridge is
         nonces[Messages.TOKEN_TRANSFER]++;
 
         emit TokensBridgedToSui(
+            chainId,
+            nonces[Messages.TOKEN_TRANSFER],
+            destinationChainId,
             Messages.ETH,
             amount,
-            targetAddress,
-            destinationChainId,
-            chainId,
-            nonces[Messages.TOKEN_TRANSFER]
+            targetAddress
         );
     }
 
