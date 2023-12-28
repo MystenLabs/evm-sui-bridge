@@ -13,7 +13,7 @@ const func: DeployFunction = async function (
     ?.address;
   if (!bridgeCommitteeAddress) {
     // TODO: get deployment args from a provided config file
-    let bridgeCommitteeArgs = [[], []];
+    let bridgeCommitteeArgs = [['0x0000000000000000000000000000000000000000'], [10000]];
     bridgeCommitteeAddress = await deployProxyAndSave(
       "BridgeCommittee",
       bridgeCommitteeArgs,
