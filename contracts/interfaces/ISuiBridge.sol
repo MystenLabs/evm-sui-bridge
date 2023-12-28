@@ -3,11 +3,11 @@ pragma solidity ^0.8.0;
 
 interface ISuiBridge {
     event TokensBridgedToSui(
-        uint256 tokenCode,
+        uint8 tokenCode,
         uint256 amount,
         bytes targetAddress,
-        uint256 destinationChainId,
-        uint256 sourceChainId,
-        uint256 nonce
+        uint8 destinationChainId,
+        uint8 sourceChainId,
+        uint64 nonce
     );
 }

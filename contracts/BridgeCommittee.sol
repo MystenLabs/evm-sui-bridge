@@ -8,8 +8,8 @@ import "./utils/Messages.sol";
 contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     /* ========== CONSTANTS ========== */
 
-    uint256 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
-    uint256 public constant COMMITTEE_UPGRADE_STAKE_REQUIRED = 5001;
+    uint16 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
+    uint16 public constant COMMITTEE_UPGRADE_STAKE_REQUIRED = 5001;
 
     /* ========== STATE VARIABLES ========== */
 
@@ -24,11 +24,22 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
 
     /// @notice Initializes the contract with the deployer as the admin.
     /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
-    function initialize(address[] memory _committee, uint16[] memory stake) external initializer {
+    function initialize(address[] memory _committee, uint16[] memory stakes) external initializer {
         __UUPSUpgradeable_init();
-        for (uint256 i = 0; i < _committee.length; i++) {
-            committee[_committee[i]] = stake[i];
+        uint16 total_stake = 0;
+
+        // TODO: add unittest check unequal lengths
+        require(_committee.length == stakes.length, "Committee and stake arrays must be of the same length");
+
+        // TODO: how to check duplication
+        for (uint16 i = 0; i < _committee.length; i++) {
+
+            committee[_committee[i]] = stakes[i];
+            total_stake += stakes[i];
         }
+
+        // TODO: add unittest check total stake != 10k
+        require(total_stake == 10000, "Total stake must be 10000");
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
@@ -106,12 +117,12 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     function verifyMessageSignatures(
         bytes[] memory signatures,
         bytes32 messageHash,
-        uint256 requiredStake
+        uint16 requiredStake
     ) public view override returns (bool) {
         // Loop over the signatures and check if they are valid
-        uint256 approvalStake;
+        uint16 approvalStake;
         address signer;
-        for (uint256 i = 0; i < signatures.length; i++) {
+        for (uint16 i = 0; i < signatures.length; i++) {
             bytes memory signature = signatures[i];
             // Extract R, S, and V components from the signature
             (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
@@ -135,7 +146,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
 
     function _updateBlocklist(address[] memory _blocklist, bool isBlocklisted) internal {
         // check original blocklist value of each validator
-        for (uint256 i = 0; i < _blocklist.length; i++) {
+        for (uint16 i = 0; i < _blocklist.length; i++) {
             blocklist[_blocklist[i]] = isBlocklisted;
         }
     }

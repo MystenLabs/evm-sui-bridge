@@ -21,25 +21,26 @@ contract SuiBridge is
 
     /* ========== CONSTANTS ========== */
 
-    uint256 public constant TRANSFER_STAKE_REQUIRED = 5001;
-    uint256 public constant FREEZING_STAKE_REQUIRED = 450;
-    uint256 public constant UNFREEZING_STAKE_REQUIRED = 5001;
-    uint256 public constant BRIDGE_UPGRADE_STAKE_REQUIRED = 5001;
+    // Total stake is 10000, u16 is enough
+    uint16 public constant TRANSFER_STAKE_REQUIRED = 5001;
+    uint16 public constant FREEZING_STAKE_REQUIRED = 450;
+    uint16 public constant UNFREEZING_STAKE_REQUIRED = 5001;
+    uint16 public constant BRIDGE_UPGRADE_STAKE_REQUIRED = 5001;
 
     /* ========== STATE VARIABLES ========== */
 
     IBridgeCommittee public committee;
     IBridgeVault public vault;
     IWETH9 public weth9;
-    uint256 public chainId;
+    uint8 public chainId;
     address[] public supportedTokens;
     // message type => required amount of approval stake
-    mapping(uint256 => uint256) public requiredApprovalStake;
+    mapping(uint8 => uint16) public requiredApprovalStake;
     // message nonce => processed
-    mapping(uint256 => bool) public messageProcessed;
+    mapping(uint64 => bool) public messageProcessed;
     // TODO: check that garbage collection is not needed for this ^^
     // messageType => nonce
-    mapping(uint256 => uint256) public nonces;
+    mapping(uint8 => uint64) public nonces;
 
     /* ========== INITIALIZER ========== */
 
@@ -48,7 +49,7 @@ contract SuiBridge is
         address _committee,
         address _vault,
         address _weth9,
-        uint256 _chainId
+        uint8 _chainId
     ) external initializer {
         __ReentrancyGuard_init();
         __Pausable_init();
@@ -109,7 +110,7 @@ contract SuiBridge is
         );
 
         // calculate required stake
-        uint256 stakeRequired = UNFREEZING_STAKE_REQUIRED;
+        uint16 stakeRequired = UNFREEZING_STAKE_REQUIRED;
 
         // decode the emergency op message
         bool isFreezing = decodeEmergencyOpPayload(message.payload);
@@ -166,10 +167,10 @@ contract SuiBridge is
     }
 
     function bridgeToSui(
-        uint256 tokenId,
+        uint8 tokenId,
         uint256 amount,
         bytes memory targetAddress,
-        uint256 destinationChainId
+        uint8 destinationChainId
     ) external whenNotPaused nonReentrant {
         // Round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
         amount = amount.div(10 ** 10).mul(10 ** 10);
@@ -198,10 +199,10 @@ contract SuiBridge is
             destinationChainId,
             chainId,
             nonces[Messages.TOKEN_TRANSFER]
-            );
+        );
     }
 
-    function bridgeETHToSui(bytes memory targetAddress, uint256 destinationChainId)
+    function bridgeETHToSui(bytes memory targetAddress, uint8 destinationChainId)
         external
         payable
         whenNotPaused
@@ -228,12 +229,12 @@ contract SuiBridge is
             destinationChainId,
             chainId,
             nonces[Messages.TOKEN_TRANSFER]
-            );
+        );
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
 
-    function _transferTokensFromVault(uint256 tokenType, address targetAddress, uint256 amount)
+    function _transferTokensFromVault(uint8 tokenType, address targetAddress, uint256 amount)
         internal
         whenNotPaused
     {
@@ -252,8 +253,13 @@ contract SuiBridge is
         (uint256 emergencyOpCode) = abi.decode(payload, (uint256));
         require(emergencyOpCode <= 1, "Messages: Invalid op code");
 
-        if (emergencyOpCode == 0) return true;
-        else if (emergencyOpCode == 1) return false;
+        if (emergencyOpCode == 0) {
+            return true;
+        } else if (emergencyOpCode == 1) {
+            return false;
+        } else {
+            revert("Invalid emergency operation code");
+        }
     }
 
     function decodeTokenTransferPayload(bytes memory payload)
