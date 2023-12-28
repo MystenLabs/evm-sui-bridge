@@ -39,10 +39,7 @@ contract BridgeBaseTest is InvariantTest, Test {
 
     function setUpBridgeTest() public {
         vm.createSelectFork(
-            string.concat(
-                "https://mainnet.infura.io/v3/",
-                vm.envString("INFURA_API_KEY")
-            )
+            string.concat("https://mainnet.infura.io/v3/", vm.envString("INFURA_API_KEY"))
         );
         (committeeMemberA, committeeMemberPkA) = makeAddrAndKey("a");
         (committeeMemberB, committeeMemberPkB) = makeAddrAndKey("b");
@@ -82,13 +79,7 @@ contract BridgeBaseTest is InvariantTest, Test {
         _supportedTokens[3] = USDT;
         bridge = new SuiBridge();
         uint8 _chainId = 1;
-        bridge.initialize(
-            _supportedTokens,
-            address(committee),
-            address(vault),
-            wETH,
-            _chainId
-        );
+        bridge.initialize(_supportedTokens, address(committee), address(vault), wETH, _chainId);
         vault.transferOwnership(address(bridge));
 
         targetContract(address(committee));
@@ -99,10 +90,7 @@ contract BridgeBaseTest is InvariantTest, Test {
     function test() public {}
 
     // Helper function to get the signature components from an address
-    function getSignature(
-        bytes32 digest,
-        uint256 privateKey
-    ) public pure returns (bytes memory) {
+    function getSignature(bytes32 digest, uint256 privateKey) public pure returns (bytes memory) {
         // r and s are the outputs of the ECDSA signature
         // r,s and v are packed into the signature. It should be 65 bytes: 32 + 32 + 1
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
@@ -111,17 +99,14 @@ contract BridgeBaseTest is InvariantTest, Test {
         return abi.encodePacked(r, s, v);
     }
 
-    function encodeMessage(
-        Messages.Message memory message
-    ) public pure returns (bytes memory) {
-        return
-            abi.encodePacked(
-                "SUI_NATIVE_BRIDGE",
-                message.messageType,
-                message.version,
-                message.nonce,
-                message.chainID,
-                message.payload
-            );
+    function encodeMessage(Messages.Message memory message) public pure returns (bytes memory) {
+        return abi.encodePacked(
+            "SUI_NATIVE_BRIDGE",
+            message.messageType,
+            message.version,
+            message.nonce,
+            message.chainID,
+            message.payload
+        );
     }
 }
