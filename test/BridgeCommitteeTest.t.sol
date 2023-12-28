@@ -76,6 +76,44 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertFalse(result);
     }
 
+    function testFuzzVerifyMessageSignaturesWithValidSignatures(
+        uint8 _version,
+        uint64 _nonce,
+        uint8 _chainID,
+        bytes memory _payload
+    ) public {
+        // Generate a random message
+        Messages.Message memory message = Messages.Message({
+            messageType: Messages.TOKEN_TRANSFER,
+            version: _version,
+            nonce: _nonce,
+            chainID: _chainID,
+            payload: _payload
+        });
+
+        bytes memory messageBytes = encodeMessage(message);
+
+        bytes32 messageHash = keccak256(messageBytes);
+
+        bytes[] memory signatures = new bytes[](3);
+
+        // Generate random signatures from committee members
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+
+        uint16 requiredStake = 500;
+
+        // Check if the signatures are valid
+        assertTrue(
+            committee.verifyMessageSignatures(
+                signatures,
+                messageHash,
+                requiredStake
+            )
+        );
+    }
+
     function testDecodeBlocklistPayload() public {
         // create payload
         address[] memory _blocklist = new address[](1);
