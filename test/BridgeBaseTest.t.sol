@@ -6,6 +6,7 @@ import {InvariantTest} from "forge-std/InvariantTest.sol";
 import "../contracts/BridgeCommittee.sol";
 import "../contracts/BridgeVault.sol";
 import "../contracts/SuiBridge.sol";
+import "../contracts/interfaces/ISuiBridge.sol";
 
 contract BridgeBaseTest is InvariantTest, Test {
     address committeeMemberA;
@@ -32,6 +33,8 @@ contract BridgeBaseTest is InvariantTest, Test {
     address wBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
 
     address USDCWhale = 0x51eDF02152EBfb338e03E30d65C15fBf06cc9ECC;
+
+    uint8 TestChainID = 99;
 
     BridgeCommittee public committee;
     SuiBridge public bridge;
@@ -78,7 +81,7 @@ contract BridgeBaseTest is InvariantTest, Test {
         _supportedTokens[2] = USDC;
         _supportedTokens[3] = USDT;
         bridge = new SuiBridge();
-        uint8 _chainId = 1;
+        uint8 _chainId = TestChainID;
         bridge.initialize(_supportedTokens, address(committee), address(vault), wETH, _chainId);
         vault.transferOwnership(address(bridge));
 

@@ -7,7 +7,7 @@ interface ISuiBridge {
         uint64 indexed nonce,
         uint8 indexed destinationChainId,
         uint8 tokenCode,
-        uint256 amount,
+        uint64 suiAdjustedAmount,
         address sourceAddress,
         bytes targetAddress
     );

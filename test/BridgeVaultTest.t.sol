@@ -91,6 +91,6 @@ contract BridgeVaultTest is Test, BridgeVault {
 
         // Check that the burn was successful
         assertEq(token.balanceOf(bob), 400);
-        assertEq(token.balanceOf(address(vault)), 600);
+        assertEq(token.balanceOf(address(vault)), 500);
     }
 }

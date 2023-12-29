@@ -16,6 +16,13 @@ library Messages {
     uint8 public constant USDC = 3;
     uint8 public constant USDT = 4;
 
+    // token decimals on Sui
+    uint8 public constant SUI_DECIMAL_ON_SUI = 9;
+    uint8 public constant BTC_DECIMAL_ON_SUI = 8;
+    uint8 public constant ETH_DECIMAL_ON_SUI = 8;
+    uint8 public constant USDC_DECIMAL_ON_SUI = 6;
+    uint8 public constant USDT_DECIMAL_ON_SUI = 6;
+
     string public constant MESSAGE_PREFIX = "SUI_NATIVE_BRIDGE";
 
     struct Message {
