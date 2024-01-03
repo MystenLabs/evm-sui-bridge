@@ -5,7 +5,6 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./interfaces/IWETH9.sol";
 import "./interfaces/IBridgeVault.sol";
 import "./interfaces/IBridgeCommittee.sol";
@@ -18,7 +17,6 @@ contract SuiBridge is
     ReentrancyGuardUpgradeable,
     UUPSUpgradeable
 {
-    using SafeMath for uint256;
 
     /* ========== CONSTANTS ========== */
 
@@ -34,7 +32,8 @@ contract SuiBridge is
     IBridgeVault public vault;
     IWETH9 public weth9;
     uint8 public chainId;
-    address[] public supportedTokens;
+    // token id => token address
+    mapping(uint8 => address) public supportedTokens;
     // message type => required amount of approval stake
     mapping(uint8 => uint16) public requiredApprovalStake;
     // message nonce => processed
@@ -55,7 +54,9 @@ contract SuiBridge is
         __ReentrancyGuard_init();
         __Pausable_init();
         __UUPSUpgradeable_init();
-        supportedTokens = _supportedTokens;
+        for (uint8 i = 0; i < _supportedTokens.length; i++) {
+            supportedTokens[i + 1] = _supportedTokens[i];
+        }
         committee = IBridgeCommittee(_committee);
         vault = IBridgeVault(_vault);
         weth9 = IWETH9(_weth9);
@@ -64,7 +65,6 @@ contract SuiBridge is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
-    // TODO: if ETH, unwrap to native ETH
     function transferTokensWithSignatures(
         bytes[] memory signatures,
         Messages.Message memory message
@@ -89,8 +89,7 @@ contract SuiBridge is
         Messages.TokenTransferPayload memory tokenTransferPayload =
             decodeTokenTransferPayload(message.payload);
 
-        // TODO: index is error prone, use mapping
-        address tokenAddress = supportedTokens[tokenTransferPayload.tokenType - 1];
+        address tokenAddress = supportedTokens[tokenTransferPayload.tokenType];
         uint8 erc20Decimal = IERC20Metadata(tokenAddress).decimals();
         uint256 erc20AdjustedAmount = adjustDecimalsForErc20(
             tokenTransferPayload.tokenType,
@@ -184,12 +183,12 @@ contract SuiBridge is
         uint8 destinationChainId
     ) external whenNotPaused nonReentrant {
         // Round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
-        amount = amount.div(10 ** 10).mul(10 ** 10);
+        amount = amount / (10 ** 10) * (10 ** 10);
 
         // Check that the token address is supported (but not sui yet)
         require(tokenId > Messages.SUI && tokenId <= Messages.USDT, "SuiBridge: Unsupported token");
 
-        address tokenAddress = supportedTokens[tokenId - 1];
+        address tokenAddress = supportedTokens[tokenId];
 
         // check that the bridge contract has allowance to transfer the tokens
         require(
@@ -201,7 +200,7 @@ contract SuiBridge is
         IERC20(tokenAddress).transferFrom(msg.sender, address(vault), amount);
 
         // Adjust the amount to log.
-        uint64 suiAdjustedAmount = adjustDecimalsForSuiCoin(tokenId, amount, IERC20Metadata(tokenAddress).decimals());
+        uint64 suiAdjustedAmount = adjustDecimalsForSuiToken(tokenId, amount, IERC20Metadata(tokenAddress).decimals());
         emit TokensBridgedToSui(
             chainId,
             nonces[Messages.TOKEN_TRANSFER],
@@ -231,7 +230,7 @@ contract SuiBridge is
         weth9.transfer(address(vault), amount);
 
         // Adjust the amount to log.
-        uint64 suiAdjustedAmount = adjustDecimalsForSuiCoin(Messages.ETH, amount, 18);
+        uint64 suiAdjustedAmount = adjustDecimalsForSuiToken(Messages.ETH, amount, 18);
         emit TokensBridgedToSui(
             chainId,
             nonces[Messages.TOKEN_TRANSFER],
@@ -247,7 +246,7 @@ contract SuiBridge is
     }
 
     // Adjust ERC20 amount to Sui Coin amount to cover the decimal differences
-    function adjustDecimalsForSuiCoin(uint8 tokenId, uint256 originalAmount, uint8 ethDecimal) public pure returns (uint64) {
+    function adjustDecimalsForSuiToken(uint8 tokenId, uint256 originalAmount, uint8 ethDecimal) public pure returns (uint64) {
         uint8 suiDecimal = getDecimalOnSui(tokenId);
 
         if (ethDecimal == suiDecimal) {
@@ -259,10 +258,9 @@ contract SuiBridge is
         // Safe guard for the future
         require(ethDecimal > suiDecimal, "Eth decimal should be larger than sui decimal");
 
-        uint256 factor = 10**(ethDecimal - suiDecimal); // Difference in decimal places
-        // TODO: do we worry about underflow here?
+        // Difference in decimal places
+        uint256 factor = 10**(ethDecimal - suiDecimal);
         uint256 newAmount = originalAmount / factor;
-
 
         // Ensure the converted amount fits within uint64
         require(newAmount <= type(uint64).max, "Amount too large for uint64");
@@ -280,8 +278,8 @@ contract SuiBridge is
         // Safe guard for the future
         require(ethDecimal > suiDecimal, "Eth decimal should be larger than sui decimal");
 
-        // TODO: do we worry about overflow here?
-        uint256 factor = 10**(ethDecimal - suiDecimal); // Difference in decimal places
+        // Difference in decimal places
+        uint256 factor = 10**(ethDecimal - suiDecimal); 
         uint256 newAmount = originalAmount * factor;
 
         return newAmount;
@@ -292,7 +290,7 @@ contract SuiBridge is
     function getDecimalOnSui(uint8 tokenId) internal pure returns (uint8) {
         if (tokenId == Messages.SUI) {
             return Messages.SUI_DECIMAL_ON_SUI;
-        } else if (tokenId == Messages.BTC) {
+        } else if (tokenId == Messages.BTC) { 
             return Messages.BTC_DECIMAL_ON_SUI;
         } else if (tokenId == Messages.ETH) {
             return Messages.ETH_DECIMAL_ON_SUI;
@@ -308,7 +306,13 @@ contract SuiBridge is
         internal
         whenNotPaused
     {
-        address tokenAddress = supportedTokens[tokenType - 1];
+        // transfer eth if token type is eth
+        if (tokenType == Messages.ETH) {
+            vault.transferETH(payable(targetAddress), amount);
+            return;
+        }
+
+        address tokenAddress = supportedTokens[tokenType];
 
         // Check that the token address is supported
         require(tokenAddress != address(0), "SuiBridge: Unsupported token");

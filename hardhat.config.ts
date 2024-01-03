@@ -16,6 +16,7 @@ dotenvConfig({ path: resolve(__dirname, "./.env") });
 const chainIds = {
   mainnet: 1,
   goerli: 5,
+  sepolia: 11155111,
   hardhat: 1337,
 };
 
@@ -61,6 +62,7 @@ const config: HardhatUserConfig = {
     },
     mainnet: createTestnetConfig("mainnet"),
     goerli: createTestnetConfig("goerli"),
+    sepolia: createTestnetConfig("sepolia"),
   },
   solidity: {
     compilers: [

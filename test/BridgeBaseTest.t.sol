@@ -2,13 +2,12 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Test.sol";
-import {InvariantTest} from "forge-std/InvariantTest.sol";
 import "../contracts/BridgeCommittee.sol";
 import "../contracts/BridgeVault.sol";
 import "../contracts/SuiBridge.sol";
 import "../contracts/interfaces/ISuiBridge.sol";
 
-contract BridgeBaseTest is InvariantTest, Test {
+contract BridgeBaseTest is Test {
     address committeeMemberA;
     address committeeMemberB;
     address committeeMemberC;
@@ -23,6 +22,7 @@ contract BridgeBaseTest is InvariantTest, Test {
 
     address bridgerA;
     address bridgerB;
+    address bridgerC;
 
     address deployer;
 
@@ -34,7 +34,7 @@ contract BridgeBaseTest is InvariantTest, Test {
 
     address USDCWhale = 0x51eDF02152EBfb338e03E30d65C15fBf06cc9ECC;
 
-    uint8 TestChainID = 99;
+    uint8 testChainID = 99;
 
     BridgeCommittee public committee;
     SuiBridge public bridge;
@@ -51,6 +51,7 @@ contract BridgeBaseTest is InvariantTest, Test {
         (committeeMemberE, committeeMemberPkE) = makeAddrAndKey("e");
         bridgerA = makeAddr("bridgerA");
         bridgerB = makeAddr("bridgerB");
+        bridgerC = makeAddr("bridgerC");
         vm.deal(committeeMemberA, 1 ether);
         vm.deal(committeeMemberB, 1 ether);
         vm.deal(committeeMemberC, 1 ether);
@@ -74,20 +75,16 @@ contract BridgeBaseTest is InvariantTest, Test {
         _stake[4] = 4998;
         committee = new BridgeCommittee();
         committee.initialize(_committee, _stake);
-        vault = new BridgeVault();
+        vault = new BridgeVault(wETH);
         address[] memory _supportedTokens = new address[](4);
         _supportedTokens[0] = wBTC;
         _supportedTokens[1] = wETH;
         _supportedTokens[2] = USDC;
         _supportedTokens[3] = USDT;
         bridge = new SuiBridge();
-        uint8 _chainId = TestChainID;
+        uint8 _chainId = testChainID;
         bridge.initialize(_supportedTokens, address(committee), address(vault), wETH, _chainId);
         vault.transferOwnership(address(bridge));
-
-        targetContract(address(committee));
-        targetContract(address(vault));
-        targetContract(address(bridge));
     }
 
     function test() public {}
