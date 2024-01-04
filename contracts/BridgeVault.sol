@@ -9,7 +9,7 @@ contract BridgeVault is Ownable, IBridgeVault {
     // The WETH address
     IWETH9 public immutable wETH;
 
-    constructor (address _wETH) Ownable() {
+    constructor(address _wETH) Ownable() {
         // Set the WETH address
         wETH = IWETH9(_wETH);
     }
@@ -26,13 +26,18 @@ contract BridgeVault is Ownable, IBridgeVault {
         bool success = token.transfer(targetAddress, amount);
 
         // Check that the transfer was successful
-        require(success, "Transfer failed");
+        require(success, "BridgeVault: Transfer failed");
     }
 
-    function transferETH(address payable targetAddress, uint256 amount) external override onlyOwner {
+    function transferETH(address payable targetAddress, uint256 amount)
+        external
+        override
+        onlyOwner
+    {
         // unwrap the WETH
         wETH.withdraw(amount);
 
+        // TODO: check transfer success
         // Transfer the unwrapped ETH to the target address
         targetAddress.transfer(amount);
     }

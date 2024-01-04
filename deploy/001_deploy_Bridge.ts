@@ -7,7 +7,9 @@ const func: DeployFunction = async function (
 ) {
   let { ethers, deployments } = hardhat;
   const [owner] = await ethers.getSigners();
-  const wETH = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1";
+  const wBTC = "0x0112D7B36726B3077b72DDb457A9f9c94D9cd71c";
+  const wETH = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14";
+  const USDC = "0x80bF6fb931C8eB99Ab32aeD543ACCFd168fd2a47";
 
   // deploy Bridge Committee
   let bridgeCommitteeAddress = (await deployments.getOrNull("BridgeCommittee"))
@@ -35,13 +37,14 @@ const func: DeployFunction = async function (
         args: [wETH],
       })
     ).address;
+    console.log("🚀 Vault deployed at ", vaultAddress);
   }
 
   // deploy Sui Bridge
   let bridgeAddress = (await deployments.getOrNull("SuiBridge"))?.address;
   if (!bridgeAddress) {
     // TODO: get deployment args from a provided config file
-    const supportedTokens = [];
+    const supportedTokens = [wBTC, wETH, USDC];
     const sourceChainId = 0;
     bridgeCommitteeAddress = await deployProxyAndSave(
       "SuiBridge",
@@ -59,3 +62,4 @@ const func: DeployFunction = async function (
 };
 
 export default func;
+func.tags = ["BRIDGE"];
