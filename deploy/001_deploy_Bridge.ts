@@ -45,7 +45,7 @@ const func: DeployFunction = async function (
   if (!bridgeAddress) {
     // TODO: get deployment args from a provided config file
     const supportedTokens = [wBTC, wETH, USDC];
-    const sourceChainId = 0;
+    const sourceChainId = 11; // Eth Sepolia
     bridgeCommitteeAddress = await deployProxyAndSave(
       "SuiBridge",
       [
