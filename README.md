@@ -43,11 +43,14 @@ yarn coverage
 yarn deploy --network <network>
 ```
 
+> **Note**
+> Make sure the deployment config file for the target network is created in the `deploy_configs` folder.
+
 #### Contract Verification
 
 > **Note**
 > This does not work with `hardhat` network.
 
 ```bash
-yarn verify --network <network> <contract_address>
+yarn verify --network <network> <contract_address> <constructor_arguments (if any)>
 ```

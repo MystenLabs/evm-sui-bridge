@@ -29,3 +29,5 @@ deployments/ganache
 deployments/hardhat
 
 docs
+
+configs/hardhat.json

@@ -1,7 +1,7 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeploymentSubmission } from "hardhat-deploy/dist/types";
 import { DeployProxyOptions } from "@openzeppelin/hardhat-upgrades/dist/utils/options";
-import { ethers } from "ethers";
+import { readFileSync, existsSync } from "fs";
 
 export const deployProxyAndSave = async (
   name: string,
@@ -64,4 +64,39 @@ export const deployProxyAndSaveAs = async (
 
   console.log("🚀 ", name, " deployed at ", proxyAddress);
   return proxyAddress;
+};
+
+export interface BridgeDeploymentConfig {
+  committeeMembers: string[];
+  committeeMemberStake: number[];
+  wETHAddress: string;
+  supportedTokens: string[];
+  sourceChainId: number;
+}
+
+export const getBridgeDeploymentConfig = (
+  network: string
+): BridgeDeploymentConfig => {
+  const path = `./deploy_configs/${network}.json`;
+  if (!existsSync(path)) throw new Error(`Config file not found at ${path}`);
+
+  var obj = JSON.parse(readFileSync(path, "utf8"));
+
+  if (!obj.committeeMembers)
+    throw new Error("committeeMembers not provided in config");
+  if (!obj.committeeMemberStake)
+    throw new Error("committeeMemberStake not provided in config");
+  if (!obj.wETHAddress) throw new Error("wETHAddress not provided in config");
+  if (!obj.supportedTokens)
+    throw new Error("supportedTokens not provided in config");
+  if (obj.sourceChainId == undefined || obj.sourceChainId == null)
+    throw new Error("sourceChainId not provided in config");
+
+  return {
+    committeeMembers: obj.committeeMembers,
+    committeeMemberStake: obj.committeeMemberStake,
+    supportedTokens: obj.supportedTokens,
+    wETHAddress: obj.wETHAddress,
+    sourceChainId: obj.sourceChainId,
+  };
 };
