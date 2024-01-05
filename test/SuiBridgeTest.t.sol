@@ -161,7 +161,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertFalse(bridge.paused());
     }
 
-    function testBridgeToSui() public {
+    function testBridgeWETHToSui() public {
         changePrank(deployer);
         IWETH9(wETH).deposit{value: 10 ether}();
         IERC20(wETH).approve(address(bridge), 10 ether);
@@ -175,7 +175,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             0, // nonce
             0, // destination chain id
             Messages.ETH,
-            100000000, // 1 ether
+            1_00_000_000, // 1 ether
             deployer,
             abi.encode("suiAddress")
         );
@@ -184,6 +184,35 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertEq(IERC20(wETH).balanceOf(address(vault)), 1 ether);
         assertEq(IERC20(wETH).balanceOf(deployer), balance - 1 ether);
         assertEq(bridge.nonces(Messages.TOKEN_TRANSFER), 1);
+
+        // Now test rounding. For ETH, the last 10 digits are rounded
+        vm.expectEmit(true, true, true, false);
+        emit TokensBridgedToSui(
+            testChainID,
+            1, // nonce
+            0, // destination chain id
+            Messages.ETH,
+            2.00000001 ether,
+            deployer,
+            abi.encode("suiAddress")
+        );
+        // 2_000_000_011_000_000_888 is rounded to 2.00000001 eth
+        bridge.bridgeToSui(Messages.ETH, 2_000_000_011_000_000_888, abi.encode("suiAddress"), 0);
+        assertEq(IERC20(wETH).balanceOf(address(vault)), 3_000_000_011_000_000_888);
+        assertEq(IERC20(wETH).balanceOf(deployer), balance - 3_000_000_011_000_000_888);
+        assertEq(bridge.nonces(Messages.TOKEN_TRANSFER), 2);
+    }
+
+    function testBridgeUSDCToSui() public {
+        // TODO test and make sure adjusted amount in event is correct
+    }
+
+    function testBridgeUSDTToSui() public {
+        // TODO test and make sure adjusted amount in event is correct
+    }
+
+    function testBridgeBTCToSui() public {
+        // TODO test and make sure adjusted amount in event is correct
     }
 
     function testBridgeEthToSui() public {

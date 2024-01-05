@@ -17,7 +17,6 @@ contract SuiBridge is
     ReentrancyGuardUpgradeable,
     UUPSUpgradeable
 {
-
     /* ========== CONSTANTS ========== */
 
     // Total stake is 10000, u16 is enough
@@ -93,14 +92,10 @@ contract SuiBridge is
         address tokenAddress = supportedTokens[tokenTransferPayload.tokenType];
         uint8 erc20Decimal = IERC20Metadata(tokenAddress).decimals();
         uint256 erc20AdjustedAmount = adjustDecimalsForErc20(
-            tokenTransferPayload.tokenType,
-            tokenTransferPayload.amount,
-            erc20Decimal
+            tokenTransferPayload.tokenType, tokenTransferPayload.amount, erc20Decimal
         );
         _transferTokensFromVault(
-            tokenTransferPayload.tokenType,
-            tokenTransferPayload.targetAddress,
-            erc20AdjustedAmount
+            tokenTransferPayload.tokenType, tokenTransferPayload.targetAddress, erc20AdjustedAmount
         );
 
         // mark message as processed
@@ -183,7 +178,6 @@ contract SuiBridge is
         bytes memory targetAddress,
         uint8 destinationChainId
     ) external whenNotPaused nonReentrant {
-
         // Check that the token address is supported (but not sui yet)
         require(tokenId > Messages.SUI && tokenId <= Messages.USDT, "SuiBridge: Unsupported token");
 
@@ -199,7 +193,8 @@ contract SuiBridge is
         IERC20(tokenAddress).transferFrom(msg.sender, address(vault), amount);
 
         // Adjust the amount to log.
-        uint64 suiAdjustedAmount = adjustDecimalsForSuiToken(tokenId, amount, IERC20Metadata(tokenAddress).decimals());
+        uint64 suiAdjustedAmount =
+            adjustDecimalsForSuiToken(tokenId, amount, IERC20Metadata(tokenAddress).decimals());
         emit TokensBridgedToSui(
             chainId,
             nonces[Messages.TOKEN_TRANSFER],
@@ -208,7 +203,7 @@ contract SuiBridge is
             suiAdjustedAmount,
             msg.sender,
             targetAddress
-        );
+            );
 
         // increment token transfer nonce
         nonces[Messages.TOKEN_TRANSFER]++;
@@ -238,14 +233,18 @@ contract SuiBridge is
             suiAdjustedAmount,
             msg.sender,
             targetAddress
-        );
+            );
 
         // increment token transfer nonce
         nonces[Messages.TOKEN_TRANSFER]++;
     }
 
     // Adjust ERC20 amount to Sui Coin amount to cover the decimal differences
-    function adjustDecimalsForSuiToken(uint8 tokenId, uint256 originalAmount, uint8 ethDecimal) public pure returns (uint64) {
+    function adjustDecimalsForSuiToken(uint8 tokenId, uint256 originalAmount, uint8 ethDecimal)
+        public
+        pure
+        returns (uint64)
+    {
         uint8 suiDecimal = getDecimalOnSui(tokenId);
 
         if (ethDecimal == suiDecimal) {
@@ -258,7 +257,7 @@ contract SuiBridge is
         require(ethDecimal > suiDecimal, "Eth decimal should be larger than sui decimal");
 
         // Difference in decimal places
-        uint256 factor = 10**(ethDecimal - suiDecimal);
+        uint256 factor = 10 ** (ethDecimal - suiDecimal);
         uint256 newAmount = originalAmount / factor;
 
         // Ensure the converted amount fits within uint64
@@ -268,7 +267,11 @@ contract SuiBridge is
     }
 
     // Adjust Sui coin amount to ERC20 amount to cover the decimal differences
-    function adjustDecimalsForErc20(uint8 tokenId, uint64 originalAmount, uint8 ethDecimal) public pure returns (uint256) {
+    function adjustDecimalsForErc20(uint8 tokenId, uint64 originalAmount, uint8 ethDecimal)
+        public
+        pure
+        returns (uint256)
+    {
         uint8 suiDecimal = getDecimalOnSui(tokenId);
         if (suiDecimal == ethDecimal) {
             return uint256(originalAmount);
@@ -278,7 +281,7 @@ contract SuiBridge is
         require(ethDecimal > suiDecimal, "Eth decimal should be larger than sui decimal");
 
         // Difference in decimal places
-        uint256 factor = 10**(ethDecimal - suiDecimal); 
+        uint256 factor = 10 ** (ethDecimal - suiDecimal);
         uint256 newAmount = originalAmount * factor;
 
         return newAmount;
@@ -289,7 +292,7 @@ contract SuiBridge is
     function getDecimalOnSui(uint8 tokenId) internal pure returns (uint8) {
         if (tokenId == Messages.SUI) {
             return Messages.SUI_DECIMAL_ON_SUI;
-        } else if (tokenId == Messages.BTC) { 
+        } else if (tokenId == Messages.BTC) {
             return Messages.BTC_DECIMAL_ON_SUI;
         } else if (tokenId == Messages.ETH) {
             return Messages.ETH_DECIMAL_ON_SUI;

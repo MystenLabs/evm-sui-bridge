@@ -1,0 +1,7 @@
+{
+  "committeeMembers": [],
+  "committeeMemberStake": [],
+  "supportedTokens": ["wBTCAddress", "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14", "TODO: add USDC address", "TODO; add USDT address"],
+  "wETHAddress": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
+  "sourceChainId": 0
+}
