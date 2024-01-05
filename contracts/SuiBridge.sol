@@ -44,6 +44,7 @@ contract SuiBridge is
 
     /* ========== INITIALIZER ========== */
 
+    // FIXME need to be able to pass in nonce ids ( to continue from previous bridge)
     function initialize(
         address[] memory _supportedTokens,
         address _committee,
@@ -182,8 +183,6 @@ contract SuiBridge is
         bytes memory targetAddress,
         uint8 destinationChainId
     ) external whenNotPaused nonReentrant {
-        // Round amount down to nearest whole 8 decimal place (Sui only has 8 decimal places)
-        amount = amount / (10 ** 10) * (10 ** 10);
 
         // Check that the token address is supported (but not sui yet)
         require(tokenId > Messages.SUI && tokenId <= Messages.USDT, "SuiBridge: Unsupported token");
