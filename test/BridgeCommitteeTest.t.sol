@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./BridgeBaseTest.t.sol";
-import "../contracts/utils/Messages.sol";
+import "../contracts/utils/BridgeMessage.sol";
 
 contract BridgeCommitteeTest is BridgeBaseTest {
     // This function is called before each unit test
@@ -20,15 +20,15 @@ contract BridgeCommitteeTest is BridgeBaseTest {
 
     function testVerifyMessageSignaturesWithValidSignatures() public {
         // Create a message
-        Messages.Message memory message = Messages.Message({
-            messageType: Messages.TOKEN_TRANSFER,
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
             chainID: 1,
             payload: "0x0"
         });
 
-        bytes memory messageBytes = encodeMessage(message);
+        bytes memory messageBytes = BridgeMessage.encodeMessage(message);
 
         bytes32 messageHash = keccak256(messageBytes);
 
@@ -49,15 +49,15 @@ contract BridgeCommitteeTest is BridgeBaseTest {
 
     function testVerifyMessageSignaturesWithInvalidSignatures() public {
         // Create a message
-        Messages.Message memory message = Messages.Message({
-            messageType: Messages.TOKEN_TRANSFER,
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
             chainID: 1,
             payload: "0x0"
         });
 
-        bytes memory messageBytes = encodeMessage(message);
+        bytes memory messageBytes = BridgeMessage.encodeMessage(message);
 
         bytes32 messageHash = keccak256(messageBytes);
 
@@ -83,8 +83,8 @@ contract BridgeCommitteeTest is BridgeBaseTest {
     //     bytes memory _payload
     // ) public {
     //     // Generate a random message
-    //     Messages.Message memory message = Messages.Message({
-    //         messageType: Messages.TOKEN_TRANSFER,
+    //     BridgeMessage.Message memory message = BridgeMessage.Message({
+    //         messageType: BridgeMessage.TOKEN_TRANSFER,
     //         version: _version,
     //         nonce: _nonce,
     //         chainID: _chainID,
@@ -149,15 +149,15 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         bytes memory payload = abi.encode(uint8(0), _blocklist);
 
         // Create a message
-        Messages.Message memory message = Messages.Message({
-            messageType: Messages.BLOCKLIST,
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.BLOCKLIST,
             version: 1,
             nonce: 0,
             chainID: 1,
             payload: payload
         });
 
-        bytes memory messageBytes = encodeMessage(message);
+        bytes memory messageBytes = BridgeMessage.encodeMessage(message);
         bytes32 messageHash = keccak256(messageBytes);
         bytes[] memory signatures = new bytes[](4);
 
@@ -194,8 +194,8 @@ contract BridgeCommitteeTest is BridgeBaseTest {
     //     bytes memory payload = abi.encode(uint8(0), _blocklist);
 
     //     // Create a message
-    //     Messages.Message memory message = Messages.Message({
-    //         messageType: Messages.BLOCKLIST,
+    //     BridgeMessage.Message memory message = BridgeMessage.Message({
+    //         messageType: BridgeMessage.BLOCKLIST,
     //         version: _version,
     //         nonce: _nonce,
     //         chainID: _chainID,
@@ -244,15 +244,15 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         bytes memory payload = abi.encode(uint8(1), _blocklist);
 
         // Create a message
-        Messages.Message memory message = Messages.Message({
-            messageType: Messages.BLOCKLIST,
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.BLOCKLIST,
             version: 1,
             nonce: 1,
             chainID: 1,
             payload: payload
         });
 
-        bytes memory messageBytes = encodeMessage(message);
+        bytes memory messageBytes = BridgeMessage.encodeMessage(message);
         bytes32 messageHash = keccak256(messageBytes);
         bytes[] memory signatures = new bytes[](4);
 

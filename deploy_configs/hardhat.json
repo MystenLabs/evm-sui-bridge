@@ -1,7 +1,8 @@
 {
   "committeeMembers": ["0x80bF6fb931C8eB99Ab32aeD543ACCFd168fd2a47"],
   "committeeMemberStake": [10000],
-  "supportedTokens": [],
+  "supportedTokens": ["0x80bF6fb931C8eB99Ab32aeD543ACCFd168fd2a47"],
+  "dailyBridgeLimits": [10000000],
   "wETHAddress": "0x80bF6fb931C8eB99Ab32aeD543ACCFd168fd2a47",
   "sourceChainId": 0
 }

@@ -72,6 +72,7 @@ export interface BridgeDeploymentConfig {
   wETHAddress: string;
   supportedTokens: string[];
   sourceChainId: number;
+  dailyBridgeLimits: number[];
 }
 
 export const getBridgeDeploymentConfig = (
@@ -98,5 +99,6 @@ export const getBridgeDeploymentConfig = (
     supportedTokens: obj.supportedTokens,
     wETHAddress: obj.wETHAddress,
     sourceChainId: obj.sourceChainId,
+    dailyBridgeLimits: obj.dailyBridgeLimits,
   };
 };

@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "forge-std/Test.sol";
 import "../contracts/BridgeCommittee.sol";
 import "../contracts/BridgeVault.sol";
+import "../contracts/BridgeLimiter.sol";
 import "../contracts/SuiBridge.sol";
 import "../contracts/interfaces/ISuiBridge.sol";
 
@@ -39,6 +40,7 @@ contract BridgeBaseTest is Test {
     BridgeCommittee public committee;
     SuiBridge public bridge;
     BridgeVault public vault;
+    BridgeLimiter public limiter;
 
     function setUpBridgeTest() public {
         vm.createSelectFork(
@@ -81,10 +83,20 @@ contract BridgeBaseTest is Test {
         _supportedTokens[1] = wETH;
         _supportedTokens[2] = USDC;
         _supportedTokens[3] = USDT;
+        uint256[] memory _dailyBridgeLimits = new uint256[](4);
+        _dailyBridgeLimits[0] = 100 ether;
+        _dailyBridgeLimits[1] = 100 ether;
+        _dailyBridgeLimits[2] = 100 ether;
+        _dailyBridgeLimits[3] = 100 ether;
+        uint256 _dailyLimitStart = block.timestamp + 1 days;
+        limiter = new BridgeLimiter(_dailyLimitStart, _dailyBridgeLimits);
         bridge = new SuiBridge();
         uint8 _chainId = testChainID;
-        bridge.initialize(_supportedTokens, address(committee), address(vault), wETH, _chainId);
+        bridge.initialize(
+            address(committee), address(vault), address(limiter), wETH, _chainId, _supportedTokens
+        );
         vault.transferOwnership(address(bridge));
+        limiter.transferOwnership(address(bridge));
     }
 
     function test() public {}
@@ -97,16 +109,5 @@ contract BridgeBaseTest is Test {
 
         // pack v, r, s into 65bytes signature
         return abi.encodePacked(r, s, v);
-    }
-
-    function encodeMessage(Messages.Message memory message) public pure returns (bytes memory) {
-        return abi.encodePacked(
-            "SUI_NATIVE_BRIDGE",
-            message.messageType,
-            message.version,
-            message.nonce,
-            message.chainID,
-            message.payload
-        );
     }
 }

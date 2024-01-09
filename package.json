@@ -20,6 +20,7 @@
     "@nomicfoundation/hardhat-ethers": "^3.0.4",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.6",
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "@nomicfoundation/hardhat-verify": "^1.1.1",
     "@nomiclabs/hardhat-etherscan": "^3.1.1",
     "@openzeppelin/hardhat-upgrades": "^2.1.1",
     "@types/node": "^18.11.2",
@@ -35,7 +36,6 @@
     "hardhat-preprocessor": "^0.1.5",
     "solidity-coverage": "^0.8.2",
     "ts-node": "^10.9.1",
-    "@nomicfoundation/hardhat-verify": "^1.1.1",
     "typescript": "^4.8.4"
   }
 }

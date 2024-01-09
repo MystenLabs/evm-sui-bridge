@@ -2,6 +2,7 @@
   "committeeMembers": ["0x000"],
   "committeeMemberStake": [0],
   "supportedTokens": ["Tokens listed here should be listed in the same order as the tokens in the token list"],
+  "dailyBridgeLimits": [],
   "wETHAddress": "0x000",
   "sourceChainId": 0
 }

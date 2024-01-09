@@ -10,6 +10,7 @@ import "hardhat-deploy-ethers";
 import "@openzeppelin/hardhat-upgrades";
 import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-verify";
+import "hardhat-contract-sizer";
 
 dotenvConfig({ path: resolve(__dirname, "./.env") });
 

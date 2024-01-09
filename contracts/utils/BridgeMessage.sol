@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-library Messages {
+library BridgeMessage {
     // message Ids
     uint8 public constant TOKEN_TRANSFER = 0;
     uint8 public constant BLOCKLIST = 1;
@@ -16,7 +16,7 @@ library Messages {
     uint8 public constant USDC = 3;
     uint8 public constant USDT = 4;
 
-    // token decimals on Sui
+    // Sui token decimals
     uint8 public constant SUI_DECIMAL_ON_SUI = 9;
     uint8 public constant BTC_DECIMAL_ON_SUI = 8;
     uint8 public constant ETH_DECIMAL_ON_SUI = 8;
@@ -39,13 +39,13 @@ library Messages {
         uint8 targetChain;
         uint8 targetAddressLength;
         address targetAddress;
-        uint8 tokenType;
+        uint8 tokenId;
         uint64 amount;
     }
 
     function encodeMessage(Message memory message) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            Messages.MESSAGE_PREFIX,
+            MESSAGE_PREFIX,
             message.messageType,
             message.version,
             message.nonce,

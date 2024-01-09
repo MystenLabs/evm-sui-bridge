@@ -29,27 +29,26 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         // IWETH9(wETH).withdraw(1 ether);
         IERC20(wETH).transfer(address(vault), 10 ether);
         // Create transfer message
-        Messages.TokenTransferPayload memory payload = Messages.TokenTransferPayload({
+        BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
             senderAddressLength: 0,
             senderAddress: abi.encode(0),
             targetChain: 1,
             targetAddressLength: 0,
             targetAddress: bridgerA,
-            tokenType: Messages.ETH,
+            tokenId: BridgeMessage.ETH,
             // This is Sui amount (eth decimal 8)
             amount: 100_000_000
         });
 
-
-        Messages.Message memory message = Messages.Message({
-            messageType: Messages.TOKEN_TRANSFER,
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
             chainID: 1,
             payload: abi.encode(payload)
         });
 
-        bytes memory encodedMessage = encodeMessage(message);
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
 
         bytes32 messageHash = keccak256(encodedMessage);
 
@@ -72,25 +71,25 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         IERC20(USDC).transfer(address(vault), 100_000_000);
         changePrank(deployer);
         // Create transfer message
-        Messages.TokenTransferPayload memory payload = Messages.TokenTransferPayload({
+        BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
             senderAddressLength: 0,
             senderAddress: abi.encode(0),
             targetChain: 1,
             targetAddressLength: 0,
             targetAddress: bridgerA,
-            tokenType: Messages.USDC,
+            tokenId: BridgeMessage.USDC,
             amount: 1_000_000
         });
 
-        Messages.Message memory message = Messages.Message({
-            messageType: Messages.TOKEN_TRANSFER,
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
             chainID: 1,
             payload: abi.encode(payload)
         });
 
-        bytes memory encodedMessage = encodeMessage(message);
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
 
         bytes32 messageHash = keccak256(encodedMessage);
 
@@ -109,15 +108,15 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
 
     function testFreezeBridgeEmergencyOp() public {
         // Create emergency op message
-        Messages.Message memory message = Messages.Message({
-            messageType: Messages.EMERGENCY_OP,
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.EMERGENCY_OP,
             version: 1,
             nonce: 0,
             chainID: 1,
             payload: abi.encode(0)
         });
 
-        bytes memory encodedMessage = encodeMessage(message);
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
 
         bytes32 messageHash = keccak256(encodedMessage);
 
@@ -137,15 +136,15 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
     function testUnfreezeBridgeEmergencyOp() public {
         testFreezeBridgeEmergencyOp();
         // Create emergency op message
-        Messages.Message memory message = Messages.Message({
-            messageType: Messages.EMERGENCY_OP,
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.EMERGENCY_OP,
             version: 1,
             nonce: 1,
             chainID: 1,
             payload: abi.encode(1)
         });
 
-        bytes memory encodedMessage = encodeMessage(message);
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
 
         bytes32 messageHash = keccak256(encodedMessage);
 
@@ -174,16 +173,16 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             testChainID,
             0, // nonce
             0, // destination chain id
-            Messages.ETH,
+            BridgeMessage.ETH,
             1_00_000_000, // 1 ether
             deployer,
             abi.encode("suiAddress")
-        );
+            );
 
-        bridge.bridgeToSui(Messages.ETH, 1 ether, abi.encode("suiAddress"), 0);
+        bridge.bridgeToSui(BridgeMessage.ETH, 1 ether, abi.encode("suiAddress"), 0);
         assertEq(IERC20(wETH).balanceOf(address(vault)), 1 ether);
         assertEq(IERC20(wETH).balanceOf(deployer), balance - 1 ether);
-        assertEq(bridge.nonces(Messages.TOKEN_TRANSFER), 1);
+        assertEq(bridge.nonces(BridgeMessage.TOKEN_TRANSFER), 1);
 
         // Now test rounding. For ETH, the last 10 digits are rounded
         vm.expectEmit(true, true, true, false);
@@ -191,16 +190,18 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             testChainID,
             1, // nonce
             0, // destination chain id
-            Messages.ETH,
+            BridgeMessage.ETH,
             2.00000001 ether,
             deployer,
             abi.encode("suiAddress")
-        );
+            );
         // 2_000_000_011_000_000_888 is rounded to 2.00000001 eth
-        bridge.bridgeToSui(Messages.ETH, 2_000_000_011_000_000_888, abi.encode("suiAddress"), 0);
+        bridge.bridgeToSui(
+            BridgeMessage.ETH, 2_000_000_011_000_000_888, abi.encode("suiAddress"), 0
+        );
         assertEq(IERC20(wETH).balanceOf(address(vault)), 3_000_000_011_000_000_888);
         assertEq(IERC20(wETH).balanceOf(deployer), balance - 3_000_000_011_000_000_888);
-        assertEq(bridge.nonces(Messages.TOKEN_TRANSFER), 2);
+        assertEq(bridge.nonces(BridgeMessage.TOKEN_TRANSFER), 2);
     }
 
     function testBridgeUSDCToSui() public {
@@ -226,41 +227,41 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             testChainID,
             0, // nonce
             0, // destination chain id
-            Messages.ETH,
+            BridgeMessage.ETH,
             1_000_000_00, // 1 ether
             deployer,
             abi.encode("suiAddress")
-        );
+            );
 
         bridge.bridgeETHToSui{value: 1 ether}(abi.encode("suiAddress"), 0);
         assertEq(IERC20(wETH).balanceOf(address(vault)), 1 ether);
         assertEq(deployer.balance, balance - 1 ether);
-        assertEq(bridge.nonces(Messages.TOKEN_TRANSFER), 1);
+        assertEq(bridge.nonces(BridgeMessage.TOKEN_TRANSFER), 1);
     }
 
     function testEthToSuiDecimalConversion() public {
         // ETH
         assertEq(IERC20Metadata(wETH).decimals(), 18);
         uint256 ethAmount = 10 ether;
-        uint64 suiAmount = bridge.adjustDecimalsForSuiToken(Messages.ETH, ethAmount, 18);
+        uint64 suiAmount = bridge.adjustDecimalsForSuiToken(BridgeMessage.ETH, ethAmount, 18);
         assertEq(suiAmount, 10_000_000_00); // 10 * 10 ^ 8
 
         // USDC
         assertEq(IERC20Metadata(USDC).decimals(), 6);
         ethAmount = 50_000_000; // 50 USDC
-        suiAmount = bridge.adjustDecimalsForSuiToken(Messages.USDC, ethAmount, 6);
+        suiAmount = bridge.adjustDecimalsForSuiToken(BridgeMessage.USDC, ethAmount, 6);
         assertEq(suiAmount, ethAmount);
 
         // USDT
         assertEq(IERC20Metadata(USDT).decimals(), 6);
         ethAmount = 60_000_000; // 60 USDT
-        suiAmount = bridge.adjustDecimalsForSuiToken(Messages.USDT, ethAmount, 6);
+        suiAmount = bridge.adjustDecimalsForSuiToken(BridgeMessage.USDT, ethAmount, 6);
         assertEq(suiAmount, ethAmount);
 
         // BTC
         assertEq(IERC20Metadata(wBTC).decimals(), 8);
         ethAmount = 2_00_000_000; // 2 BTC
-        suiAmount = bridge.adjustDecimalsForSuiToken(Messages.BTC, ethAmount, 8);
+        suiAmount = bridge.adjustDecimalsForSuiToken(BridgeMessage.BTC, ethAmount, 8);
         assertEq(suiAmount, ethAmount);
     }
 
@@ -268,27 +269,29 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         // ETH
         assertEq(IERC20Metadata(wETH).decimals(), 18);
         uint64 suiAmount = 11_000_000_00; // 11 eth
-        uint256 ethAmount = bridge.adjustDecimalsForErc20(Messages.ETH, suiAmount, 18);
+        uint256 ethAmount = bridge.adjustDecimalsForErc20(BridgeMessage.ETH, suiAmount, 18);
         assertEq(ethAmount, 11 ether);
 
         // USDC
         assertEq(IERC20Metadata(USDC).decimals(), 6);
         suiAmount = 50_000_000; // 50 USDC
-        ethAmount = bridge.adjustDecimalsForErc20(Messages.USDC, suiAmount, 6);
+        ethAmount = bridge.adjustDecimalsForErc20(BridgeMessage.USDC, suiAmount, 6);
         assertEq(suiAmount, ethAmount);
 
         // USDT
         assertEq(IERC20Metadata(USDT).decimals(), 6);
         suiAmount = 50_000_000; // 50 USDT
-        ethAmount = bridge.adjustDecimalsForErc20(Messages.USDT, suiAmount, 6);
+        ethAmount = bridge.adjustDecimalsForErc20(BridgeMessage.USDT, suiAmount, 6);
         assertEq(suiAmount, ethAmount);
 
         // BTC
         assertEq(IERC20Metadata(wBTC).decimals(), 8);
         suiAmount = 3_000_000_00; // 3 BTC
-        ethAmount = bridge.adjustDecimalsForErc20(Messages.BTC, suiAmount, 8);
+        ethAmount = bridge.adjustDecimalsForErc20(BridgeMessage.BTC, suiAmount, 8);
         assertEq(suiAmount, ethAmount);
     }
+
+    // TODO: testTransferWETHWithLimitReached
 
     // TODO:
     function testUpgradeBridge() public {}

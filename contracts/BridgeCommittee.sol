@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IBridgeCommittee.sol";
-import "./utils/Messages.sol";
+import "./utils/BridgeMessage.sol";
 
 contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     /* ========== CONSTANTS ========== */
@@ -28,37 +28,37 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         __UUPSUpgradeable_init();
         uint16 total_stake = 0;
 
-        // TODO: add unittest check unequal lengths
-        require(_committee.length == stakes.length, "Committee and stake arrays must be of the same length");
+        require(
+            _committee.length == stakes.length,
+            "BridgeCommittee: Committee and stake arrays must be of the same length"
+        );
 
-        // TODO: how to check duplication
         for (uint16 i = 0; i < _committee.length; i++) {
-
+            require(committee[_committee[i]] == 0, "BridgeCommittee: Duplicate committee member");
             committee[_committee[i]] = stakes[i];
             total_stake += stakes[i];
         }
 
-        // TODO: add unittest check total stake != 10k
-        require(total_stake == 10000, "Total stake must be 10000");
+        require(total_stake == 10000, "BridgeCommittee: Total stake must be 10000");
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
     function updateBlocklistWithSignatures(
         bytes[] memory signatures,
-        Messages.Message memory message
+        BridgeMessage.Message memory message
     ) external {
         // verify message type nonce
         require(message.nonce == nonces[message.messageType], "BridgeCommittee: Invalid nonce");
 
         // verify message type
         require(
-            message.messageType == Messages.BLOCKLIST,
+            message.messageType == BridgeMessage.BLOCKLIST,
             "BridgeCommittee: message does not match type"
         );
 
         // compute message hash
-        bytes32 messageHash = Messages.getMessageHash(message);
+        bytes32 messageHash = BridgeMessage.getMessageHash(message);
 
         // verify signatures
         require(
@@ -73,18 +73,16 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         _updateBlocklist(_blocklist, isBlocklisted);
 
         // increment message type nonce
-        nonces[Messages.BLOCKLIST]++;
-
-        // TODO: emit event
+        nonces[BridgeMessage.BLOCKLIST]++;
     }
 
     function upgradeCommitteeWithSignatures(
         bytes[] memory signatures,
-        Messages.Message memory message
+        BridgeMessage.Message memory message
     ) external {
         // verify message type
         require(
-            message.messageType == Messages.COMMITTEE_UPGRADE,
+            message.messageType == BridgeMessage.COMMITTEE_UPGRADE,
             "BridgeCommittee: message does not match type"
         );
 
@@ -92,7 +90,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         require(message.nonce == nonces[message.messageType], "BridgeCommittee: Invalid nonce");
 
         // compute message hash
-        bytes32 messageHash = Messages.getMessageHash(message);
+        bytes32 messageHash = BridgeMessage.getMessageHash(message);
 
         // verify signatures
         require(
@@ -107,9 +105,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         _upgradeCommittee(implementationAddress);
 
         // increment message type nonce
-        nonces[Messages.COMMITTEE_UPGRADE]++;
-
-        // TODO: emit event
+        nonces[BridgeMessage.COMMITTEE_UPGRADE]++;
     }
 
     /* ========== VIEW FUNCTIONS ========== */
@@ -117,7 +113,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     function verifyMessageSignatures(
         bytes[] memory signatures,
         bytes32 messageHash,
-        uint16 requiredStake
+        uint32 requiredStake
     ) public view override returns (bool) {
         // Loop over the signatures and check if they are valid
         uint16 approvalStake;
@@ -149,6 +145,8 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         for (uint16 i = 0; i < _blocklist.length; i++) {
             blocklist[_blocklist[i]] = isBlocklisted;
         }
+
+        emit BlocklistUpdated(_blocklist, isBlocklisted);
     }
 
     function decodeBlocklistPayload(bytes memory payload)
@@ -167,12 +165,10 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         return implementationAddress;
     }
 
-    // TODO:
     function _authorizeUpgrade(address newImplementation) internal override {
         // TODO: implement so only committee members can upgrade
     }
 
-    // TODO: "self upgrading"
     // note: do we want to use "upgradeToAndCall" instead?
     function _upgradeCommittee(address upgradeImplementation)
         internal
@@ -188,7 +184,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         pure
         returns (bytes32 r, bytes32 s, uint8 v)
     {
-        require(sig.length == 65, "Invalid signature length");
+        require(sig.length == 65, "BridgeCommittee: Invalid signature length");
 
         assembly {
             // first 32 bytes, after the length prefix
