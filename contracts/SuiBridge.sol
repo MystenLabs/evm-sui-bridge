@@ -80,11 +80,8 @@ contract SuiBridge is
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
 
         // verify signatures
-        require(
-            committee.verifyMessageSignatures(
-                signatures, BridgeMessage.getMessageHash(message), TRANSFER_STAKE_REQUIRED
-            ),
-            "SuiBridge: Invalid signatures"
+        committee.verifyMessageSignatures(
+            signatures, BridgeMessage.getMessageHash(message), TRANSFER_STAKE_REQUIRED
         );
 
         BridgeMessage.TokenTransferPayload memory tokenTransferPayload =
@@ -126,11 +123,8 @@ contract SuiBridge is
         if (isFreezing) stakeRequired = FREEZING_STAKE_REQUIRED;
 
         // verify signatures
-        require(
-            committee.verifyMessageSignatures(
-                signatures, BridgeMessage.getMessageHash(message), stakeRequired
-            ),
-            "SuiBridge: Invalid signatures"
+        committee.verifyMessageSignatures(
+            signatures, BridgeMessage.getMessageHash(message), stakeRequired
         );
 
         if (isFreezing) _pause();
@@ -154,11 +148,8 @@ contract SuiBridge is
         );
 
         // verify signatures
-        require(
-            committee.verifyMessageSignatures(
-                signatures, BridgeMessage.getMessageHash(message), BRIDGE_UPGRADE_STAKE_REQUIRED
-            ),
-            "SuiBridge: Invalid signatures"
+        committee.verifyMessageSignatures(
+            signatures, BridgeMessage.getMessageHash(message), BRIDGE_UPGRADE_STAKE_REQUIRED
         );
 
         // decode the upgrade payload

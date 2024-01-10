@@ -15,6 +15,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
 
     // member address => stake amount
     mapping(address => uint16) public committee;
+    address[] private committeeAddresses;
     // member address => is blocklisted
     mapping(address => bool) public blocklist;
     // messageType => nonce
@@ -36,6 +37,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         for (uint16 i = 0; i < _committee.length; i++) {
             require(committee[_committee[i]] == 0, "BridgeCommittee: Duplicate committee member");
             committee[_committee[i]] = stakes[i];
+            committeeAddresses.push(_committee[i]);
             total_stake += stakes[i];
         }
 
@@ -61,10 +63,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         bytes32 messageHash = BridgeMessage.getMessageHash(message);
 
         // verify signatures
-        require(
-            verifyMessageSignatures(signatures, messageHash, BLOCKLIST_STAKE_REQUIRED),
-            "BridgeCommittee: Invalid signatures"
-        );
+        verifyMessageSignatures(signatures, messageHash, BLOCKLIST_STAKE_REQUIRED);
 
         // decode the blocklist payload
         (bool isBlocklisted, address[] memory _blocklist) = decodeBlocklistPayload(message.payload);
@@ -93,10 +92,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         bytes32 messageHash = BridgeMessage.getMessageHash(message);
 
         // verify signatures
-        require(
-            verifyMessageSignatures(signatures, messageHash, COMMITTEE_UPGRADE_STAKE_REQUIRED),
-            "BridgeCommittee: Invalid signatures"
-        );
+        verifyMessageSignatures(signatures, messageHash, COMMITTEE_UPGRADE_STAKE_REQUIRED);
 
         // decode the upgrade payload
         address implementationAddress = decodeUpgradePayload(message.payload);
@@ -114,7 +110,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         bytes[] memory signatures,
         bytes32 messageHash,
         uint32 requiredStake
-    ) public view override returns (bool) {
+    ) public view override {
         // Loop over the signatures and check if they are valid
         uint16 approvalStake;
         address signer;
@@ -135,8 +131,17 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
             approvalStake += committee[signer];
         }
 
-        return approvalStake >= requiredStake;
+        require(approvalStake >= requiredStake, "BridgeCommittee: Not enough stake");
     }
+
+    function get_committee()
+        public
+        view
+        returns (address[] memory)
+    {
+        return committeeAddresses;
+    }
+
 
     /* ========== INTERNAL FUNCTIONS ========== */
 

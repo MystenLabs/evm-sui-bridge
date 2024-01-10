@@ -1,8 +1,8 @@
 {
-  "committeeMembers": [],
-  "committeeMemberStake": [],
-  "supportedTokens": ["wBTCAddress", "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14", "TODO: add USDC address", "TODO; add USDT address"],
+  "committeeMembers": ["0x47474298f05ea879b3db603a5c67f97b58a99c51", "0x5d325f7f589a29b8aae7882c604a2f3578d6de46", "c890335febc57727d804be26346144bbd0e8f7ca", "1afa515664695d57dd24955758100a9b72c16809"],
+  "committeeMemberStake": [2500, 2500, 2500, 2500],
+  "supportedTokens": ["0x0112D7B36726B3077b72DDb457A9f9c94D9cd71c", "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14", "0x80bF6fb931C8eB99Ab32aeD543ACCFd168fd2a47"],
   "dailyBridgeLimits": [100000, 100000, 100000, 10000000000],
   "wETHAddress": "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
-  "sourceChainId": 0
+  "sourceChainId": 11
 }
