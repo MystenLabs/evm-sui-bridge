@@ -75,10 +75,10 @@ const func: DeployFunction = async function (
 
   // transfer vault ownership to bridge
   let vault = await ethers.getContractAt("BridgeVault", vaultAddress);
-  await vault.transferOwnership(bridgeAddress);
+  await vault.transferOwnership(bridgeCommitteeAddress);
   // transfer limiter ownership to bridge
   let limiter = await ethers.getContractAt("BridgeLimiter", limiterAddress);
-  await limiter.transferOwnership(bridgeAddress);
+  await limiter.transferOwnership(bridgeCommitteeAddress);
 };
 
 export default func;
