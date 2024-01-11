@@ -87,7 +87,8 @@ export const getBridgeDeploymentConfig = (
     throw new Error("committeeMembers not provided in config");
   if (!obj.committeeMemberStake)
     throw new Error("committeeMemberStake not provided in config");
-  if (!obj.wETHAddress) throw new Error("wETHAddress not provided in config");
+  if (!obj.wETHAddress && network !== "hardhat")
+    throw new Error("wETHAddress not provided in config");
   if (!obj.supportedTokens)
     throw new Error("supportedTokens not provided in config");
   if (obj.sourceChainId == undefined || obj.sourceChainId == null)

@@ -7,7 +7,46 @@ const func: DeployFunction = async function (
 ) {
   let { ethers, deployments } = hardhat;
   const [owner] = await ethers.getSigners();
-  const config = getBridgeDeploymentConfig(hardhat.network.name);
+  let config = getBridgeDeploymentConfig(hardhat.network.name);
+
+  // If deploying on local network, deploy mock tokens (including wETH)
+  if (hardhat.network.name === "hardhat") {
+    // deploy wETH
+    let wETHAddress = (await deployments.getOrNull("WETH"))?.address;
+    if (!wETHAddress) {
+      wETHAddress = (
+        await deployments.deploy("WETH", {
+          from: owner.address,
+          args: [],
+        })
+      ).address;
+      console.log("🚀  WETH deployed at ", wETHAddress);
+    }
+    config.wETHAddress = wETHAddress;
+
+    // deploy mock tokens
+    let mockWBTCAddress = (await deployments.getOrNull("MockWBTC"))?.address;
+    if (!mockWBTCAddress) {
+      mockWBTCAddress = (
+        await deployments.deploy("MockWBTC", {
+          from: owner.address,
+          args: [],
+        })
+      ).address;
+      console.log("🚀  MockWBTC deployed at ", mockWBTCAddress);
+    }
+    let mockUSDCAddress = (await deployments.getOrNull("MockUSDC"))?.address;
+    if (!mockUSDCAddress) {
+      mockUSDCAddress = (
+        await deployments.deploy("MockUSDC", {
+          from: owner.address,
+          args: [],
+        })
+      ).address;
+      console.log("🚀  MockUSDC deployed at ", mockUSDCAddress);
+    }
+    config.supportedTokens = [mockWBTCAddress, wETHAddress, mockUSDCAddress];
+  }
 
   // deploy Bridge Committee
   let bridgeCommitteeAddress = (await deployments.getOrNull("BridgeCommittee"))
@@ -40,16 +79,10 @@ const func: DeployFunction = async function (
   // deploy limiter
   let limiterAddress = (await deployments.getOrNull("BridgeLimiter"))?.address;
   if (!limiterAddress) {
-    // _dailyLimitStart, _dailyBridgeLimits
-
-    let dailyLimitStart =
-      ((await ethers.provider.getBlock(await ethers.provider.getBlockNumber()))
-        ?.timestamp || 0) +
-      60 * 60 * 24;
     limiterAddress = (
       await deployments.deploy("BridgeLimiter", {
         from: owner.address,
-        args: [dailyLimitStart, config.dailyBridgeLimits],
+        args: [config.dailyBridgeLimits],
       })
     ).address;
     console.log("🚀  Limiter deployed at ", limiterAddress);

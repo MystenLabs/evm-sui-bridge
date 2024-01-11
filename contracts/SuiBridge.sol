@@ -307,7 +307,7 @@ contract SuiBridge is
         } else if (tokenId == BridgeMessage.USDT) {
             return BridgeMessage.USDT_DECIMAL_ON_SUI;
         }
-        revert("TokenId does not have Sui decimal set");
+        revert("SuiBridge: TokenId does not have Sui decimal set");
     }
 
     function _transferTokensFromVault(uint8 tokenId, address targetAddress, uint256 amount)
@@ -330,7 +330,7 @@ contract SuiBridge is
         vault.transferERC20(tokenAddress, targetAddress, amount);
 
         // update daily amount bridged
-        limiter.updateDailyAmountBridged(tokenId, amount);
+        limiter.updateHourlyTransfers(tokenId, amount);
     }
 
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {

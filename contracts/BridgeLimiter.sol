@@ -3,29 +3,24 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IBridgeLimiter.sol";
+import "forge-std/Test.sol";
 
 contract BridgeLimiter is IBridgeLimiter, Ownable {
     /* ========== STATE VARIABLES ========== */
 
-    uint256 private _resetTimestamp;
-    // token id => total amount bridged (on a given day)
-    mapping(uint8 => uint256) public totalAmountBridged;
-    // token id => daily bridge limit
-    mapping(uint8 => uint256) public dailyBridgeLimit;
+    // token id => hour timestamp => total amount bridged (on a given hour)
+    mapping(uint8 => mapping(uint32 => uint256)) public hourlyTransfers;
+    // token id => maximum amount bridged within the rolling window
+    mapping(uint8 => uint256) public rollingTokenLimits;
+    uint32 public oldestHourTimestamp;
 
     /* ========== INITIALIZER ========== */
 
-    constructor(uint256 _nextResetTimestamp, uint256[] memory _dailyBridgeLimits) {
-        require(
-            _nextResetTimestamp > block.timestamp,
-            "SuiBridge: reset timestamp must be in the future"
-        );
-
-        for (uint8 i = 0; i < _dailyBridgeLimits.length; i++) {
-            // skip 0 for SUI
-            dailyBridgeLimit[i + 1] = _dailyBridgeLimits[i];
+    constructor(uint256[] memory _rollingTokenLimits) {
+        for (uint8 i = 0; i < _rollingTokenLimits.length; i++) {
+            rollingTokenLimits[i] = _rollingTokenLimits[i];
         }
-        _resetTimestamp = _nextResetTimestamp;
+        oldestHourTimestamp = uint32(block.timestamp / 1 hours);
     }
 
     /* ========== VIEW FUNCTIONS ========== */
@@ -36,39 +31,57 @@ contract BridgeLimiter is IBridgeLimiter, Ownable {
         override
         returns (bool)
     {
-        return getDailyAmountBridged(tokenId) + amount > dailyBridgeLimit[tokenId];
+        uint256 totalTransferred = calculateWindowAmount(tokenId);
+        return totalTransferred + amount > rollingTokenLimits[tokenId];
     }
 
-    function getDailyAmountBridged(uint8 tokenId) public view returns (uint256) {
-        // if time has expired but not yet updated, no funds have been bridged
-        if (block.timestamp >= _resetTimestamp) {
-            return 0;
+    function calculateWindowAmount(uint8 tokenId) public view returns (uint256 total) {
+        uint32 currentHour = uint32(block.timestamp / 1 hours);
+        // aggregate the last 24 hours
+        for (uint32 i = 0; i < 24; i++) {
+            total += hourlyTransfers[tokenId][currentHour - i];
         }
-        return totalAmountBridged[tokenId];
+        return total;
     }
 
-    function resetTimestamp() public view returns (uint256) {
-        if (block.timestamp >= _resetTimestamp) {
-            // Calculate the difference between the current timestamp and the previous daily limit timestamp
-            uint256 timeDifference = block.timestamp - _resetTimestamp;
-            // Calculate the next daily limit timestamp while preserving the time of day
-            return block.timestamp + (1 days - (timeDifference % 1 days));
+    /* ========== EXTERNAL FUNCTIONS ========== */
+
+    function updateHourlyTransfers(uint8 tokenId, uint256 amount) external override {
+        require(amount > 0, "BridgeLimiter: amount must be greater than 0");
+        require(
+            !willAmountExceedLimit(tokenId, amount),
+            "BridgeLimiter: amount exceeds rolling window limit"
+        );
+
+        uint32 currentHour = uint32(block.timestamp / 1 hours);
+
+        // garbage collect most recently expired hour if window is moving
+        if (hourlyTransfers[tokenId][currentHour] == 0 && oldestHourTimestamp < currentHour - 24) {
+            garbageCollectHourlyTransfers(tokenId, currentHour - 25, currentHour - 25);
         }
-        return _resetTimestamp;
+
+        // update hourly transfers
+        hourlyTransfers[tokenId][currentHour] += amount;
     }
 
-    /* ========== INTERNAL FUNCTIONS ========== */
+    function garbageCollectHourlyTransfers(uint8 tokenId, uint32 startHour, uint32 endHour)
+        public
+        onlyOwner
+    {
+        uint32 windowStart = uint32(block.timestamp / 1 hours) - 24;
+        require(
+            startHour >= oldestHourTimestamp, "BridgeLimiter: hourTimestamp must be in the past"
+        );
+        require(startHour < windowStart, "BridgeLimiter: start must be before current window");
+        require(endHour < windowStart, "BridgeLimiter: end must be before current window");
 
-    function updateDailyAmountBridged(uint8 tokenId, uint256 amount) public override onlyOwner {
-        uint256 nextResetTimestamp = resetTimestamp();
-        // if time to reset
-        if (nextResetTimestamp != _resetTimestamp) {
-            _resetTimestamp = nextResetTimestamp;
-            // reset the daily amount bridged
-            totalAmountBridged[tokenId] = amount;
-            return;
+        for (uint32 i = startHour; i <= endHour; i++) {
+            if (hourlyTransfers[tokenId][i] > 0) delete hourlyTransfers[tokenId][i];
         }
-        // update the daily amount bridged
-        totalAmountBridged[tokenId] += amount;
+
+        // update oldest hour if current oldest hour was garbage collected
+        if (startHour == oldestHourTimestamp) {
+            oldestHourTimestamp = endHour + 1;
+        }
     }
 }

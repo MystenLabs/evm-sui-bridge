@@ -88,8 +88,7 @@ contract BridgeBaseTest is Test {
         _dailyBridgeLimits[1] = 100 ether;
         _dailyBridgeLimits[2] = 100 ether;
         _dailyBridgeLimits[3] = 100 ether;
-        uint256 _dailyLimitStart = block.timestamp + 1 days;
-        limiter = new BridgeLimiter(_dailyLimitStart, _dailyBridgeLimits);
+        limiter = new BridgeLimiter(_dailyBridgeLimits);
         bridge = new SuiBridge();
         uint8 _chainId = testChainID;
         bridge.initialize(
