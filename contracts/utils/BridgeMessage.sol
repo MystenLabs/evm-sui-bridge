@@ -32,6 +32,7 @@ library BridgeMessage {
         uint8 chainID;
         bytes payload;
     }
+    
 
     struct TokenTransferPayload {
         uint8 senderAddressLength;
