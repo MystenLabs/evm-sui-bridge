@@ -3,7 +3,7 @@ src = 'contracts'
 test = 'test'
 out = 'out'
 libs = ['lib']
-[fmt] 
+[fmt]
   line_length = 100
 [fuzz]
   runs = 1000
