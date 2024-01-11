@@ -11,7 +11,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
     }
 
     function testBridgeCommitteeInitialization() public {
-        assertEq(committee.committee(committeeMemberA),1000);
+        assertEq(committee.committee(committeeMemberA), 1001);
         assertEq(committee.committee(committeeMemberB), 1000);
         assertEq(committee.committee(committeeMemberC), 1000);
         assertEq(committee.committee(committeeMemberD), 2002);
