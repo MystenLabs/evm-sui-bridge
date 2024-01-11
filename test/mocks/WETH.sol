@@ -55,4 +55,6 @@ contract WETH {
 
         return true;
     }
+
+    function test() public {}
 }
