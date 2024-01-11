@@ -1,0 +1,34 @@
+# GitHub action that runs tests before merging a pull request
+
+name: Test
+
+# Trigger the action on pull requests to the main branch
+on:
+  pull_request:
+    branches: [ main ]
+
+# Define the job that runs the tests
+jobs:
+  build:
+    # Run the job on an Ubuntu virtual machine
+    runs-on: ubuntu-latest
+
+    # Define the steps of the job
+    steps:
+      # Check out the code from the repository
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # Set up node
+      - name: Set up node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: yarn install
+
+      # Run tests using forge test
+      - name: Run tests
+        run: forge test

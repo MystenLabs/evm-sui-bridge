@@ -1,0 +1,10 @@
+# This is a pre-commit configuration file that runs forge test
+# before every commit and prevents the commit from happening if any test fails.
+
+repos:
+  - repo: local
+    hooks:
+      - id: forge-test
+        name: forge test
+        entry: forge test
+        language: system
