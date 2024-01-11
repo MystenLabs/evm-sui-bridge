@@ -25,6 +25,9 @@ on:
       - "tests/**"
       - "webpack/**"
 
+env:
+  INFURA_API_KEY: $ { { secrets.INFURA_API_KEY }}
+
 # Define the job that runs the tests
 jobs:
   build:
