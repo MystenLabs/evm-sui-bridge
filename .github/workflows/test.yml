@@ -6,6 +6,24 @@ name: Test
 on:
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "examples/**"
+      - "forge/**"
+      - "node_modules/**"
+      - "scripts/**"
+      - "tests/**"
+      - "webpack/**"
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "examples/**"
+      - "forge/**"
+      - "node_modules/**"
+      - "scripts/**"
+      - "tests/**"
+      - "webpack/**"
 
 # Define the job that runs the tests
 jobs:
@@ -18,16 +36,12 @@ jobs:
       # Check out the code from the repository
       - name: Check out code
         uses: actions/checkout@v4
-
-      # Set up Python
-      - name: Set up Python
-        uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          submodules: recursive
 
-      # Install Foundry CLI
-      - name: Install Foundry CLI
-        run: pip install foundry-cli
+      # Install Foundry
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
 
       # Set up node
       - name: Set up node
