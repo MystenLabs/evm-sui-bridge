@@ -44,7 +44,7 @@ contract BridgeBaseTest is Test {
 
     function setUpBridgeTest() public {
         vm.createSelectFork(
-            string.concat("https://mainnet.infura.io/v3/", vm.envString("INFURA_API_KEY"))
+            "https://mainnet.infura.io/v3/f6c12fc1d8534820a54bea881718979a"
         );
         (committeeMemberA, committeeMemberPkA) = makeAddrAndKey("a");
         (committeeMemberB, committeeMemberPkB) = makeAddrAndKey("b");
