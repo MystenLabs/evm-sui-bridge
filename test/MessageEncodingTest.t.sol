@@ -50,10 +50,9 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
         );
         assertEq(_payload.targetChain, uint8(11));
         assertEq(_payload.targetAddressLength, uint8(20));
-
+        assertEq(_payload.targetAddress, 0xb18f79Fe671db47393315fFDB377Da4Ea1B7AF96);
         assertEq(_payload.tokenId, BridgeMessage.BTC);
         assertEq(_payload.amount, uint64(400_000_000));
-        assertEq(_payload.targetAddress, 0xb18f79Fe671db47393315fFDB377Da4Ea1B7AF96);
     }
 
     // TODO:

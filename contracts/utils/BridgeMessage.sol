@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-import "forge-std/console.sol";
 
 library BridgeMessage {
     // message Ids
@@ -51,12 +50,12 @@ library BridgeMessage {
         return bytes.concat(baseMessage, message.payload);
     }
 
-    function computeHash(Message memory message) public pure returns (bytes32) {
+    function computeHash(Message memory message) internal pure returns (bytes32) {
         return keccak256(encodeMessage(message));
     }
 
     function decodeUpgradePayload(bytes memory payload)
-        public
+        internal
         pure
         returns (address, bytes memory)
     {
@@ -75,7 +74,7 @@ library BridgeMessage {
     // [amount:u64]
     // Eth address is 20 bytes, Sui Address is 32 bytes, in total the payload must be 64 bytes
     function decodeTokenTransferPayload(bytes memory payload)
-        public
+        internal
         pure
         returns (BridgeMessage.TokenTransferPayload memory)
     {
@@ -95,7 +94,10 @@ library BridgeMessage {
         // TODO I think we want to assert chainID here.
 
         uint8 targetAddressLength = uint8(payload[1 + senderAddressLength + 1]);
-        require(targetAddressLength == 20, "BridgeMessage: Invalid target address length, Eth address must be 20 bytes");
+        require(
+            targetAddressLength == 20,
+            "BridgeMessage: Invalid target address length, Eth address must be 20 bytes"
+        );
 
         // targetAddress starts from index 35
         uint160 addr = 0;
@@ -126,7 +128,7 @@ library BridgeMessage {
         );
     }
 
-    function decodeEmergencyOpPayload(bytes memory payload) public pure returns (bool) {
+    function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
         (uint256 emergencyOpCode) = abi.decode(payload, (uint256));
         require(emergencyOpCode <= 1, "BridgeMessage: Invalid op code");
 
@@ -140,7 +142,7 @@ library BridgeMessage {
     }
 
     function decodeBlocklistPayload(bytes memory payload)
-        public
+        internal
         pure
         returns (bool, address[] memory)
     {
