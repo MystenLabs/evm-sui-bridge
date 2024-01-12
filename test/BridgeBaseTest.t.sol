@@ -128,23 +128,6 @@ contract BridgeBaseTest is Test {
 
     function test() public {}
 
-    // // Test the initialize function with invalid inputs
-    // function testFailInitialize() public {
-    //     vm.expectRevert(bytes("error message"));
-    //     // Try to initialize the contract with different lengths of arrays
-    //     address[] memory _committee = new address[](3);
-    //     _committee[0] = committeeMemberA;
-    //     _committee[1] = committeeMemberB;
-    //     _committee[2] = committeeMemberC;
-    //     uint16[] memory _stake = new uint16[](4);
-    //     _stake[0] = 2500;
-    //     _stake[1] = 2500;
-    //     _stake[2] = 2500;
-    //     _stake[3] = 2501;
-    //     committee.initialize(_committee, _stake); // This should fail
-    //     // assertTrue(revertsAsExpected, "expectRevert: call did not revert");
-    // }
-
     // Helper function to get the signature components from an address
     function getSignature(bytes32 digest, uint256 privateKey) public pure returns (bytes memory) {
         // r and s are the outputs of the ECDSA signature

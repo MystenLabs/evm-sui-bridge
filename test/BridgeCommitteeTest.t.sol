@@ -31,23 +31,6 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertEq(committee.nonces(4), 0);
     }
 
-    // function name()  returns () {
-    //             address[] memory _committee = new address[](5);
-    //     uint16[] memory _stake = new uint16[](5);
-    //     _committee[0] = committeeMemberA;
-    //     _committee[1] = committeeMemberB;
-    //     _committee[2] = committeeMemberC;
-    //     _committee[3] = committeeMemberD;
-    //     _committee[4] = committeeMemberE;
-    //     _stake[0] = 1000;
-    //     _stake[1] = 1000;
-    //     _stake[2] = 1000;
-    //     _stake[3] = 2002;
-    //     _stake[4] = 4998;
-    //     committee = new BridgeCommittee();
-    //     committee.initialize(_committee, _stake);
-    // }
-
     function testVerifyMessageSignaturesWithValidSignatures() public {
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
