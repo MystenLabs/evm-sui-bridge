@@ -280,6 +280,12 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             deployer,
             abi.encode("suiAddress")
             );
+        
+        vm.expectRevert(bytes("SuiBridge: Unsupported token"));
+        bridge.bridgeToSui(255, 1 ether, abi.encode("suiAddress"), 0);
+
+        vm.expectRevert(bytes("SuiBridge: Insufficient allowance"));
+        bridge.bridgeToSui(BridgeMessage.ETH, type(uint256).max, abi.encode("suiAddress"), 0);
 
         bridge.bridgeToSui(BridgeMessage.ETH, 1 ether, abi.encode("suiAddress"), 0);
         assertEq(IERC20(wETH).balanceOf(address(vault)), 1 ether);
@@ -342,6 +348,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
     }
 
     function testEthToSuiDecimalConversion() public {
+        // SUI
         // ETH
         assertEq(IERC20Metadata(wETH).decimals(), 18);
         uint256 ethAmount = 10 ether;
@@ -365,6 +372,21 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         ethAmount = 2_00_000_000; // 2 BTC
         suiAmount = bridge.adjustDecimalsForSuiToken(BridgeMessage.BTC, ethAmount, 8);
         assertEq(suiAmount, ethAmount);
+
+        vm.expectRevert(bytes("Eth decimal should be larger than sui decimal"));
+        bridge.adjustDecimalsForSuiToken(BridgeMessage.ETH, ethAmount, 1);
+
+        vm.expectRevert(bytes("Amount too large for uint64"));
+        bridge.adjustDecimalsForSuiToken(BridgeMessage.ETH, type(uint256).max, BridgeMessage.SUI_DECIMAL_ON_SUI);
+
+        uint64 result = bridge.adjustDecimalsForSuiToken(1, 1000, 18);
+        assertEq(result, 1000);
+
+        vm.expectRevert(bytes("TokenId does not have Sui decimal set"));
+        bridge.adjustDecimalsForSuiToken(type(uint8).max, ethAmount, 18);
+
+        vm.expectRevert(bytes("Amount too large for uint64"));
+        bridge.adjustDecimalsForSuiToken(BridgeMessage.SUI, type(uint256).max, BridgeMessage.SUI_DECIMAL_ON_SUI);
     }
 
     function testSuiToEthDecimalConversion() public {

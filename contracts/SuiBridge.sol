@@ -246,6 +246,7 @@ contract SuiBridge is
     }
 
     // Adjust ERC20 amount to Sui Coin amount to cover the decimal differences
+    // TODO: Why do we expect the original amount to be uint256? It shouldn't be uint64?
     function adjustDecimalsForSuiToken(uint8 tokenId, uint256 originalAmount, uint8 ethDecimal)
         public
         pure
@@ -334,16 +335,10 @@ contract SuiBridge is
     }
 
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
+        // TODO: Why the emergencyOpCode is uint256 and not uint8?
         (uint256 emergencyOpCode) = abi.decode(payload, (uint256));
         require(emergencyOpCode <= 1, "SuiBridge: Invalid op code");
-
-        if (emergencyOpCode == 0) {
-            return true;
-        } else if (emergencyOpCode == 1) {
-            return false;
-        } else {
-            revert("Invalid emergency operation code");
-        }
+        return emergencyOpCode == 0 ? true : false;
     }
 
     function decodeTokenTransferPayload(bytes memory payload)
