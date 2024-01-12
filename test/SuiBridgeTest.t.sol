@@ -28,24 +28,31 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         IWETH9(wETH).deposit{value: 10 ether}();
         // IWETH9(wETH).withdraw(1 ether);
         IERC20(wETH).transfer(address(vault), 10 ether);
-        // Create transfer message
-        BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
-            senderAddressLength: 0,
-            senderAddress: abi.encode(0),
-            targetChain: 1,
-            targetAddressLength: 0,
-            targetAddress: bridgerA,
-            tokenId: BridgeMessage.ETH,
-            // This is Sui amount (eth decimal 8)
-            amount: 100_000_000
-        });
+        // Create transfer payload
+        uint8 senderAddressLength = 32;
+        bytes memory senderAddress = abi.encode(0);
+        uint8 targetChain = 1;
+        uint8 targetAddressLength = 20;
+        address targetAddress = bridgerA;
+        uint8 tokenId = BridgeMessage.ETH;
+        uint64 amount = 1_000_000;
+        bytes memory payload = abi.encodePacked(
+            senderAddressLength,
+            senderAddress,
+            targetChain,
+            targetAddressLength,
+            targetAddress,
+            tokenId,
+            amount
+        );
 
+        // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
             chainID: 1,
-            payload: abi.encode(payload)
+            payload: payload
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -70,23 +77,32 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         changePrank(USDCWhale);
         IERC20(USDC).transfer(address(vault), 100_000_000);
         changePrank(deployer);
-        // Create transfer message
-        BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
-            senderAddressLength: 0,
-            senderAddress: abi.encode(0),
-            targetChain: 1,
-            targetAddressLength: 0,
-            targetAddress: bridgerA,
-            tokenId: BridgeMessage.USDC,
-            amount: 1_000_000
-        });
 
+        // Create transfer payload
+        uint8 senderAddressLength = 32;
+        bytes memory senderAddress = abi.encode(0);
+        uint8 targetChain = 1;
+        uint8 targetAddressLength = 20;
+        address targetAddress = bridgerA;
+        uint8 tokenId = BridgeMessage.USDC;
+        uint64 amount = 1_000_000;
+        bytes memory payload = abi.encodePacked(
+            senderAddressLength,
+            senderAddress,
+            targetChain,
+            targetAddressLength,
+            targetAddress,
+            tokenId,
+            amount
+        );
+
+        // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
             chainID: 1,
-            payload: abi.encode(payload)
+            payload: payload
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);

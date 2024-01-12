@@ -316,19 +316,18 @@ contract SuiBridge is
         whenNotPaused
         willNotExceedLimit(tokenId, amount)
     {
-        // transfer eth if token type is eth
-        if (tokenId == BridgeMessage.ETH) {
-            vault.transferETH(payable(targetAddress), amount);
-            return;
-        }
-
         address tokenAddress = supportedTokens[tokenId];
 
         // Check that the token address is supported
         require(tokenAddress != address(0), "SuiBridge: Unsupported token");
 
-        // transfer tokens from vault to target address
-        vault.transferERC20(tokenAddress, targetAddress, amount);
+        // transfer eth if token type is eth
+        if (tokenId == BridgeMessage.ETH) {
+            vault.transferETH(payable(targetAddress), amount);
+        } else {
+            // transfer tokens from vault to target address
+            vault.transferERC20(tokenAddress, targetAddress, amount);
+        }
 
         // update daily amount bridged
         limiter.updateHourlyTransfers(tokenId, amount);
