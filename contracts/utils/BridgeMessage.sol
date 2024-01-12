@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+import "forge-std/console.sol";
 
 library BridgeMessage {
     // message Ids
@@ -64,18 +65,25 @@ library BridgeMessage {
         return (implementationAddress, callData);
     }
 
+    // Token Transfer Payload Format:
+    // [sender_address_length:u8]
+    // [sender_address: byte[]]
+    // [target_chain:u8]
+    // [target_address_length:u8]
+    // [target_address: byte[]]
+    // [token_type:u8]
+    // [amount:u64]
+    // Eth address is 20 bytes, Sui Address is 32 bytes, in total the payload must be 64 bytes
     function decodeTokenTransferPayload(bytes memory payload)
         public
         pure
         returns (BridgeMessage.TokenTransferPayload memory)
     {
-        require(payload.length >= 1, "BridgeMessage: Payload too short");
+        // TODO: if we support multi chains, the source address length may vary
+
+        require(payload.length == 64, "BridgeMessage: TokenTransferPayload must be 64 bytes");
 
         uint8 senderAddressLength = uint8(payload[0]);
-        require(
-            payload.length >= 1 + senderAddressLength + 20 + 1 + 1 + 8,
-            "BridgeMessage: Payload too short"
-        );
 
         bytes memory senderAddress = new bytes(senderAddressLength);
         for (uint256 i = 0; i < senderAddressLength; i++) {
@@ -83,25 +91,29 @@ library BridgeMessage {
         }
 
         uint8 targetChain = uint8(payload[1 + senderAddressLength]);
+
+        // TODO I think we want to assert chainID here.
+
         uint8 targetAddressLength = uint8(payload[1 + senderAddressLength + 1]);
-        require(targetAddressLength == 20, "BridgeMessage: Invalid target address length");
+        require(targetAddressLength == 20, "BridgeMessage: Invalid target address length, Eth address must be 20 bytes");
 
-        address targetAddress;
-        uint8 tokenId;
-        uint64 amount;
-
-        // calculate offsets for targetAddress, tokenId, and amount
-        assembly {
-            targetAddress := mload(add(payload, add(0x22, senderAddressLength)))
+        // targetAddress starts from index 35
+        uint160 addr = 0;
+        for (uint256 i = 0; i < 20; i++) {
+            addr = uint160(addr) | (uint160(uint8(payload[i + 35])) << ((19 - i) * 8));
         }
+        address targetAddress = address(addr);
 
         uint256 tokenIdOffset = 1 + senderAddressLength + 1 + 1 + 20;
-        tokenId = uint8(payload[tokenIdOffset]);
+        uint8 tokenId = uint8(payload[tokenIdOffset]);
 
-        uint256 amountOffset = tokenIdOffset + 1;
-        assembly {
-            amount := mload(add(payload, add(amountOffset, 0x20)))
+        uint64 value;
+        uint8 offset;
+        for (uint256 i = payload.length - 8; i < payload.length; i++) {
+            value |= uint64(uint8(payload[i])) << (offset * 8);
+            offset++;
         }
+        uint64 amount = value;
 
         return TokenTransferPayload(
             senderAddressLength,

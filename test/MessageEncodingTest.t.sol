@@ -52,8 +52,8 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
         assertEq(_payload.targetAddressLength, uint8(20));
 
         assertEq(_payload.tokenId, BridgeMessage.BTC);
-        // TODO: figure out why the amount is not decoding correctly
         assertEq(_payload.amount, uint64(400_000_000));
+        assertEq(_payload.targetAddress, 0xb18f79Fe671db47393315fFDB377Da4Ea1B7AF96);
     }
 
     // TODO:
