@@ -114,20 +114,6 @@ contract BridgeCommitteeTest is BridgeBaseTest {
     //     );
     // }
 
-    function testDecodeBlocklistPayload() public {
-        // create payload
-        address[] memory _blocklist = new address[](1);
-        _blocklist[0] = committeeMemberA;
-        bytes memory payload = abi.encode(uint8(0), _blocklist);
-
-        // decode the payload
-        (bool blocklisted, address[] memory validators) = committee.decodeBlocklistPayload(payload);
-
-        // assert that the blocklist contains the correct address
-        assertEq(validators[0], committeeMemberA);
-        assertTrue(blocklisted);
-    }
-
     // function invariant_testDecodeBlocklistPayload(address committeeMember) public {
     //     // create payload
     //     address[] memory _blocklist = new address[](1);

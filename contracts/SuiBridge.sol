@@ -82,7 +82,7 @@ contract SuiBridge is
         // verify signatures
         require(
             committee.verifyMessageSignatures(
-                signatures, BridgeMessage.getMessageHash(message), TRANSFER_STAKE_REQUIRED
+                signatures, BridgeMessage.computeHash(message), TRANSFER_STAKE_REQUIRED
             ),
             "SuiBridge: Invalid signatures"
         );
@@ -128,7 +128,7 @@ contract SuiBridge is
         // verify signatures
         require(
             committee.verifyMessageSignatures(
-                signatures, BridgeMessage.getMessageHash(message), stakeRequired
+                signatures, BridgeMessage.computeHash(message), stakeRequired
             ),
             "SuiBridge: Invalid signatures"
         );
@@ -156,7 +156,7 @@ contract SuiBridge is
         // verify signatures
         require(
             committee.verifyMessageSignatures(
-                signatures, BridgeMessage.getMessageHash(message), BRIDGE_UPGRADE_STAKE_REQUIRED
+                signatures, BridgeMessage.computeHash(message), BRIDGE_UPGRADE_STAKE_REQUIRED
             ),
             "SuiBridge: Invalid signatures"
         );

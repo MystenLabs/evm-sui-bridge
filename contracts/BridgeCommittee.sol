@@ -59,7 +59,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeabl
         );
 
         // compute message hash
-        bytes32 messageHash = BridgeMessage.getMessageHash(message);
+        bytes32 messageHash = BridgeMessage.computeHash(message);
 
         // verify signatures
         require(
@@ -68,7 +68,8 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeabl
         );
 
         // decode the blocklist payload
-        (bool isBlocklisted, address[] memory _blocklist) = decodeBlocklistPayload(message.payload);
+        (bool isBlocklisted, address[] memory _blocklist) =
+            BridgeMessage.decodeBlocklistPayload(message.payload);
 
         // update the blocklist
         _updateBlocklist(_blocklist, isBlocklisted);
@@ -91,7 +92,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeabl
         require(message.nonce == nonces[message.messageType], "BridgeCommittee: Invalid nonce");
 
         // compute message hash
-        bytes32 messageHash = BridgeMessage.getMessageHash(message);
+        bytes32 messageHash = BridgeMessage.computeHash(message);
 
         // verify signatures
         require(
@@ -151,17 +152,6 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeabl
         }
 
         emit BlocklistUpdated(_blocklist, isBlocklisted);
-    }
-
-    function decodeBlocklistPayload(bytes memory payload)
-        public
-        pure
-        returns (bool, address[] memory)
-    {
-        (uint8 blocklistType, address[] memory validators) = abi.decode(payload, (uint8, address[]));
-        // blocklistType: 0 = blocklist, 1 = unblocklist
-        bool blocklisted = (blocklistType == 0) ? true : false;
-        return (blocklisted, validators);
     }
 
     function _upgradeCommittee(address newImplementation, bytes memory data) internal {

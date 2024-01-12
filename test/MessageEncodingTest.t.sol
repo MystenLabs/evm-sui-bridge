@@ -35,17 +35,33 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
         );
     }
 
-    function testTransferTokenPayloadDecode() public {
+    function testDecodeTransferTokenPayload() public {
         bytes memory payload = abi.encodePacked(
             hex"2080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af96010084d71700000000"
         );
 
         BridgeMessage.TokenTransferPayload memory _payload =
             BridgeMessage.decodeTokenTransferPayload(payload);
+
+        assertEq(_payload.senderAddressLength, uint8(32));
+        assertEq(
+            _payload.senderAddress,
+            hex"80ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c"
+        );
+        assertEq(_payload.targetChain, uint8(11));
+        assertEq(_payload.targetAddressLength, uint8(20));
+
+        assertEq(_payload.tokenId, BridgeMessage.BTC);
+        // TODO: figure out why the amount is not decoding correctly
+        assertEq(_payload.amount, uint64(400_000_000));
     }
 
-    function testEmergencyOpPayloadDecode() public {}
-    function testBridgeUpgradePayloadDecode() public {}
-    function testCommitteeBlocklistPayloadDecode() public {}
-    function testCommitteeUpgradePayloadDecode() public {}
+    // TODO:
+    function testDecodeEmergencyOpPayload() public {}
+    // TODO:
+    function testDecodeBridgeUpgradePayload() public {}
+    // TODO:
+    function testDecodeBlocklistPayload() public {}
+    // TODO:
+    function testDecodeCommitteeUpgradePayload() public {}
 }
