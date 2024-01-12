@@ -88,7 +88,7 @@ contract SuiBridge is
         );
 
         BridgeMessage.TokenTransferPayload memory tokenTransferPayload =
-            decodeTokenTransferPayload(message.payload);
+            BridgeMessage.decodeTokenTransferPayload(message.payload);
 
         address tokenAddress = supportedTokens[tokenTransferPayload.tokenId];
         uint8 erc20Decimal = IERC20Metadata(tokenAddress).decimals();
@@ -120,7 +120,7 @@ contract SuiBridge is
         uint32 stakeRequired = UNFREEZING_STAKE_REQUIRED;
 
         // decode the emergency op message
-        bool isFreezing = decodeEmergencyOpPayload(message.payload);
+        bool isFreezing = BridgeMessage.decodeEmergencyOpPayload(message.payload);
 
         // if the message is to unpause the bridge, use the default stake requirement
         if (isFreezing) stakeRequired = FREEZING_STAKE_REQUIRED;
@@ -162,10 +162,11 @@ contract SuiBridge is
         );
 
         // decode the upgrade payload
-        address implementationAddress = decodeUpgradePayload(message.payload);
+        (address implementationAddress, bytes memory callData) =
+            BridgeMessage.decodeUpgradePayload(message.payload);
 
         // update the upgrade
-        _upgradeBridge(implementationAddress);
+        _upgradeBridge(implementationAddress, callData);
 
         // increment message type nonce
         nonces[BridgeMessage.BRIDGE_UPGRADE]++;
@@ -333,42 +334,13 @@ contract SuiBridge is
         limiter.updateHourlyTransfers(tokenId, amount);
     }
 
-    function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
-        (uint256 emergencyOpCode) = abi.decode(payload, (uint256));
-        require(emergencyOpCode <= 1, "SuiBridge: Invalid op code");
-
-        if (emergencyOpCode == 0) {
-            return true;
-        } else if (emergencyOpCode == 1) {
-            return false;
-        } else {
-            revert("Invalid emergency operation code");
-        }
+    function _upgradeBridge(address newImplementation, bytes memory data) internal {
+        if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
+        else _upgradeTo(newImplementation);
     }
 
-    function decodeTokenTransferPayload(bytes memory payload)
-        internal
-        pure
-        returns (BridgeMessage.TokenTransferPayload memory)
-    {
-        (BridgeMessage.TokenTransferPayload memory tokenTransferPayload) =
-            abi.decode(payload, (BridgeMessage.TokenTransferPayload));
-
-        return tokenTransferPayload;
-    }
-
-    function decodeUpgradePayload(bytes memory payload) internal pure returns (address) {
-        (address implementationAddress) = abi.decode(payload, (address));
-        return implementationAddress;
-    }
-
-    // note: do we want to use "upgradeToAndCall" instead?
-    function _upgradeBridge(address upgradeImplementation) internal returns (bool, bytes memory) {
-        // return upgradeTo(upgradeImplementation);
-    }
-
-    function _authorizeUpgrade(address newImplementation) internal override {
-        // TODO: implement so only committee members can upgrade
+    function _authorizeUpgrade(address newImplementation) internal view override {
+        require(_msgSender() == address(this));
     }
 
     /* ========== MODIFIERS ========== */

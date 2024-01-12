@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IBridgeLimiter.sol";
-import "forge-std/Test.sol";
 
+// TODO: make BridgeLimiter upgradeable
 contract BridgeLimiter is IBridgeLimiter, Ownable {
     /* ========== STATE VARIABLES ========== */
 
@@ -64,9 +64,13 @@ contract BridgeLimiter is IBridgeLimiter, Ownable {
         hourlyTransfers[tokenId][currentHour] += amount;
     }
 
+    function updateRollingTokenLimits(uint8 tokenId, uint256 newLimit) external onlyOwner {
+        require(newLimit > 0, "BridgeLimiter: newLimit must be greater than 0");
+        rollingTokenLimits[tokenId] = newLimit;
+    }
+
     function garbageCollectHourlyTransfers(uint8 tokenId, uint32 startHour, uint32 endHour)
         public
-        onlyOwner
     {
         uint32 windowStart = uint32(block.timestamp / 1 hours) - 24;
         require(
@@ -84,4 +88,6 @@ contract BridgeLimiter is IBridgeLimiter, Ownable {
             oldestHourTimestamp = endHour + 1;
         }
     }
+
+    // TODO: add upgrade functions
 }

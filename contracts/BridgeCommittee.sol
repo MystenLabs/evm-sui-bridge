@@ -2,10 +2,11 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "./interfaces/IBridgeCommittee.sol";
 import "./utils/BridgeMessage.sol";
 
-contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
+contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeable {
     /* ========== CONSTANTS ========== */
 
     uint16 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
@@ -99,10 +100,11 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         );
 
         // decode the upgrade payload
-        address implementationAddress = decodeUpgradePayload(message.payload);
+        (address implementationAddress, bytes memory callData) =
+            BridgeMessage.decodeUpgradePayload(message.payload);
 
         // update the upgrade
-        _upgradeCommittee(implementationAddress);
+        _upgradeCommittee(implementationAddress, callData);
 
         // increment message type nonce
         nonces[BridgeMessage.COMMITTEE_UPGRADE]++;
@@ -115,6 +117,8 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         bytes32 messageHash,
         uint32 requiredStake
     ) public view override returns (bool) {
+        // TODO: check for duplicate signatures
+
         // Loop over the signatures and check if they are valid
         uint16 approvalStake;
         address signer;
@@ -160,24 +164,15 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         return (blocklisted, validators);
     }
 
-    function decodeUpgradePayload(bytes memory payload) public pure returns (address) {
-        (address implementationAddress) = abi.decode(payload, (address));
-        return implementationAddress;
+    function _upgradeCommittee(address newImplementation, bytes memory data) internal {
+        if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
+        else _upgradeTo(newImplementation);
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override {
-        // TODO: implement so only committee members can upgrade
+    function _authorizeUpgrade(address newImplementation) internal view override {
+        require(_msgSender() == address(this));
     }
 
-    // note: do we want to use "upgradeToAndCall" instead?
-    function _upgradeCommittee(address upgradeImplementation)
-        internal
-        returns (bool, bytes memory)
-    {
-        // return upgradeTo(upgradeImplementation);
-    }
-
-    // TODO: see if can pull from OpenZeppelin
     // Helper function to split a signature into R, S, and V components
     function splitSignature(bytes memory sig)
         internal

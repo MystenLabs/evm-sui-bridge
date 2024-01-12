@@ -23,7 +23,7 @@ library BridgeMessage {
     uint8 public constant USDC_DECIMAL_ON_SUI = 6;
     uint8 public constant USDT_DECIMAL_ON_SUI = 6;
 
-    string public constant MESSAGE_PREFIX = "SUI_NATIVE_BRIDGE";
+    string public constant MESSAGE_PREFIX = "SUI_BRIDGE_MESSAGE";
 
     struct Message {
         uint8 messageType;
@@ -44,17 +44,48 @@ library BridgeMessage {
     }
 
     function encodeMessage(Message memory message) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            MESSAGE_PREFIX,
-            message.messageType,
-            message.version,
-            message.nonce,
-            message.chainID,
-            message.payload
+        bytes memory baseMessage = abi.encodePacked(
+            MESSAGE_PREFIX, message.messageType, message.version, message.nonce, message.chainID
         );
+        return bytes.concat(baseMessage, message.payload);
     }
 
-    function getMessageHash(Message memory message) internal pure returns (bytes32) {
+    function decodeUpgradePayload(bytes memory payload)
+        public
+        pure
+        returns (address, bytes memory)
+    {
+        (address implementationAddress, bytes memory callData) =
+            abi.decode(payload, (address, bytes));
+        return (implementationAddress, callData);
+    }
+
+    function decodeTokenTransferPayload(bytes memory payload)
+        public
+        pure
+        returns (BridgeMessage.TokenTransferPayload memory)
+    {
+        // TODO: custom decoding for tokenTransferPayload
+        (BridgeMessage.TokenTransferPayload memory tokenTransferPayload) =
+            abi.decode(payload, (BridgeMessage.TokenTransferPayload));
+
+        return tokenTransferPayload;
+    }
+
+    function decodeEmergencyOpPayload(bytes memory payload) public pure returns (bool) {
+        (uint256 emergencyOpCode) = abi.decode(payload, (uint256));
+        require(emergencyOpCode <= 1, "SuiBridge: Invalid op code");
+
+        if (emergencyOpCode == 0) {
+            return true;
+        } else if (emergencyOpCode == 1) {
+            return false;
+        } else {
+            revert("Invalid emergency operation code");
+        }
+    }
+
+    function getMessageHash(Message memory message) public pure returns (bytes32) {
         return keccak256(encodeMessage(message));
     }
 }
