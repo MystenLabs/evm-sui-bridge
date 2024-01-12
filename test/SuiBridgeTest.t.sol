@@ -35,16 +35,17 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         uint8 targetAddressLength = 20;
         address targetAddress = bridgerA;
         uint8 tokenId = BridgeMessage.ETH;
-        uint64 amount = 1_000_000;
         bytes memory payload = abi.encodePacked(
             senderAddressLength,
             senderAddress,
             targetChain,
             targetAddressLength,
             targetAddress,
-            tokenId,
-            amount
+            tokenId
         );
+        // little endian encoded of u64 1_000_000
+        bytes memory amountBytes = hex"40420f0000000000";
+        payload = bytes.concat(payload, amountBytes);
 
         // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
@@ -85,16 +86,17 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         uint8 targetAddressLength = 20;
         address targetAddress = bridgerA;
         uint8 tokenId = BridgeMessage.USDC;
-        uint64 amount = 1_000_000;
         bytes memory payload = abi.encodePacked(
             senderAddressLength,
             senderAddress,
             targetChain,
             targetAddressLength,
             targetAddress,
-            tokenId,
-            amount
+            tokenId
         );
+        // little endian encoded of u64 1_000_000
+        bytes memory amountBytes = hex"40420f0000000000";
+        payload = bytes.concat(payload, amountBytes);
 
         // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
