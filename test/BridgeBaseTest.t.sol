@@ -76,6 +76,33 @@ contract BridgeBaseTest is Test {
         _stake[3] = 2002;
         _stake[4] = 4998;
         committee = new BridgeCommittee();
+
+        uint16[] memory _stakeNotSameLength = new uint16[](4);
+        _stakeNotSameLength[0] = 1000;
+        _stakeNotSameLength[1] = 1000;
+        _stakeNotSameLength[2] = 1000;
+        _stakeNotSameLength[3] = 2002;
+        vm.expectRevert(bytes("BridgeCommittee: Committee and stake arrays must be of the same length"));
+        committee.initialize(_committee, _stakeNotSameLength);
+
+        uint16[] memory _stakeNotEqualTo10000 = new uint16[](5);
+        _stakeNotEqualTo10000[0] = 1000;
+        _stakeNotEqualTo10000[1] = 1000;
+        _stakeNotEqualTo10000[2] = 1000;
+        _stakeNotEqualTo10000[3] = 2002;
+        _stakeNotEqualTo10000[4] = 4999;
+        vm.expectRevert(bytes("BridgeCommittee: Total stake must be 10000"));
+        committee.initialize(_committee, _stakeNotEqualTo10000);
+
+        address[] memory duplicateCommitteeMember = new address[](5);
+        duplicateCommitteeMember[0] = committeeMemberA;
+        duplicateCommitteeMember[1] = committeeMemberB;
+        duplicateCommitteeMember[2] = committeeMemberC;
+        duplicateCommitteeMember[3] = committeeMemberD;
+        duplicateCommitteeMember[4] = committeeMemberA;
+        vm.expectRevert(bytes("BridgeCommittee: Duplicate committee member"));
+        committee.initialize(duplicateCommitteeMember, _stake);
+
         committee.initialize(_committee, _stake);
         vault = new BridgeVault(wETH);
         address[] memory _supportedTokens = new address[](4);
@@ -100,6 +127,23 @@ contract BridgeBaseTest is Test {
     }
 
     function test() public {}
+
+    // // Test the initialize function with invalid inputs
+    // function testFailInitialize() public {
+    //     vm.expectRevert(bytes("error message"));
+    //     // Try to initialize the contract with different lengths of arrays
+    //     address[] memory _committee = new address[](3);
+    //     _committee[0] = committeeMemberA;
+    //     _committee[1] = committeeMemberB;
+    //     _committee[2] = committeeMemberC;
+    //     uint16[] memory _stake = new uint16[](4);
+    //     _stake[0] = 2500;
+    //     _stake[1] = 2500;
+    //     _stake[2] = 2500;
+    //     _stake[3] = 2501;
+    //     committee.initialize(_committee, _stake); // This should fail
+    //     // assertTrue(revertsAsExpected, "expectRevert: call did not revert");
+    // }
 
     // Helper function to get the signature components from an address
     function getSignature(bytes32 digest, uint256 privateKey) public pure returns (bytes memory) {
