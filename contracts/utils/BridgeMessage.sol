@@ -102,7 +102,7 @@ library BridgeMessage {
         // targetAddress starts from index 35
         uint160 addr = 0;
         for (uint256 i = 0; i < 20; i++) {
-            addr = uint160(addr) | (uint160(uint8(payload[i + 35])) << ((19 - i) * 8));
+            addr = uint160(addr) | (uint160(uint8(payload[i + 35])) << uint160(((19 - i) * 8)));
         }
         address targetAddress = address(addr);
 

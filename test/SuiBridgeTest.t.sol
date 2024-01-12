@@ -44,7 +44,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             tokenId
         );
         // little endian encoded of u64 1_000_000
-        bytes memory amountBytes = hex"40420f0000000000";
+        bytes memory amountBytes = hex"00e1f50500000000";
         payload = bytes.concat(payload, amountBytes);
 
         // Create transfer message
