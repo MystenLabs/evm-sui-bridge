@@ -6,7 +6,7 @@ interface IBridgeCommittee {
         bytes[] memory signatures,
         bytes32 messageHash,
         uint32 requiredStake
-    ) external view returns (bool);
+    ) external view;
 
     event BlocklistUpdated(address[] newMembers, bool isBlocklisted);
 }

@@ -21,7 +21,7 @@ contract SuiBridge is
 {
     /* ========== CONSTANTS ========== */
 
-    uint32 public constant TRANSFER_STAKE_REQUIRED = 5001;
+    uint32 public constant TRANSFER_STAKE_REQUIRED = 3334;
     uint32 public constant FREEZING_STAKE_REQUIRED = 450;
     uint32 public constant UNFREEZING_STAKE_REQUIRED = 5001;
     uint32 public constant BRIDGE_UPGRADE_STAKE_REQUIRED = 5001;
@@ -80,11 +80,8 @@ contract SuiBridge is
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
 
         // verify signatures
-        require(
-            committee.verifyMessageSignatures(
-                signatures, BridgeMessage.computeHash(message), TRANSFER_STAKE_REQUIRED
-            ),
-            "SuiBridge: Invalid signatures"
+        committee.verifyMessageSignatures(
+            signatures, BridgeMessage.computeHash(message), TRANSFER_STAKE_REQUIRED
         );
 
         BridgeMessage.TokenTransferPayload memory tokenTransferPayload =
@@ -126,11 +123,8 @@ contract SuiBridge is
         if (isFreezing) stakeRequired = FREEZING_STAKE_REQUIRED;
 
         // verify signatures
-        require(
-            committee.verifyMessageSignatures(
-                signatures, BridgeMessage.computeHash(message), stakeRequired
-            ),
-            "SuiBridge: Invalid signatures"
+        committee.verifyMessageSignatures(
+            signatures, BridgeMessage.computeHash(message), stakeRequired
         );
 
         if (isFreezing) _pause();
@@ -154,11 +148,8 @@ contract SuiBridge is
         );
 
         // verify signatures
-        require(
-            committee.verifyMessageSignatures(
-                signatures, BridgeMessage.computeHash(message), BRIDGE_UPGRADE_STAKE_REQUIRED
-            ),
-            "SuiBridge: Invalid signatures"
+        committee.verifyMessageSignatures(
+            signatures, BridgeMessage.computeHash(message), BRIDGE_UPGRADE_STAKE_REQUIRED
         );
 
         // decode the upgrade payload
@@ -314,7 +305,7 @@ contract SuiBridge is
     function _transferTokensFromVault(uint8 tokenId, address targetAddress, uint256 amount)
         internal
         whenNotPaused
-        willNotExceedLimit(tokenId, amount)
+        // willNotExceedLimit(tokenId, amount)
     {
         address tokenAddress = supportedTokens[tokenId];
 
@@ -330,7 +321,7 @@ contract SuiBridge is
         }
 
         // update daily amount bridged
-        limiter.updateHourlyTransfers(tokenId, amount);
+        // limiter.updateHourlyTransfers(tokenId, amount);
     }
 
     function _upgradeBridge(address newImplementation, bytes memory data) internal {

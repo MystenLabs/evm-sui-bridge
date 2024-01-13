@@ -18,7 +18,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertEq(committee.committee(committeeMemberE), 4998);
     }
 
-    function testVerifyMessageSignaturesWithValidSignatures() public {
+    function testVerifyMessageSignaturesWithValidSignatures() public view {
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
@@ -42,9 +42,8 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         // Set the required stake to 500
         uint16 requiredStake = 500;
 
-        // Call the verifyMessageSignatures function and assert that it returns true
-        bool result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
-        assertTrue(result);
+        // Call the verifyMessageSignatures function and it would not revert
+        committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
     }
 
     function testVerifyMessageSignaturesWithInvalidSignatures() public {
@@ -71,9 +70,9 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         // Set the required stake to 5000
         uint16 requiredStake = 5000;
 
-        // Call the verifyMessageSignatures function and assert that it returns true
-        bool result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
-        assertFalse(result);
+        // Call the verifyMessageSignatures function and expect it to revert
+        vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
+        committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
     }
     // TODO: extract invariant tests to a separate file
     // function invariant_testVerifyMessageSignaturesWithValidSignatures(
@@ -157,15 +156,15 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         uint16 requiredStake = 5000;
 
         // verify CommitteeMemberA's signature is still valid
-        bool result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
-        assertTrue(result);
+        committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
 
         committee.updateBlocklistWithSignatures(signatures, message);
 
-        // verify CommitteeMemberA's signature is no longer valid
-        result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
-        assertFalse(result);
         assertTrue(committee.blocklist(committeeMemberA));
+
+        // verify CommitteeMemberA's signature is no longer valid
+        vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
+        committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
     }
 
     // function invariant_testAddToBlocklist(

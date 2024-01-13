@@ -62,10 +62,8 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeabl
         bytes32 messageHash = BridgeMessage.computeHash(message);
 
         // verify signatures
-        require(
-            verifyMessageSignatures(signatures, messageHash, BLOCKLIST_STAKE_REQUIRED),
-            "BridgeCommittee: Invalid signatures"
-        );
+
+        verifyMessageSignatures(signatures, messageHash, BLOCKLIST_STAKE_REQUIRED);
 
         // decode the blocklist payload
         (bool isBlocklisted, address[] memory _blocklist) =
@@ -95,10 +93,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeabl
         bytes32 messageHash = BridgeMessage.computeHash(message);
 
         // verify signatures
-        require(
-            verifyMessageSignatures(signatures, messageHash, COMMITTEE_UPGRADE_STAKE_REQUIRED),
-            "BridgeCommittee: Invalid signatures"
-        );
+        verifyMessageSignatures(signatures, messageHash, COMMITTEE_UPGRADE_STAKE_REQUIRED);
 
         // decode the upgrade payload
         (address implementationAddress, bytes memory callData) =
@@ -117,7 +112,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeabl
         bytes[] memory signatures,
         bytes32 messageHash,
         uint32 requiredStake
-    ) public view override returns (bool) {
+    ) public view override {
         // TODO: check for duplicate signatures
 
         // Loop over the signatures and check if they are valid
@@ -128,8 +123,13 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeabl
             // Extract R, S, and V components from the signature
             (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
 
+            if (v < 27) {
+                v += 27;
+            }
             // Recover the signer address
             signer = ecrecover(messageHash, v, r, s);
+
+            require(signer != address(0), "BridgeCommittee: Invalid Signature");
 
             // Check if the signer is a committee member and not already approved
             require(committee[signer] > 0, "BridgeCommittee: Not a committee member");
@@ -140,7 +140,7 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeabl
             approvalStake += committee[signer];
         }
 
-        return approvalStake >= requiredStake;
+        require(approvalStake >= requiredStake, "BridgeCommittee: Insufficient stake amount");
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
