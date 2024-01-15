@@ -259,6 +259,56 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertTrue(committee.blocklist(committeeMemberA));
     }
 
+    function testUpgradeCommitteeWithSignaturesInvalidNonce() public {
+        // create payload
+        bytes memory payload = abi.encode(committeeMemberA);
+
+        // Create a message with wrong nonce
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.COMMITTEE_UPGRADE,
+            version: 1,
+            nonce: 1,
+            chainID: 1,
+            payload: payload
+        });
+        bytes memory messageBytes = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(messageBytes);
+        bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from A - D
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        vm.expectRevert(bytes("BridgeCommittee: Invalid nonce"));
+        committee.upgradeCommitteeWithSignatures(signatures, message);
+    }
+
+    function testUpgradeCommitteeWithSignaturesMessageDoesNotMatchType() public {
+        // create payload
+        bytes memory payload = abi.encode(committeeMemberA);
+        // Create a message with wrong messageType
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.TOKEN_TRANSFER,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: payload
+        });
+        bytes memory messageBytes = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(messageBytes);
+        bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from A - D
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+        vm.expectRevert(bytes("BridgeCommittee: message does not match type"));
+        committee.upgradeCommitteeWithSignatures(signatures, message);
+    }
+
     function testUpgradeCommitteeWithSignatures() public {
         // create payload
         bytes memory payload = abi.encode(committeeMemberA);
@@ -288,37 +338,6 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         // verify CommitteeMemberA's signature is still valid
         bool result = committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
         assertTrue(result);
-
-        // Create a message with wrong nonce
-        BridgeMessage.Message memory messageWrongNonce = BridgeMessage.Message({
-            messageType: BridgeMessage.COMMITTEE_UPGRADE,
-            version: 1,
-            nonce: 1,
-            chainID: 1,
-            payload: payload
-        });
-        vm.expectRevert(bytes("BridgeCommittee: Invalid nonce"));
-        committee.upgradeCommitteeWithSignatures(signatures, messageWrongNonce);
-
-        // Create a message with wrong messageType
-        BridgeMessage.Message memory messageWrongMessageType = BridgeMessage.Message({
-            messageType: BridgeMessage.TOKEN_TRANSFER,
-            version: 1,
-            nonce: 0,
-            chainID: 1,
-            payload: payload
-        });
-        vm.expectRevert(bytes("BridgeCommittee: message does not match type"));
-        committee.upgradeCommitteeWithSignatures(signatures, messageWrongMessageType);
-
-        // // bytes[] memory invalidSignatures = new bytes[](4);
-        // // // (, uint256 committeeMemberPkF) = makeAddrAndKey("f");
-        // // invalidSignatures[0] = getSignature(messageHash, committeeMemberPkA);
-        // // invalidSignatures[1] = getSignature(messageHash, committeeMemberPkB);
-        // // invalidSignatures[2] = getSignature(messageHash, committeeMemberPkC);
-        // // invalidSignatures[3] = getSignature(keccak256(BridgeMessage.encodeMessage(messageWrongNonce)), committeeMemberPkD);
-        // // vm.expectRevert(bytes("BridgeCommittee: Invalid signatures"));
-        // // committee.upgradeCommitteeWithSignatures(invalidSignatures, message);
 
         committee.upgradeCommitteeWithSignatures(signatures, message);
     }

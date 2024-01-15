@@ -60,23 +60,23 @@ contract BridgeBaseTest is Test {
         committee.initialize(_committee, _stake);
     }
 
-    // function testFailInitializeTotalStakeMustBe10000() public {
-    //     address[] memory _committee = new address[](5);
-    //     _committee[0] = committeeMemberA;
-    //     _committee[1] = committeeMemberB;
-    //     _committee[2] = committeeMemberC;
-    //     _committee[3] = committeeMemberD;
-    //     _committee[4] = committeeMemberE;
+    function testFailInitializeCommitteeDuplicateCommitteeMember() public {
+        address[] memory _committee = new address[](5);
+        _committee[0] = committeeMemberA;
+        _committee[1] = committeeMemberB;
+        _committee[2] = committeeMemberC;
+        _committee[3] = committeeMemberD;
+        _committee[4] = committeeMemberA;
 
-    //     uint16[] memory _stake = new uint16[](5);
-    //     _stake[0] = 1000;
-    //     _stake[1] = 1000;
-    //     _stake[2] = 1000;
-    //     _stake[3] = 2002;
-    //     _stake[4] = 4999;
-    //     vm.expectRevert(bytes("BridgeCommittee: Total stake must be 10000"));
-    //     committee.initialize(_committee, _stake);
-    // }
+        uint16[] memory _stake = new uint16[](4);
+        _stake[0] = 1000;
+        _stake[1] = 1000;
+        _stake[2] = 1000;
+        _stake[3] = 2002;
+
+        vm.expectRevert(bytes("BridgeCommittee: Duplicate committee member"));
+        committee.initialize(_committee, _stake);
+    }
 
     function setUpBridgeTest() public {
         vm.createSelectFork(
@@ -112,15 +112,6 @@ contract BridgeBaseTest is Test {
         _stake[3] = 2002;
         _stake[4] = 4998;
         committee = new BridgeCommittee();
-
-        address[] memory duplicateCommitteeMember = new address[](5);
-        duplicateCommitteeMember[0] = committeeMemberA;
-        duplicateCommitteeMember[1] = committeeMemberB;
-        duplicateCommitteeMember[2] = committeeMemberC;
-        duplicateCommitteeMember[3] = committeeMemberD;
-        duplicateCommitteeMember[4] = committeeMemberA;
-        vm.expectRevert(bytes("BridgeCommittee: Duplicate committee member"));
-        committee.initialize(duplicateCommitteeMember, _stake);
 
         committee.initialize(_committee, _stake);
         vault = new BridgeVault(wETH);
