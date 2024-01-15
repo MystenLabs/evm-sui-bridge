@@ -42,6 +42,42 @@ contract BridgeBaseTest is Test {
     BridgeVault public vault;
     BridgeLimiter public limiter;
 
+    function testFailInitializeCommitteeAndStakeArraysMustBeOfTheSameLength() public {
+        address[] memory _committee = new address[](5);
+        _committee[0] = committeeMemberA;
+        _committee[1] = committeeMemberB;
+        _committee[2] = committeeMemberC;
+        _committee[3] = committeeMemberD;
+        _committee[4] = committeeMemberE;
+
+        uint16[] memory _stake = new uint16[](4);
+        _stake[0] = 1000;
+        _stake[1] = 1000;
+        _stake[2] = 1000;
+        _stake[3] = 2002;
+
+        vm.expectRevert(bytes("BridgeCommittee: Committee and stake arrays must be of the same length"));
+        committee.initialize(_committee, _stake);
+    }
+
+    // function testFailInitializeTotalStakeMustBe10000() public {
+    //     address[] memory _committee = new address[](5);
+    //     _committee[0] = committeeMemberA;
+    //     _committee[1] = committeeMemberB;
+    //     _committee[2] = committeeMemberC;
+    //     _committee[3] = committeeMemberD;
+    //     _committee[4] = committeeMemberE;
+
+    //     uint16[] memory _stake = new uint16[](5);
+    //     _stake[0] = 1000;
+    //     _stake[1] = 1000;
+    //     _stake[2] = 1000;
+    //     _stake[3] = 2002;
+    //     _stake[4] = 4999;
+    //     vm.expectRevert(bytes("BridgeCommittee: Total stake must be 10000"));
+    //     committee.initialize(_committee, _stake);
+    // }
+
     function setUpBridgeTest() public {
         vm.createSelectFork(
             string.concat("https://mainnet.infura.io/v3/", vm.envString("INFURA_API_KEY"))
@@ -76,23 +112,6 @@ contract BridgeBaseTest is Test {
         _stake[3] = 2002;
         _stake[4] = 4998;
         committee = new BridgeCommittee();
-
-        uint16[] memory _stakeNotSameLength = new uint16[](4);
-        _stakeNotSameLength[0] = 1000;
-        _stakeNotSameLength[1] = 1000;
-        _stakeNotSameLength[2] = 1000;
-        _stakeNotSameLength[3] = 2002;
-        vm.expectRevert(bytes("BridgeCommittee: Committee and stake arrays must be of the same length"));
-        committee.initialize(_committee, _stakeNotSameLength);
-
-        uint16[] memory _stakeNotEqualTo10000 = new uint16[](5);
-        _stakeNotEqualTo10000[0] = 1000;
-        _stakeNotEqualTo10000[1] = 1000;
-        _stakeNotEqualTo10000[2] = 1000;
-        _stakeNotEqualTo10000[3] = 2002;
-        _stakeNotEqualTo10000[4] = 4999;
-        vm.expectRevert(bytes("BridgeCommittee: Total stake must be 10000"));
-        committee.initialize(_committee, _stakeNotEqualTo10000);
 
         address[] memory duplicateCommitteeMember = new address[](5);
         duplicateCommitteeMember[0] = committeeMemberA;

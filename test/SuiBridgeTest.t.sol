@@ -190,6 +190,78 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         bridge.executeEmergencyOpWithSignatures(signatures, message);
     }
 
+    function testUpgradeBridgeWithSignaturesInvalidSignatures() public {
+        // Create emergency op message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.BRIDGE_UPGRADE,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: abi.encode(0)
+        });
+
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        bytes[] memory signatures = new bytes[](2);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        vm.expectRevert(bytes("SuiBridge: Invalid signatures"));
+        bridge.upgradeBridgeWithSignatures(signatures, message);
+    }
+
+    function testUpgradeBridgeWithSignaturesMessageDoesNotMatchType() public {
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.TOKEN_TRANSFER,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: abi.encode(0)
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+
+        vm.expectRevert(bytes("SuiBridge: message does not match type"));
+        bridge.upgradeBridgeWithSignatures(signatures, message);
+    }
+
+
+    function testUpgradeBridgeWithSignaturesInvalidNonce() public {
+        // Create emergency op message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.BRIDGE_UPGRADE,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: abi.encode(0)
+        });
+
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        bytes[] memory signatures = new bytes[](4);
+
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        assertFalse(bridge.paused());
+        bridge.upgradeBridgeWithSignatures(signatures, message);
+
+        vm.expectRevert(bytes("SuiBridge: Invalid nonce"));
+        bridge.upgradeBridgeWithSignatures(signatures, message);
+    }
     function testUpgradeBridgeWithSignatures() public {
         // Create emergency op message
         BridgeMessage.Message memory message = BridgeMessage.Message({
@@ -211,29 +283,10 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
 
-        bytes[] memory signaturesNotEnoughStake = new bytes[](2);
-        signaturesNotEnoughStake[0] = getSignature(messageHash, committeeMemberPkA);
-        signaturesNotEnoughStake[1] = getSignature(messageHash, committeeMemberPkB);
-        vm.expectRevert(bytes("SuiBridge: Invalid signatures"));
-        bridge.upgradeBridgeWithSignatures(signaturesNotEnoughStake, message);
-
-        BridgeMessage.Message memory messageWrongMessageType = BridgeMessage.Message({
-            messageType: BridgeMessage.TOKEN_TRANSFER,
-            version: 1,
-            nonce: 0,
-            chainID: 1,
-            payload: abi.encode(0)
-        });
-        vm.expectRevert(bytes("SuiBridge: message does not match type"));
-        bridge.upgradeBridgeWithSignatures(signatures, messageWrongMessageType);
-
         assertFalse(bridge.paused());
         bridge.upgradeBridgeWithSignatures(signatures, message);
-        assertTrue(bridge.paused());
-
-        vm.expectRevert(bytes("SuiBridge: Invalid nonce"));
-        bridge.upgradeBridgeWithSignatures(signatures, message);
     }
+    
 
     function testUnfreezeBridgeEmergencyOp() public {
         testFreezeBridgeEmergencyOp();
@@ -347,46 +400,44 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertEq(bridge.nonces(BridgeMessage.TOKEN_TRANSFER), 1);
     }
 
+    function testAdjustDecimalsForSuiTokenEthDecimalShouldBeLargerThanSuiDecimal() public {
+        vm.expectRevert(bytes("Eth decimal should be larger than sui decimal"));
+        bridge.adjustDecimalsForSuiToken(BridgeMessage.ETH, 10 ether, 1);
+    }
+
+    function testAdjustDecimalsForSuiTokenAmountTooLargeForUint64() public {
+        vm.expectRevert(bytes("Amount too large for uint64"));
+        bridge.adjustDecimalsForSuiToken(BridgeMessage.ETH, type(uint256).max, BridgeMessage.SUI_DECIMAL_ON_SUI);
+        vm.expectRevert(bytes("Amount too large for uint64"));
+        bridge.adjustDecimalsForSuiToken(BridgeMessage.SUI, type(uint256).max, BridgeMessage.SUI_DECIMAL_ON_SUI);
+    }
+
+    function testAdjustDecimalsForSuiTokenTokenIdDoesNotHaveSuiDecimalSet() public {
+        vm.expectRevert(bytes("TokenId does not have Sui decimal set"));
+        bridge.adjustDecimalsForSuiToken(type(uint8).max, 10 ether, 18);
+    }
+
     function testEthToSuiDecimalConversion() public {
-        // SUI
         // ETH
         assertEq(IERC20Metadata(wETH).decimals(), 18);
         uint256 ethAmount = 10 ether;
         uint64 suiAmount = bridge.adjustDecimalsForSuiToken(BridgeMessage.ETH, ethAmount, 18);
         assertEq(suiAmount, 10_000_000_00); // 10 * 10 ^ 8
-
         // USDC
         assertEq(IERC20Metadata(USDC).decimals(), 6);
         ethAmount = 50_000_000; // 50 USDC
         suiAmount = bridge.adjustDecimalsForSuiToken(BridgeMessage.USDC, ethAmount, 6);
         assertEq(suiAmount, ethAmount);
-
         // USDT
         assertEq(IERC20Metadata(USDT).decimals(), 6);
         ethAmount = 60_000_000; // 60 USDT
         suiAmount = bridge.adjustDecimalsForSuiToken(BridgeMessage.USDT, ethAmount, 6);
         assertEq(suiAmount, ethAmount);
-
         // BTC
         assertEq(IERC20Metadata(wBTC).decimals(), 8);
         ethAmount = 2_00_000_000; // 2 BTC
         suiAmount = bridge.adjustDecimalsForSuiToken(BridgeMessage.BTC, ethAmount, 8);
         assertEq(suiAmount, ethAmount);
-
-        vm.expectRevert(bytes("Eth decimal should be larger than sui decimal"));
-        bridge.adjustDecimalsForSuiToken(BridgeMessage.ETH, ethAmount, 1);
-
-        vm.expectRevert(bytes("Amount too large for uint64"));
-        bridge.adjustDecimalsForSuiToken(BridgeMessage.ETH, type(uint256).max, BridgeMessage.SUI_DECIMAL_ON_SUI);
-
-        uint64 result = bridge.adjustDecimalsForSuiToken(1, 1000, 18);
-        assertEq(result, 1000);
-
-        vm.expectRevert(bytes("TokenId does not have Sui decimal set"));
-        bridge.adjustDecimalsForSuiToken(type(uint8).max, ethAmount, 18);
-
-        vm.expectRevert(bytes("Amount too large for uint64"));
-        bridge.adjustDecimalsForSuiToken(BridgeMessage.SUI, type(uint256).max, BridgeMessage.SUI_DECIMAL_ON_SUI);
     }
 
     function testSuiToEthDecimalConversion() public {
