@@ -22,6 +22,38 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertEq(bridge.chainId(), testChainID);
     }
 
+    function testTransferTokensWithSignaturesTokenDailyLimitExceeded() public {
+        // Create transfer message
+        BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
+            senderAddressLength: 0,
+            senderAddress: abi.encode(0),
+            targetChain: 1,
+            targetAddressLength: 0,
+            targetAddress: bridgerA,
+            tokenId: BridgeMessage.ETH,
+            amount: type(uint64).max
+        });
+
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.TOKEN_TRANSFER,
+            version: 1,
+            nonce: 1,
+            chainID: 1,
+            payload: abi.encode(payload)
+        });
+
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+        vm.expectRevert(bytes("SuiBridge: Token's daily limit exceeded"));
+        bridge.transferTokensWithSignatures(signatures, message);
+    }
+
     function testTransferTokensWithSignaturesInvalidSignatures() public {
         // Create transfer message
         BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
@@ -44,7 +76,6 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](2);
@@ -111,11 +142,9 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
-
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
@@ -201,7 +230,6 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
-
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
@@ -266,7 +294,6 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](2);
@@ -285,7 +312,6 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             payload: abi.encode(0)
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
