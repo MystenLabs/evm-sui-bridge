@@ -154,12 +154,9 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
-
-        // Create signatures from alice, bob, and charlie
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
@@ -183,7 +180,6 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
-        // Create signatures from alice, bob, and charlie
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
@@ -243,11 +239,9 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
-
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
@@ -262,7 +256,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
     }
 
     function testUpgradeBridgeWithSignaturesInvalidSignatures() public {
-        // Create emergency op message
+        // Create message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.BRIDGE_UPGRADE,
             version: 1,
@@ -300,11 +294,9 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
 
-
         vm.expectRevert(bytes("SuiBridge: message does not match type"));
         bridge.upgradeBridgeWithSignatures(signatures, message);
     }
-
 
     function testUpgradeBridgeWithSignaturesInvalidNonce() public {
         // Create emergency op message
@@ -317,11 +309,9 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
-
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
@@ -333,6 +323,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         vm.expectRevert(bytes("SuiBridge: Invalid nonce"));
         bridge.upgradeBridgeWithSignatures(signatures, message);
     }
+
     function testUpgradeBridgeWithSignatures() public {
         // Create emergency op message
         BridgeMessage.Message memory message = BridgeMessage.Message({
@@ -344,11 +335,9 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
-
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
@@ -358,7 +347,6 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         bridge.upgradeBridgeWithSignatures(signatures, message);
     }
     
-
     function testUnfreezeBridgeEmergencyOp() public {
         testFreezeBridgeEmergencyOp();
         // Create emergency op message
@@ -371,12 +359,9 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
-
-        // Create signatures from alice, bob, and charlie
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
