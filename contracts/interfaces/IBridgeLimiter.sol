@@ -5,4 +5,6 @@ interface IBridgeLimiter {
     function willAmountExceedLimit(uint8 tokenId, uint256 amount) external view returns (bool);
 
     function updateDailyAmountBridged(uint8 tokenId, uint256 amount) external;
+
+    function updateDailyBridgeLimits(uint256[] memory dailyBridgeLimits) external;
 }

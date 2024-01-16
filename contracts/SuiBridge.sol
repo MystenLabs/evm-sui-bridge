@@ -25,6 +25,7 @@ contract SuiBridge is
     uint32 public constant FREEZING_STAKE_REQUIRED = 450;
     uint32 public constant UNFREEZING_STAKE_REQUIRED = 5001;
     uint32 public constant BRIDGE_UPGRADE_STAKE_REQUIRED = 5001;
+    uint32 public constant BRIDGE_UPDATE_LIMITS = 5001;
 
     /* ========== STATE VARIABLES ========== */
 
@@ -169,6 +170,37 @@ contract SuiBridge is
 
         // increment message type nonce
         nonces[BridgeMessage.BRIDGE_UPGRADE]++;
+    }
+
+    function updateDailyBridgeLimits(
+        bytes[] memory signatures,
+        BridgeMessage.Message memory message
+    ) external nonReentrant {
+        // verify message type
+        require(
+            message.messageType == BridgeMessage.UPDATE_DAILY_LIMITS,
+            "SuiBridge: message does not match type"
+        );
+
+        // verify message type nonce
+        require(message.nonce == nonces[message.messageType], "SuiBridge: Invalid nonce");
+
+        // verify signatures
+        require(
+            committee.verifyMessageSignatures(
+                signatures, BridgeMessage.getMessageHash(message), BRIDGE_UPDATE_LIMITS
+            ),
+            "SuiBridge: Invalid signatures"
+        );
+
+        // decode Update Daily Bridge Limits
+        uint256[] memory updatedDailyBridgeLimits = BridgeMessage.decodeUpdateDailyBridgeLimits(message.payload);
+
+        // update the Daily Bridge Limits
+        _updateDailyBridgeLimits(updatedDailyBridgeLimits);
+
+        // increment message type nonce
+        nonces[BridgeMessage.UPDATE_DAILY_LIMITS]++;
     }
 
     function bridgeToSui(
@@ -331,6 +363,14 @@ contract SuiBridge is
 
         // update daily amount bridged
         limiter.updateDailyAmountBridged(tokenId, amount);
+    }
+
+    function _updateDailyBridgeLimits(uint256[] memory updatedDailyBridgeLimits)
+        internal
+        whenNotPaused
+    {
+        // update Daily Bridge Limits
+        limiter.updateDailyBridgeLimits(updatedDailyBridgeLimits);
     }
 
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {

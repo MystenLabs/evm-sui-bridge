@@ -291,6 +291,96 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertEq(suiAmount, ethAmount);
     }
 
+    function testUpdateDailyBridgeLimitsMessageDoesNotMatchType() public {
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.BLOCKLIST,
+            version: 1,
+            nonce: 1,
+            chainID: 1,
+            payload: abi.encode(0)
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(encodedMessage);
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+        vm.expectRevert(bytes("SuiBridge: message does not match type"));
+        bridge.updateDailyBridgeLimits(signatures, message);
+    }
+
+    function testUpdateDailyBridgeLimitsInvalidNonce() public {
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPDATE_DAILY_LIMITS,
+            version: 1,
+            nonce: 1,
+            chainID: 1,
+            payload: abi.encode(0)
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(encodedMessage);
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+        vm.expectRevert(bytes("SuiBridge: Invalid nonce"));
+        bridge.updateDailyBridgeLimits(signatures, message);
+    }
+
+    function testUpdateDailyBridgeLimitsInvalidSignatures() public {
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPDATE_DAILY_LIMITS,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: abi.encode(0)
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(encodedMessage);
+        bytes[] memory signatures = new bytes[](1);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        vm.expectRevert(bytes("SuiBridge: Invalid signatures"));
+        bridge.updateDailyBridgeLimits(signatures, message);
+    }
+
+    function testUpdateDailyBridgeLimits() public {
+        // Before update
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.BTC), 100 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.ETH), 100 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.USDC), 100 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.USDT), 100 ether);
+
+        uint256[] memory _dailyBridgeLimits = new uint256[](4);
+        _dailyBridgeLimits[0] = 123 ether;
+        _dailyBridgeLimits[1] = 123 ether;
+        _dailyBridgeLimits[2] = 123 ether;
+        _dailyBridgeLimits[3] = 123 ether;
+
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPDATE_DAILY_LIMITS,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: abi.encode(_dailyBridgeLimits)
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(encodedMessage);
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+        bridge.updateDailyBridgeLimits(signatures, message);
+
+        // After update
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.BTC), 123 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.ETH), 123 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.USDC), 123 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.USDT), 123 ether);
+    }
+
     // TODO: testTransferWETHWithLimitReached
 
     // TODO:

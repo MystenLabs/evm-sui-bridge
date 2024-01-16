@@ -21,10 +21,7 @@ contract BridgeLimiter is IBridgeLimiter, Ownable {
             "SuiBridge: reset timestamp must be in the future"
         );
 
-        for (uint8 i = 0; i < _dailyBridgeLimits.length; i++) {
-            // skip 0 for SUI
-            dailyBridgeLimit[i + 1] = _dailyBridgeLimits[i];
-        }
+        setDailyBridgeLimits(_dailyBridgeLimits);
         _resetTimestamp = _nextResetTimestamp;
     }
 
@@ -70,5 +67,18 @@ contract BridgeLimiter is IBridgeLimiter, Ownable {
         }
         // update the daily amount bridged
         totalAmountBridged[tokenId] += amount;
+    }
+
+    function updateDailyBridgeLimits(uint256[] memory dailyBridgeLimits) public override onlyOwner {
+        setDailyBridgeLimits(dailyBridgeLimits);
+    }
+
+    /* ========== PRIVATE FUNCTIONS ========== */
+
+    function setDailyBridgeLimits(uint256[] memory _dailyBridgeLimits) private {
+        for (uint8 i = 0; i < _dailyBridgeLimits.length; i++) {
+            // skip 0 for SUI
+            dailyBridgeLimit[i + 1] = _dailyBridgeLimits[i];
+        }
     }
 }

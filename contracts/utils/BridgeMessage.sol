@@ -8,6 +8,7 @@ library BridgeMessage {
     uint8 public constant EMERGENCY_OP = 2;
     uint8 public constant BRIDGE_UPGRADE = 3;
     uint8 public constant COMMITTEE_UPGRADE = 4;
+    uint8 public constant UPDATE_DAILY_LIMITS = 5;
 
     // token Ids
     uint8 public constant SUI = 0;
@@ -56,5 +57,10 @@ library BridgeMessage {
 
     function getMessageHash(Message memory message) internal pure returns (bytes32) {
         return keccak256(encodeMessage(message));
+    }
+    
+    function decodeUpdateDailyBridgeLimits(bytes memory payload) public pure returns (uint256[] memory) {
+        (uint256[] memory updatedDailyBridgeLimits) = abi.decode(payload, (uint256[]));
+        return updatedDailyBridgeLimits;
     }
 }
