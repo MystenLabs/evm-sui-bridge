@@ -13,6 +13,8 @@ import "./interfaces/IBridgeCommittee.sol";
 import "./interfaces/ISuiBridge.sol";
 import "./utils/BridgeMessage.sol";
 
+/// @title SuiBridge
+/// @dev This contract implements a bridge between Ethereum and another blockchain. It allows users to transfer tokens and ETH between the two blockchains. The bridge supports multiple tokens and implements various security measures such as message verification, stake requirements, and upgradeability.
 contract SuiBridge is
     ISuiBridge,
     PausableUpgradeable,
@@ -42,6 +44,13 @@ contract SuiBridge is
 
     /* ========== INITIALIZER ========== */
 
+    /// @dev Initializes the SuiBridge contract with the provided parameters.
+    /// @param _committee The address of the bridge committee contract.
+    /// @param _vault The address of the bridge vault contract.
+    /// @param _limiter The address of the bridge limiter contract.
+    /// @param _weth9 The address of the WETH9 contract.
+    /// @param _chainId The chain ID of the network.
+    /// @param _supportedTokens An array of addresses representing the supported tokens.
     function initialize(
         address _committee,
         address _vault,
@@ -66,6 +75,9 @@ contract SuiBridge is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
+    /// @dev Transfers tokens with signatures.
+    /// @param signatures The array of signatures.
+    /// @param message The BridgeMessage containing the transfer details.
     function transferTokensWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
@@ -103,6 +115,15 @@ contract SuiBridge is
         messageProcessed[message.nonce] = true;
     }
 
+    /// @dev Executes an emergency operation with the provided signatures and message.
+    /// @param signatures The array of signatures to verify.
+    /// @param message The BridgeMessage containing the details of the operation.
+    /// Requirements:
+    /// - The message nonce must match the nonce for the message type.
+    /// - The message type must be EMERGENCY_OP.
+    /// - The required stake must be calculated based on the freezing status of the bridge.
+    /// - The signatures must be valid and meet the required stake.
+    /// - The message type nonce will be incremented.
     function executeEmergencyOpWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
@@ -140,6 +161,16 @@ contract SuiBridge is
         nonces[BridgeMessage.EMERGENCY_OP]++;
     }
 
+    /// @dev Upgrades the bridge contract with the provided signatures and message.
+    /// @param signatures The array of signatures to verify.
+    /// @param message The BridgeMessage containing the upgrade details.
+    /// Requirements:
+    /// - The message nonce must match the nonce for the message type.
+    /// - The message type must be BRIDGE_UPGRADE.
+    /// - The signatures must be valid.
+    /// - The upgrade payload must be decoded successfully.
+    /// - The bridge upgrade must be performed successfully.
+    /// - The message type nonce must be incremented.
     function upgradeBridgeWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
@@ -171,6 +202,11 @@ contract SuiBridge is
         nonces[BridgeMessage.BRIDGE_UPGRADE]++;
     }
 
+    /// @dev Bridges tokens from the current chain to the Sui chain.
+    /// @param tokenId The ID of the token to be bridged.
+    /// @param amount The amount of tokens to be bridged.
+    /// @param targetAddress The address on the Sui chain where the tokens will be sent.
+    /// @param destinationChainId The ID of the destination chain.
     function bridgeToSui(
         uint8 tokenId,
         uint256 amount,
@@ -213,6 +249,9 @@ contract SuiBridge is
         nonces[BridgeMessage.TOKEN_TRANSFER]++;
     }
 
+    /// @dev Bridges ETH to SUI tokens on a specified destination chain.
+    /// @param targetAddress The address on the destination chain where the SUI tokens will be sent.
+    /// @param destinationChainId The ID of the destination chain.
     function bridgeETHToSui(bytes memory targetAddress, uint8 destinationChainId)
         external
         payable
@@ -245,7 +284,11 @@ contract SuiBridge is
         nonces[BridgeMessage.TOKEN_TRANSFER]++;
     }
 
-    // Adjust ERC20 amount to Sui Coin amount to cover the decimal differences
+    /// @dev Adjusts the ERC20 token amount to Sui Coin amount to cover the decimal differences.
+    /// @param tokenId The ID of the Sui Coin token.
+    /// @param originalAmount The original amount of the ERC20 token.
+    /// @param ethDecimal The decimal places of the ERC20 token.
+    /// @return The adjusted amount in Sui Coin with decimal places.
     function adjustDecimalsForSuiToken(uint8 tokenId, uint256 originalAmount, uint8 ethDecimal)
         public
         pure
@@ -272,7 +315,11 @@ contract SuiBridge is
         return uint64(newAmount);
     }
 
-    // Adjust Sui coin amount to ERC20 amount to cover the decimal differences
+    /// @dev Adjusts the Sui coin amount to ERC20 amount to cover the decimal differences.
+    /// @param tokenId The ID of the token.
+    /// @param originalAmount The original amount of Sui coins.
+    /// @param ethDecimal The decimal places of the ERC20 token.
+    /// @return The adjusted amount in ERC20 token.
     function adjustDecimalsForErc20(uint8 tokenId, uint64 originalAmount, uint8 ethDecimal)
         public
         pure
@@ -295,6 +342,10 @@ contract SuiBridge is
 
     /* ========== INTERNAL FUNCTIONS ========== */
 
+    /// @dev Retrieves the decimal value of a token on the SuiBridge contract.
+    /// @param tokenId The ID of the token.
+    /// @return The decimal value of the token on SuiBridge.
+    /// @dev Reverts if the token ID does not have a Sui decimal set.
     function getDecimalOnSui(uint8 tokenId) internal pure returns (uint8) {
         if (tokenId == BridgeMessage.SUI) {
             return BridgeMessage.SUI_DECIMAL_ON_SUI;
@@ -310,6 +361,10 @@ contract SuiBridge is
         revert("TokenId does not have Sui decimal set");
     }
 
+    /// @dev Transfers tokens from the vault to a target address.
+    /// @param tokenId The ID of the token being transferred.
+    /// @param targetAddress The address to which the tokens are being transferred.
+    /// @param amount The amount of tokens being transferred.
     function _transferTokensFromVault(uint8 tokenId, address targetAddress, uint256 amount)
         internal
         whenNotPaused
@@ -333,6 +388,9 @@ contract SuiBridge is
         limiter.updateDailyAmountBridged(tokenId, amount);
     }
 
+    /// @dev Decodes the emergency operation payload and checks if it is a valid operation code. The emergency operation code must be either 0 or 1. If it is 0, it returns true. If it is 1, it returns false. If the emergency operation code is neither 0 nor 1, it reverts with an error message.
+    /// @param payload The payload to decode.
+    /// @return A boolean indicating whether the emergency operation is true or false.
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
         (uint256 emergencyOpCode) = abi.decode(payload, (uint256));
         require(emergencyOpCode <= 1, "SuiBridge: Invalid op code");
@@ -346,6 +404,9 @@ contract SuiBridge is
         }
     }
 
+    /// @dev Decodes the token transfer payload from bytes to a struct.
+    /// @param payload The payload to be decoded.
+    /// @return The decoded token transfer payload as a struct.
     function decodeTokenTransferPayload(bytes memory payload)
         internal
         pure
@@ -357,6 +418,9 @@ contract SuiBridge is
         return tokenTransferPayload;
     }
 
+    /// @dev Decodes the upgrade payload to retrieve the implementation address.
+    /// @param payload The upgrade payload to be decoded.
+    /// @return The implementation address extracted from the payload.
     function decodeUpgradePayload(bytes memory payload) internal pure returns (address) {
         (address implementationAddress) = abi.decode(payload, (address));
         return implementationAddress;
@@ -373,6 +437,11 @@ contract SuiBridge is
 
     /* ========== MODIFIERS ========== */
 
+    /// @dev Modifier to check if the token's daily limit will not be exceeded.
+    /// @param tokenId The ID of the token.
+    /// @param amount The amount to be transferred.
+    /// Requirements:
+    /// - The token's daily limit must not be exceeded.
     modifier willNotExceedLimit(uint8 tokenId, uint256 amount) {
         require(
             !limiter.willAmountExceedLimit(tokenId, amount),

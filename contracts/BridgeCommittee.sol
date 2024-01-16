@@ -5,10 +5,14 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interfaces/IBridgeCommittee.sol";
 import "./utils/BridgeMessage.sol";
 
+/// @title BridgeCommittee
+/// @dev A contract that manages a bridge committee for a bridge between two blockchains. The committee is responsible for approving and processing messages related to the bridge operations.
 contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     /* ========== CONSTANTS ========== */
 
+    // The minimum stake required for a member to be added to the blocklist
     uint16 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
+    // The minimum stake required for a member to upgrade the committee
     uint16 public constant COMMITTEE_UPGRADE_STAKE_REQUIRED = 5001;
 
     /* ========== STATE VARIABLES ========== */
@@ -23,20 +27,20 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
     /* ========== INITIALIZER ========== */
 
     /// @notice Initializes the contract with the deployer as the admin.
-    /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
-    function initialize(address[] memory _committee, uint16[] memory stakes) external initializer {
-        __UUPSUpgradeable_init();
+    /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).    
+    function initialize(address[] memory _committee, uint16[] memory _stakes) external initializer {
+                __UUPSUpgradeable_init();
         uint16 total_stake = 0;
 
         require(
-            _committee.length == stakes.length,
+            _committee.length == _stakes.length,
             "BridgeCommittee: Committee and stake arrays must be of the same length"
         );
 
         for (uint16 i = 0; i < _committee.length; i++) {
             require(committee[_committee[i]] == 0, "BridgeCommittee: Duplicate committee member");
-            committee[_committee[i]] = stakes[i];
-            total_stake += stakes[i];
+            committee[_committee[i]] = _stakes[i];
+            total_stake += _stakes[i];
         }
 
         require(total_stake == 10000, "BridgeCommittee: Total stake must be 10000");
@@ -44,6 +48,9 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
+    /// @notice Updates the blocklist based on the provided signatures and message.
+    /// @param signatures The signatures of the committee members.
+    /// @param message The message containing the blocklist update.
     function updateBlocklistWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
@@ -76,6 +83,9 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         nonces[BridgeMessage.BLOCKLIST]++;
     }
 
+    /// @notice Upgrades the committee based on the provided signatures and message.
+    /// @param signatures The signatures of the committee members.
+    /// @param message The message containing the committee upgrade.
     function upgradeCommitteeWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
@@ -110,6 +120,11 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
 
     /* ========== VIEW FUNCTIONS ========== */
 
+    /// @notice Verifies the signatures of the committee members for a given message.
+    /// @param signatures The signatures of the committee members.
+    /// @param messageHash The hash of the message.
+    /// @param requiredStake The minimum stake required for the signatures to be valid.
+    /// @return A boolean indicating whether the signatures have the required stake.
     function verifyMessageSignatures(
         bytes[] memory signatures,
         bytes32 messageHash,
@@ -140,6 +155,9 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
 
     /* ========== INTERNAL FUNCTIONS ========== */
 
+    /// @dev Internal function to update the blocklist status of multiple addresses.
+    /// @param _blocklist The array of addresses to update the blocklist status for.
+    /// @param isBlocklisted The new blocklist status to set for the addresses.
     function _updateBlocklist(address[] memory _blocklist, bool isBlocklisted) internal {
         // check original blocklist value of each validator
         for (uint16 i = 0; i < _blocklist.length; i++) {
@@ -149,6 +167,10 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         emit BlocklistUpdated(_blocklist, isBlocklisted);
     }
 
+    /// @dev Decodes the payload data to retrieve the blocklist status and validators.
+    /// @param payload The payload data to decode.
+    /// @return blocklisted The blocklist status (true if blocklisted, false if unblocklisted).
+    /// @return The array of addresses representing the validators.
     function decodeBlocklistPayload(bytes memory payload)
         public
         pure
@@ -160,15 +182,23 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
         return (blocklisted, validators);
     }
 
+    /// @dev Decodes the payload data to retrieve the upgrade implementation address.
+    /// @param payload The payload data to decode.
+    /// @return The address representing the upgrade implementation.
     function decodeUpgradePayload(bytes memory payload) public pure returns (address) {
         (address implementationAddress) = abi.decode(payload, (address));
         return implementationAddress;
     }
 
+    /// @dev Internal function to authorize the upgrade to a new implementation.
+    /// @param newImplementation The address of the new implementation.
     function _authorizeUpgrade(address newImplementation) internal override {
         // TODO: implement so only committee members can upgrade
     }
 
+    /// @dev Internal function to upgrade the committee to a new implementation.
+    /// @param upgradeImplementation The address of the new implementation to upgrade to.
+    /// @return success True if the upgrade was successful, false otherwise.
     // note: do we want to use "upgradeToAndCall" instead?
     function _upgradeCommittee(address upgradeImplementation)
         internal
@@ -198,5 +228,6 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable {
 
     /* ========== EVENTS ========== */
 
-    event MessageProcessed(bytes message);
+    /// @dev Emitted when the blocklist is updated.
+    event BlocklistUpdated(address[] blocklist, bool isBlocklisted);
 }
