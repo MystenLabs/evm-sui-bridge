@@ -381,6 +381,36 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertEq(limiter.dailyBridgeLimit(BridgeMessage.USDT), 123 ether);
     }
 
+    function testUpdateSingleTokenDailyBridgeLimit() public {
+        // Before update
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.BTC), 100 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.ETH), 100 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.USDC), 100 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.USDT), 100 ether);
+
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPDATE_DAILY_LIMITS,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: abi.encode(BridgeMessage.USDT, 123 ether)
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(encodedMessage);
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+        bridge.updateSingleTokenDailyBridgeLimit(signatures, message);
+
+        // // After update
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.BTC), 100 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.ETH), 100 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.USDC), 100 ether);
+        assertEq(limiter.dailyBridgeLimit(BridgeMessage.USDT), 123 ether);
+    }
+
     // TODO: testTransferWETHWithLimitReached
 
     // TODO:

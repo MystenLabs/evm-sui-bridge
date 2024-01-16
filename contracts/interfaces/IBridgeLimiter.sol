@@ -7,4 +7,6 @@ interface IBridgeLimiter {
     function updateDailyAmountBridged(uint8 tokenId, uint256 amount) external;
 
     function updateDailyBridgeLimits(uint256[] memory dailyBridgeLimits) external;
+
+    function updateSingleTokenDailyBridgeLimit(uint8 tokenId, uint256 newDailyBridgeLimit) external;
 }

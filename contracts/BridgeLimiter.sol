@@ -73,6 +73,10 @@ contract BridgeLimiter is IBridgeLimiter, Ownable {
         setDailyBridgeLimits(dailyBridgeLimits);
     }
 
+    function updateSingleTokenDailyBridgeLimit(uint8 tokenId, uint256 newDailyBridgeLimit) public override onlyOwner {
+        dailyBridgeLimit[tokenId] = newDailyBridgeLimit;
+    }
+
     /* ========== PRIVATE FUNCTIONS ========== */
 
     function setDailyBridgeLimits(uint256[] memory _dailyBridgeLimits) private {

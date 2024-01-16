@@ -203,6 +203,37 @@ contract SuiBridge is
         nonces[BridgeMessage.UPDATE_DAILY_LIMITS]++;
     }
 
+    function updateSingleTokenDailyBridgeLimit(
+        bytes[] memory signatures,
+        BridgeMessage.Message memory message
+    ) external nonReentrant {
+        // verify message type
+        require(
+            message.messageType == BridgeMessage.UPDATE_DAILY_LIMITS,
+            "SuiBridge: message does not match type"
+        );
+
+        // verify message type nonce
+        require(message.nonce == nonces[message.messageType], "SuiBridge: Invalid nonce");
+
+        // verify signatures
+        require(
+            committee.verifyMessageSignatures(
+                signatures, BridgeMessage.getMessageHash(message), BRIDGE_UPDATE_LIMITS
+            ),
+            "SuiBridge: Invalid signatures"
+        );
+
+        // decode Update Daily Token Bridge Limit
+        (uint8 tokenId, uint256 updatedTokenDailyBridgeLimit) = BridgeMessage.decodeSingleTokenDailyBridgeLimit(message.payload);
+
+        // update the Daily Bridge Limits
+        _updateTokenDailyBridgeLimit(tokenId, updatedTokenDailyBridgeLimit);
+
+        // increment message type nonce
+        nonces[BridgeMessage.UPDATE_DAILY_LIMITS]++;
+    }
+
     function bridgeToSui(
         uint8 tokenId,
         uint256 amount,
@@ -371,6 +402,14 @@ contract SuiBridge is
     {
         // update Daily Bridge Limits
         limiter.updateDailyBridgeLimits(updatedDailyBridgeLimits);
+    }
+
+    function _updateTokenDailyBridgeLimit(uint8 tokenId, uint256 updatedTokenDailyBridgeLimit)
+        internal
+        whenNotPaused
+    {
+        // update Token Daily Bridge Limit
+        limiter.updateSingleTokenDailyBridgeLimit(tokenId, updatedTokenDailyBridgeLimit);
     }
 
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {

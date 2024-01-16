@@ -58,9 +58,14 @@ library BridgeMessage {
     function getMessageHash(Message memory message) internal pure returns (bytes32) {
         return keccak256(encodeMessage(message));
     }
-    
+
     function decodeUpdateDailyBridgeLimits(bytes memory payload) public pure returns (uint256[] memory) {
         (uint256[] memory updatedDailyBridgeLimits) = abi.decode(payload, (uint256[]));
         return updatedDailyBridgeLimits;
+    }
+
+    function decodeSingleTokenDailyBridgeLimit(bytes memory payload) public pure returns (uint8, uint256) {
+        (uint8 tokenId, uint256 updatedTokenDailyBridgeLimit) = abi.decode(payload, (uint8, uint256));
+        return (tokenId, updatedTokenDailyBridgeLimit);
     }
 }
