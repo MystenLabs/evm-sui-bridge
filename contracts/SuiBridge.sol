@@ -305,7 +305,7 @@ contract SuiBridge is
     function _transferTokensFromVault(uint8 tokenId, address targetAddress, uint256 amount)
         internal
         whenNotPaused
-        // willNotExceedLimit(tokenId, amount)
+        willNotExceedLimit(tokenId, amount)
     {
         address tokenAddress = supportedTokens[tokenId];
 
@@ -321,7 +321,7 @@ contract SuiBridge is
         }
 
         // update daily amount bridged
-        // limiter.updateHourlyTransfers(tokenId, amount);
+        limiter.updateHourlyTransfers(tokenId, amount);
     }
 
     function _upgradeBridge(address newImplementation, bytes memory data) internal {

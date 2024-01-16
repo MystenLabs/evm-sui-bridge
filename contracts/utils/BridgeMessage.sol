@@ -43,17 +43,33 @@ library BridgeMessage {
         uint64 amount;
     }
 
+    // TODO: add unit test for this function
     function encodeMessage(Message memory message) internal pure returns (bytes memory) {
-        bytes memory baseMessage = abi.encodePacked(
-            MESSAGE_PREFIX, message.messageType, message.version, message.nonce, message.chainID
+        bytes memory prefixTypeAndVersion = abi.encodePacked(
+            MESSAGE_PREFIX, message.messageType, message.version
         );
-        return bytes.concat(baseMessage, message.payload);
+        bytes memory bigEndianNonce = abi.encodePacked(message.nonce);
+        bytes memory littleEndianNonce = bigEndiantToLittleEndian(bigEndianNonce);
+        bytes memory chainID = abi.encodePacked(
+            message.chainID
+        );
+        return bytes.concat(prefixTypeAndVersion, littleEndianNonce, chainID, message.payload);
+    }
+
+    // TODO: replace with assembly?
+    function bigEndiantToLittleEndian(bytes memory message) internal pure returns (bytes memory) {
+        bytes memory littleEndianMessage = new bytes(message.length);
+        for (uint i = 0; i < message.length; i++) {
+            littleEndianMessage[message.length - i - 1] = message[i];
+        }
+        return littleEndianMessage;
     }
 
     function computeHash(Message memory message) internal pure returns (bytes32) {
         return keccak256(encodeMessage(message));
     }
 
+    // TODO: add unit tests
     function decodeUpgradePayload(bytes memory payload)
         internal
         pure
@@ -64,6 +80,7 @@ library BridgeMessage {
         return (implementationAddress, callData);
     }
 
+    // TODO: add unit tests
     // Token Transfer Payload Format:
     // [sender_address_length:u8]
     // [sender_address: byte[]]
@@ -128,8 +145,9 @@ library BridgeMessage {
         );
     }
 
+    // TODO: add unit test
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
-        (uint256 emergencyOpCode) = abi.decode(payload, (uint256));
+        (uint8 emergencyOpCode) = abi.decode(payload, (uint8));
         require(emergencyOpCode <= 1, "BridgeMessage: Invalid op code");
 
         if (emergencyOpCode == 0) {
@@ -141,6 +159,7 @@ library BridgeMessage {
         }
     }
 
+    // TODO: add unit test
     function decodeBlocklistPayload(bytes memory payload)
         internal
         pure
