@@ -56,5 +56,5 @@ contract WETH {
         return true;
     }
 
-    function test() public {}
+    function testMock() public {}
 }

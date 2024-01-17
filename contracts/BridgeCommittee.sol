@@ -66,7 +66,9 @@ contract BridgeCommittee is
         for (uint16 i = 0; i < signatures.length; i++) {
             bytes memory signature = signatures[i];
             // recover the signer from the signature
-            (signer,) = ECDSA.tryRecover(BridgeMessage.computeHash(message), signature);
+            (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
+
+            (signer,) = ECDSA.tryRecover(BridgeMessage.computeHash(message), v, r, s);
 
             // Check if the signer is a committee member and not already approved
             require(committeeMembers[signer] > 0, "BridgeCommittee: Not a committee member");
@@ -128,6 +130,26 @@ contract BridgeCommittee is
     function _upgradeCommittee(address newImplementation, bytes memory data) internal {
         if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
         else _upgradeTo(newImplementation);
+    }
+
+    // Helper function to split a signature into R, S, and V components
+    function splitSignature(bytes memory sig)
+        internal
+        pure
+        returns (bytes32 r, bytes32 s, uint8 v)
+    {
+        require(sig.length == 65, "BridgeCommittee: Invalid signature length");
+        // ecrecover takes the signature parameters, and the only way to get them
+        // currently is to use assembly.
+        /// @solidity memory-safe-assembly
+        assembly {
+            r := mload(add(sig, 32))
+            s := mload(add(sig, 64))
+            v := byte(0, mload(add(sig, 96)))
+        }
+
+        //adjust for ethereum signature verification
+        if (v < 27) v += 27;
     }
 
     function _authorizeUpgrade(address newImplementation) internal view override {

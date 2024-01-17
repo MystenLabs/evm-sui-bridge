@@ -15,7 +15,7 @@ contract MockWBTC is ERC20 {
         return 8;
     }
 
-    function test() public {}
+    function testMock() public {}
 }
 
 contract MockUSDC is ERC20 {
@@ -33,5 +33,5 @@ contract MockUSDC is ERC20 {
         return 6;
     }
 
-    function test() public {}
+    function testMock() public {}
 }

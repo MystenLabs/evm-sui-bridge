@@ -39,7 +39,7 @@ contract BridgeBaseTest is Test {
     uint256 ETH_PRICE = 25969600;
     uint256 USDC_PRICE = 10000;
 
-    uint8 public testChainID = 99;
+    uint8 public chainID = 99;
     uint256 totalLimit = 10000000000;
 
     BridgeCommittee public committee;
@@ -99,14 +99,14 @@ contract BridgeBaseTest is Test {
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH, testChainID
+            address(committee), address(tokens), address(vault), address(limiter), wETH, chainID
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
         tokens.transferOwnership(address(bridge));
     }
 
-    function test() public {}
+    function testMock() public {}
 
     // Helper function to get the signature components from an address
     function getSignature(bytes32 digest, uint256 privateKey) public pure returns (bytes memory) {

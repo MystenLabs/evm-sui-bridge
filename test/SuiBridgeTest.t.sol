@@ -184,7 +184,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         // assert emitted event
         vm.expectEmit(true, true, true, false);
         emit TokensBridgedToSui(
-            testChainID,
+            chainID,
             0, // nonce
             0, // destination chain id
             BridgeMessage.ETH,
@@ -201,7 +201,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         // Now test rounding. For ETH, the last 10 digits are rounded
         vm.expectEmit(true, true, true, false);
         emit TokensBridgedToSui(
-            testChainID,
+            chainID,
             1, // nonce
             0, // destination chain id
             BridgeMessage.ETH,
@@ -238,7 +238,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         // assert emitted event
         vm.expectEmit(true, true, true, false);
         emit ISuiBridge.TokensBridgedToSui(
-            testChainID,
+            chainID,
             0, // nonce
             0, // destination chain id
             BridgeMessage.ETH,
@@ -279,7 +279,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
-        uint8 _chainId = testChainID;
+        uint8 _chainId = chainID;
         bridge.initialize(
             address(committee), address(tokens), address(vault), address(limiter), wETH, _chainId
         );
@@ -316,6 +316,8 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             hex"93029995ee7034f0b518fbdab29302f7f4d45682e96a16802226674fecb7f1e60179df724eec6c60e05ede02375028966dd09aaadc564487ce24b6c797b8a24900";
 
         uint256 aBalance = targetAddress.balance;
+        committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
+
         bridge.transferTokensWithSignatures(signatures, message);
         assertEq(targetAddress.balance, aBalance + 0.0025 ether);
     }
