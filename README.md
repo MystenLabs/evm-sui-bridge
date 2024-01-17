@@ -45,7 +45,7 @@ yarn deploy --network <network>
 
 > **Note**
 > Make sure the deployment config file for the target network is created in the `deploy_configs` folder.
-> The file should be named `<network>.json` and should export a `deployConfig` object with the same fields as the `example.json`.
+> The file should be named `<network>.json` and should have the same fields as the `example.json`.
 
 #### Contract Verification
 
