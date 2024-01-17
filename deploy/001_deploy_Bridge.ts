@@ -76,16 +76,33 @@ const func: DeployFunction = async function (
     console.log("🚀  Vault deployed at ", vaultAddress);
   }
 
+  let bridgeTokensAddress = (await deployments.getOrNull("BridgeTokens"))
+    ?.address;
+  if (!bridgeTokensAddress) {
+    bridgeTokensAddress = (
+      await deployments.deploy("BridgeTokens", {
+        from: owner.address,
+        args: [config.supportedTokens],
+      })
+    ).address;
+    console.log("🚀  BridgeTokens deployed at ", bridgeTokensAddress);
+  }
+
   // deploy limiter
   let limiterAddress = (await deployments.getOrNull("BridgeLimiter"))?.address;
   if (!limiterAddress) {
-    limiterAddress = (
-      await deployments.deploy("BridgeLimiter", {
-        from: owner.address,
-        args: [config.dailyBridgeLimits],
-      })
-    ).address;
-    console.log("🚀  Limiter deployed at ", limiterAddress);
+    let limiterArgs = [
+      bridgeCommitteeAddress,
+      bridgeTokensAddress,
+      config.assetPrices,
+      config.totalBridgeLimitInDollars * 10000,
+    ];
+    limiterAddress = await deployProxyAndSave(
+      "BridgeLimiter",
+      limiterArgs,
+      hardhat,
+      { kind: "uups" }
+    );
   }
 
   // deploy Sui Bridge
@@ -95,11 +112,11 @@ const func: DeployFunction = async function (
       "SuiBridge",
       [
         bridgeCommitteeAddress,
+        bridgeTokensAddress,
         vaultAddress,
         limiterAddress,
         config.wETHAddress,
         config.sourceChainId,
-        config.supportedTokens,
       ],
       hardhat,
       { kind: "uups" }
@@ -112,6 +129,12 @@ const func: DeployFunction = async function (
   // transfer limiter ownership to bridge
   let limiter = await ethers.getContractAt("BridgeLimiter", limiterAddress);
   await limiter.transferOwnership(bridgeCommitteeAddress);
+  // transfer bridge tokens ownership to bridge
+  let bridgeTokens = await ethers.getContractAt(
+    "BridgeTokens",
+    bridgeTokensAddress
+  );
+  await bridgeTokens.transferOwnership(bridgeCommitteeAddress);
 };
 
 export default func;

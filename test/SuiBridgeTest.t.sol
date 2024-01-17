@@ -12,14 +12,10 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
     }
 
     function testSuiBridgeInitialization() public {
-        assertTrue(bridge.supportedTokens(1) == wBTC);
-        assertTrue(bridge.supportedTokens(2) == wETH);
-        assertTrue(bridge.supportedTokens(3) == USDC);
-        assertTrue(bridge.supportedTokens(4) == USDT);
         assertEq(address(bridge.committee()), address(committee));
         assertEq(address(bridge.vault()), address(vault));
         assertEq(address(bridge.weth9()), wETH);
-        assertEq(bridge.chainId(), testChainID);
+        assertEq(address(bridge.tokens()), address(tokens));
     }
 
     function testTransferWETHWithValidSignatures() public {
@@ -272,21 +268,20 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         committee = new BridgeCommittee();
         committee.initialize(_committee, _stake);
         vault = new BridgeVault(wETH);
-        address[] memory _supportedTokens = new address[](4);
-        _supportedTokens[0] = wBTC;
-        _supportedTokens[1] = wETH;
-        _supportedTokens[2] = USDC;
-        _supportedTokens[3] = USDT;
-        uint256[] memory _dailyBridgeLimits = new uint256[](4);
-        _dailyBridgeLimits[0] = 100 ether;
-        _dailyBridgeLimits[1] = 100 ether;
-        _dailyBridgeLimits[2] = 100 ether;
-        _dailyBridgeLimits[3] = 100 ether;
-        limiter = new BridgeLimiter(_dailyBridgeLimits);
+        uint256[] memory assetPrices = new uint256[](4);
+        assetPrices[0] = 10000; // SUI PRICE
+        assetPrices[1] = 10000; // BTC PRICE
+        assetPrices[2] = 10000; // ETH PRICE
+        assetPrices[3] = 10000; // USDC PRICE
+        uint256 totalLimit = 1000000;
+
+        skip(2 days);
+        limiter = new BridgeLimiter();
+        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
         uint8 _chainId = testChainID;
         bridge.initialize(
-            address(committee), address(vault), address(limiter), wETH, _chainId, _supportedTokens
+            address(committee), address(tokens), address(vault), address(limiter), wETH, _chainId
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
@@ -297,7 +292,8 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         IERC20(wETH).transfer(address(vault), 10 ether);
         address targetAddress = 0xb18f79Fe671db47393315fFDB377Da4Ea1B7AF96;
 
-        bytes memory payload = hex"2080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af960290d0030000000000";
+        bytes memory payload =
+            hex"2080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af960290d0030000000000";
         // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
@@ -307,14 +303,17 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             payload: payload
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes memory expectedEncodedMessage = hex"5355495f4252494447455f4d45535341474500010400000000000000012080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af960290d0030000000000";
+        bytes memory expectedEncodedMessage =
+            hex"5355495f4252494447455f4d45535341474500010400000000000000012080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af960290d0030000000000";
 
         assertEq(encodedMessage, expectedEncodedMessage);
 
         bytes[] memory signatures = new bytes[](2);
 
-        signatures[0] = hex"0518a39b869f3765c88e27a5889867c16fa994c6ba7d2bd9672268656a08ac536c0eaddfc2285035e720dafdaca631c1aad9e3c622f0a6d500d7392cc60a0fc401";
-        signatures[1] = hex"93029995ee7034f0b518fbdab29302f7f4d45682e96a16802226674fecb7f1e60179df724eec6c60e05ede02375028966dd09aaadc564487ce24b6c797b8a24900";
+        signatures[0] =
+            hex"0518a39b869f3765c88e27a5889867c16fa994c6ba7d2bd9672268656a08ac536c0eaddfc2285035e720dafdaca631c1aad9e3c622f0a6d500d7392cc60a0fc401";
+        signatures[1] =
+            hex"93029995ee7034f0b518fbdab29302f7f4d45682e96a16802226674fecb7f1e60179df724eec6c60e05ede02375028966dd09aaadc564487ce24b6c797b8a24900";
 
         uint256 aBalance = targetAddress.balance;
         bridge.transferTokensWithSignatures(signatures, message);

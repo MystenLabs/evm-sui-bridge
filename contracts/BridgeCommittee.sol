@@ -2,41 +2,45 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./interfaces/IBridgeCommittee.sol";
-import "./utils/BridgeMessage.sol";
+import "./utils/CommitteeOwned.sol";
 
-contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeable {
-    /* ========== CONSTANTS ========== */
-
-    uint16 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
-    uint16 public constant COMMITTEE_UPGRADE_STAKE_REQUIRED = 5001;
-
+contract BridgeCommittee is
+    IBridgeCommittee,
+    CommitteeOwned,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable
+{
     /* ========== STATE VARIABLES ========== */
 
     // member address => stake amount
-    mapping(address => uint16) public committee;
+    mapping(address => uint16) public committeeMembers;
     // member address => is blocklisted
     mapping(address => bool) public blocklist;
-    // messageType => nonce
-    mapping(uint8 => uint64) public nonces;
 
     /* ========== INITIALIZER ========== */
 
-    /// @notice Initializes the contract with the deployer as the admin.
-    /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
-    function initialize(address[] memory _committee, uint16[] memory stakes) external initializer {
+    function initialize(address[] memory _committeeMembers, uint16[] memory stakes)
+        external
+        initializer
+    {
         __UUPSUpgradeable_init();
-        uint16 total_stake = 0;
-
+        __ReentrancyGuard_init();
+        __CommitteeOwned_init(address(this));
         require(
-            _committee.length == stakes.length,
+            _committeeMembers.length == stakes.length,
             "BridgeCommittee: Committee and stake arrays must be of the same length"
         );
 
-        for (uint16 i = 0; i < _committee.length; i++) {
-            require(committee[_committee[i]] == 0, "BridgeCommittee: Duplicate committee member");
-            committee[_committee[i]] = stakes[i];
+        uint16 total_stake = 0;
+        for (uint16 i = 0; i < _committeeMembers.length; i++) {
+            require(
+                committeeMembers[_committeeMembers[i]] == 0,
+                "BridgeCommittee: Duplicate committee member"
+            );
+            committeeMembers[_committeeMembers[i]] = stakes[i];
             total_stake += stakes[i];
         }
 
@@ -45,102 +49,69 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeabl
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
-    function updateBlocklistWithSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message
-    ) external {
-        // verify message type nonce
-        require(message.nonce == nonces[message.messageType], "BridgeCommittee: Invalid nonce");
-
-        // verify message type
-        require(
-            message.messageType == BridgeMessage.BLOCKLIST,
-            "BridgeCommittee: message does not match type"
-        );
-
-        // compute message hash
-        bytes32 messageHash = BridgeMessage.computeHash(message);
-
-        // verify signatures
-
-        verifyMessageSignatures(signatures, messageHash, BLOCKLIST_STAKE_REQUIRED);
-
-        // decode the blocklist payload
-        (bool isBlocklisted, address[] memory _blocklist) =
-            BridgeMessage.decodeBlocklistPayload(message.payload);
-
-        // update the blocklist
-        _updateBlocklist(_blocklist, isBlocklisted);
-
-        // increment message type nonce
-        nonces[BridgeMessage.BLOCKLIST]++;
-    }
-
-    function upgradeCommitteeWithSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message
-    ) external {
-        // verify message type
-        require(
-            message.messageType == BridgeMessage.COMMITTEE_UPGRADE,
-            "BridgeCommittee: message does not match type"
-        );
-
-        // verify message type nonce
-        require(message.nonce == nonces[message.messageType], "BridgeCommittee: Invalid nonce");
-
-        // compute message hash
-        bytes32 messageHash = BridgeMessage.computeHash(message);
-
-        // verify signatures
-        verifyMessageSignatures(signatures, messageHash, COMMITTEE_UPGRADE_STAKE_REQUIRED);
-
-        // decode the upgrade payload
-        (address implementationAddress, bytes memory callData) =
-            BridgeMessage.decodeUpgradePayload(message.payload);
-
-        // update the upgrade
-        _upgradeCommittee(implementationAddress, callData);
-
-        // increment message type nonce
-        nonces[BridgeMessage.COMMITTEE_UPGRADE]++;
-    }
-
-    /* ========== VIEW FUNCTIONS ========== */
-
     function verifyMessageSignatures(
         bytes[] memory signatures,
-        bytes32 messageHash,
-        uint32 requiredStake
+        BridgeMessage.Message memory message,
+        uint8 messageType
     ) public view override {
         // TODO: check for duplicate signatures
+
+        require(message.messageType == messageType, "SuiBridge: message does not match type");
+
+        uint32 requiredStake = BridgeMessage.getRequiredStake(message);
 
         // Loop over the signatures and check if they are valid
         uint16 approvalStake;
         address signer;
         for (uint16 i = 0; i < signatures.length; i++) {
             bytes memory signature = signatures[i];
-            // Extract R, S, and V components from the signature
-            (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
-
-            if (v < 27) {
-                v += 27;
-            }
-            // Recover the signer address
-            signer = ecrecover(messageHash, v, r, s);
-
-            require(signer != address(0), "BridgeCommittee: Invalid Signature");
+            // recover the signer from the signature
+            (signer,) = ECDSA.tryRecover(BridgeMessage.computeHash(message), signature);
 
             // Check if the signer is a committee member and not already approved
-            require(committee[signer] > 0, "BridgeCommittee: Not a committee member");
+            require(committeeMembers[signer] > 0, "BridgeCommittee: Not a committee member");
 
             // If signer is block listed skip this signature
             if (blocklist[signer]) continue;
 
-            approvalStake += committee[signer];
+            approvalStake += committeeMembers[signer];
         }
 
         require(approvalStake >= requiredStake, "BridgeCommittee: Insufficient stake amount");
+    }
+
+    function updateBlocklistWithSignatures(
+        bytes[] memory signatures,
+        BridgeMessage.Message memory message
+    )
+        external
+        nonReentrant
+        nonceInOrder(message)
+        validateMessage(message, signatures, BridgeMessage.BLOCKLIST)
+    {
+        // decode the blocklist payload
+        (bool isBlocklisted, address[] memory _blocklist) =
+            BridgeMessage.decodeBlocklistPayload(message.payload);
+
+        // update the blocklist
+        _updateBlocklist(_blocklist, isBlocklisted);
+    }
+
+    function upgradeCommitteeWithSignatures(
+        bytes[] memory signatures,
+        BridgeMessage.Message memory message
+    )
+        external
+        nonReentrant
+        nonceInOrder(message)
+        validateMessage(message, signatures, BridgeMessage.COMMITTEE_UPGRADE)
+    {
+        // decode the upgrade payload
+        (address implementationAddress, bytes memory callData) =
+            BridgeMessage.decodeUpgradePayload(message.payload);
+
+        // update the upgrade
+        _upgradeCommittee(implementationAddress, callData);
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
@@ -160,28 +131,6 @@ contract BridgeCommittee is IBridgeCommittee, UUPSUpgradeable, ContextUpgradeabl
     }
 
     function _authorizeUpgrade(address newImplementation) internal view override {
-        require(_msgSender() == address(this));
+        require(msg.sender == address(this));
     }
-
-    // Helper function to split a signature into R, S, and V components
-    function splitSignature(bytes memory sig)
-        internal
-        pure
-        returns (bytes32 r, bytes32 s, uint8 v)
-    {
-        require(sig.length == 65, "BridgeCommittee: Invalid signature length");
-
-        assembly {
-            // first 32 bytes, after the length prefix
-            r := mload(add(sig, 32))
-            // second 32 bytes
-            s := mload(add(sig, 64))
-            // final byte (first byte of the next 32 bytes)
-            v := byte(0, mload(add(sig, 96)))
-        }
-    }
-
-    /* ========== EVENTS ========== */
-
-    event MessageProcessed(bytes message);
 }

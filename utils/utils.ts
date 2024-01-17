@@ -72,7 +72,8 @@ export interface BridgeDeploymentConfig {
   wETHAddress: string;
   supportedTokens: string[];
   sourceChainId: number;
-  dailyBridgeLimits: number[];
+  totalBridgeLimitInDollars: number;
+  assetPrices: number[];
 }
 
 export const getBridgeDeploymentConfig = (
@@ -93,6 +94,12 @@ export const getBridgeDeploymentConfig = (
     throw new Error("supportedTokens not provided in config");
   if (obj.sourceChainId == undefined || obj.sourceChainId == null)
     throw new Error("sourceChainId not provided in config");
+  if (
+    obj.totalBridgeLimitInDollars == undefined ||
+    obj.totalBridgeLimitInDollars == null
+  )
+    throw new Error("totalBridgeLimitInDollars not provided in config");
+  if (!obj.assetPrices) throw new Error("assetPrices not provided in config");
 
   return {
     committeeMembers: obj.committeeMembers,
@@ -100,6 +107,7 @@ export const getBridgeDeploymentConfig = (
     supportedTokens: obj.supportedTokens,
     wETHAddress: obj.wETHAddress,
     sourceChainId: obj.sourceChainId,
-    dailyBridgeLimits: obj.dailyBridgeLimits,
+    totalBridgeLimitInDollars: obj.totalBridgeLimitInDollars,
+    assetPrices: obj.assetPrices.map((x: any) => Number(x) * 10000),
   };
 };

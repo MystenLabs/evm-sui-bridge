@@ -11,14 +11,14 @@ contract BridgeCommitteeTest is BridgeBaseTest {
     }
 
     function testBridgeCommitteeInitialization() public {
-        assertEq(committee.committee(committeeMemberA), 1000);
-        assertEq(committee.committee(committeeMemberB), 1000);
-        assertEq(committee.committee(committeeMemberC), 1000);
-        assertEq(committee.committee(committeeMemberD), 2002);
-        assertEq(committee.committee(committeeMemberE), 4998);
+        assertEq(committee.committeeMembers(committeeMemberA), 1000);
+        assertEq(committee.committeeMembers(committeeMemberB), 1000);
+        assertEq(committee.committeeMembers(committeeMemberC), 1000);
+        assertEq(committee.committeeMembers(committeeMemberD), 2002);
+        assertEq(committee.committeeMembers(committeeMemberE), 4998);
     }
 
-    function testVerifyMessageSignaturesWithValidSignatures() public view {
+    function testVerifyMessageSignaturesWithValidSignatures() public {
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
@@ -32,18 +32,16 @@ contract BridgeCommitteeTest is BridgeBaseTest {
 
         bytes32 messageHash = keccak256(messageBytes);
 
-        bytes[] memory signatures = new bytes[](3);
+        bytes[] memory signatures = new bytes[](4);
 
         // Create signatures from A - D
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
-
-        // Set the required stake to 500
-        uint16 requiredStake = 500;
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
 
         // Call the verifyMessageSignatures function and it would not revert
-        committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
+        committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
     }
 
     function testVerifyMessageSignaturesWithInvalidSignatures() public {
@@ -67,12 +65,9 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
 
-        // Set the required stake to 5000
-        uint16 requiredStake = 5000;
-
         // Call the verifyMessageSignatures function and expect it to revert
         vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
-        committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
+        committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
     }
     // TODO: extract invariant tests to a separate file
     // function invariant_testVerifyMessageSignaturesWithValidSignatures(
@@ -152,11 +147,8 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
 
-        // Set the required stake to 5000
-        uint16 requiredStake = 5000;
-
         // verify CommitteeMemberA's signature is still valid
-        committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
+        committee.verifyMessageSignatures(signatures, message, BridgeMessage.BLOCKLIST);
 
         committee.updateBlocklistWithSignatures(signatures, message);
 
@@ -164,7 +156,17 @@ contract BridgeCommitteeTest is BridgeBaseTest {
 
         // verify CommitteeMemberA's signature is no longer valid
         vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
-        committee.verifyMessageSignatures(signatures, messageHash, requiredStake);
+        // update message
+        message.nonce = 1;
+        // reconstruct signatures
+        messageBytes = BridgeMessage.encodeMessage(message);
+        messageHash = keccak256(messageBytes);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+        // re-verify signatures
+        committee.verifyMessageSignatures(signatures, message, BridgeMessage.BLOCKLIST);
     }
 
     // function invariant_testAddToBlocklist(

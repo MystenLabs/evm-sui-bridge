@@ -6,8 +6,11 @@ library BridgeMessage {
     uint8 public constant TOKEN_TRANSFER = 0;
     uint8 public constant BLOCKLIST = 1;
     uint8 public constant EMERGENCY_OP = 2;
-    uint8 public constant BRIDGE_UPGRADE = 3;
-    uint8 public constant COMMITTEE_UPGRADE = 4;
+    uint8 public constant UPDATE_BRIDGE_LIMIT = 3;
+    uint8 public constant UPDATE_ASSET_PRICE = 4;
+    uint8 public constant BRIDGE_UPGRADE = 5;
+    uint8 public constant COMMITTEE_UPGRADE = 6;
+    uint8 public constant LIMITER_UPGRADE = 7;
 
     // token Ids
     uint8 public constant SUI = 0;
@@ -22,6 +25,15 @@ library BridgeMessage {
     uint8 public constant ETH_DECIMAL_ON_SUI = 8;
     uint8 public constant USDC_DECIMAL_ON_SUI = 6;
     uint8 public constant USDT_DECIMAL_ON_SUI = 6;
+
+    // Message type stake requirements
+    uint32 public constant TRANSFER_STAKE_REQUIRED = 3334;
+    uint32 public constant FREEZING_STAKE_REQUIRED = 450;
+    uint32 public constant UNFREEZING_STAKE_REQUIRED = 5001;
+    uint32 public constant BRIDGE_UPGRADE_STAKE_REQUIRED = 5001;
+    uint16 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
+    uint16 public constant COMMITTEE_UPGRADE_STAKE_REQUIRED = 5001;
+    uint32 public constant ASSET_LIMIT_STAKE_REQUIRED = 5001;
 
     string public constant MESSAGE_PREFIX = "SUI_BRIDGE_MESSAGE";
 
@@ -45,21 +57,18 @@ library BridgeMessage {
 
     // TODO: add unit test for this function
     function encodeMessage(Message memory message) internal pure returns (bytes memory) {
-        bytes memory prefixTypeAndVersion = abi.encodePacked(
-            MESSAGE_PREFIX, message.messageType, message.version
-        );
+        bytes memory prefixTypeAndVersion =
+            abi.encodePacked(MESSAGE_PREFIX, message.messageType, message.version);
         bytes memory bigEndianNonce = abi.encodePacked(message.nonce);
         bytes memory littleEndianNonce = bigEndiantToLittleEndian(bigEndianNonce);
-        bytes memory chainID = abi.encodePacked(
-            message.chainID
-        );
+        bytes memory chainID = abi.encodePacked(message.chainID);
         return bytes.concat(prefixTypeAndVersion, littleEndianNonce, chainID, message.payload);
     }
 
     // TODO: replace with assembly?
     function bigEndiantToLittleEndian(bytes memory message) internal pure returns (bytes memory) {
         bytes memory littleEndianMessage = new bytes(message.length);
-        for (uint i = 0; i < message.length; i++) {
+        for (uint256 i = 0; i < message.length; i++) {
             littleEndianMessage[message.length - i - 1] = message[i];
         }
         return littleEndianMessage;
@@ -67,6 +76,24 @@ library BridgeMessage {
 
     function computeHash(Message memory message) internal pure returns (bytes32) {
         return keccak256(encodeMessage(message));
+    }
+
+    function getRequiredStake(Message memory message) internal pure returns (uint32) {
+        if (message.messageType == TOKEN_TRANSFER) {
+            return TRANSFER_STAKE_REQUIRED;
+        } else if (message.messageType == BLOCKLIST) {
+            return BLOCKLIST_STAKE_REQUIRED;
+        } else if (message.messageType == EMERGENCY_OP) {
+            bool isFreezing = decodeEmergencyOpPayload(message.payload);
+            if (isFreezing) return FREEZING_STAKE_REQUIRED;
+            return UNFREEZING_STAKE_REQUIRED;
+        } else if (message.messageType == BRIDGE_UPGRADE) {
+            return BRIDGE_UPGRADE_STAKE_REQUIRED;
+        } else if (message.messageType == COMMITTEE_UPGRADE) {
+            return COMMITTEE_UPGRADE_STAKE_REQUIRED;
+        } else {
+            revert("BridgeMessage: Invalid message type");
+        }
     }
 
     // TODO: add unit tests
@@ -80,16 +107,6 @@ library BridgeMessage {
         return (implementationAddress, callData);
     }
 
-    // TODO: add unit tests
-    // Token Transfer Payload Format:
-    // [sender_address_length:u8]
-    // [sender_address: byte[]]
-    // [target_chain:u8]
-    // [target_address_length:u8]
-    // [target_address: byte[]]
-    // [token_type:u8]
-    // [amount:u64]
-    // Eth address is 20 bytes, Sui Address is 32 bytes, in total the payload must be 64 bytes
     function decodeTokenTransferPayload(bytes memory payload)
         internal
         pure
@@ -109,11 +126,12 @@ library BridgeMessage {
         uint8 targetChain = uint8(payload[1 + senderAddressLength]);
 
         // TODO I think we want to assert chainID here.
+        // should do this in message verification not decoding
 
         uint8 targetAddressLength = uint8(payload[1 + senderAddressLength + 1]);
         require(
             targetAddressLength == 20,
-            "BridgeMessage: Invalid target address length, Eth address must be 20 bytes"
+            "BridgeMessage: Invalid target address length, EVM address must be 20 bytes"
         );
 
         // targetAddress starts from index 35
@@ -126,13 +144,12 @@ library BridgeMessage {
         uint256 tokenIdOffset = 1 + senderAddressLength + 1 + 1 + 20;
         uint8 tokenId = uint8(payload[tokenIdOffset]);
 
-        uint64 value;
+        uint64 amount;
         uint8 offset;
         for (uint256 i = payload.length - 8; i < payload.length; i++) {
-            value |= uint64(uint8(payload[i])) << (offset * 8);
+            amount |= uint64(uint8(payload[i])) << (offset * 8);
             offset++;
         }
-        uint64 amount = value;
 
         return TokenTransferPayload(
             senderAddressLength,
@@ -169,5 +186,21 @@ library BridgeMessage {
         // blocklistType: 0 = blocklist, 1 = unblocklist
         bool blocklisted = (blocklistType == 0) ? true : false;
         return (blocklisted, validators);
+    }
+
+    // TODO: add unit test
+    function decodeUpdateAssetPayload(bytes memory payload)
+        internal
+        pure
+        returns (uint8, uint256)
+    {
+        (uint8 tokenId, uint256 price) = abi.decode(payload, (uint8, uint256));
+        return (tokenId, price);
+    }
+
+    // TODO: add unit test
+    function decodeUpdateLimitPayload(bytes memory payload) internal pure returns (uint256) {
+        (uint256 newLimit) = abi.decode(payload, (uint256));
+        return newLimit;
     }
 }
