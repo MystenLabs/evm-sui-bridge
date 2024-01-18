@@ -60,68 +60,81 @@ contract BridgeCommittee is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
+    /// @dev Verifies the signatures of the given messages.
+    /// @param signatures The array of signatures to be verified.
+    /// @param message The message to be verified.
+    /// @param messageType The type of the message.
+    function verifyMessageSignatures(
+        bytes[] memory signatures,
+        BridgeMessage.Message memory message,
+        uint8 messageType
+    ) public view override {
+        // TODO: check for duplicate signatures
+
+        require(message.messageType == messageType, "SuiBridge: message does not match type");
+
+        uint32 requiredStake = BridgeMessage.getRequiredStake(message);
+
+        // Loop over the signatures and check if they are valid
+        uint16 approvalStake;
+        address signer;
+        for (uint16 i = 0; i < signatures.length; i++) {
+            bytes memory signature = signatures[i];
+            // recover the signer from the signature
+            (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
+
+            (signer,) = ECDSA.tryRecover(BridgeMessage.computeHash(message), v, r, s);
+
+            // Check if the signer is a committee member and not already approved
+            require(committeeMembers[signer] > 0, "BridgeCommittee: Not a committee member");
+
+            // If signer is block listed skip this signature
+            if (blocklist[signer]) continue;
+
+            approvalStake += committeeMembers[signer];
+        }
+
+        require(approvalStake >= requiredStake, "BridgeCommittee: Insufficient stake amount");
+    }
+
+    /// @dev Updates the blocklist with the provided signatures and message.
+    /// @param signatures The array of signatures for the message.
+    /// @param message The BridgeMessage containing the blocklist payload.
     function updateBlocklistWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
-    ) external {
-        // verify message type nonce
-        require(message.nonce == nonces[message.messageType], "BridgeCommittee: Invalid nonce");
-
-        // verify message type
-        require(
-            message.messageType == BridgeMessage.BLOCKLIST,
-            "BridgeCommittee: message does not match type"
-        );
-
-        // compute message hash
-        bytes32 messageHash = BridgeMessage.getMessageHash(message);
-
-        // verify signatures
-        require(
-            verifyMessageSignatures(signatures, messageHash, BLOCKLIST_STAKE_REQUIRED),
-            "BridgeCommittee: Invalid signatures"
-        );
-
+    )
+        external
+        nonReentrant
+        nonceInOrder(message)
+        validateMessage(message, signatures, BridgeMessage.BLOCKLIST)
+    {
         // decode the blocklist payload
-        (bool isBlocklisted, address[] memory _blocklist) = decodeBlocklistPayload(message.payload);
+        (bool isBlocklisted, address[] memory _blocklist) =
+            BridgeMessage.decodeBlocklistPayload(message.payload);
 
         // update the blocklist
         _updateBlocklist(_blocklist, isBlocklisted);
-
-        // increment message type nonce
-        nonces[BridgeMessage.BLOCKLIST]++;
     }
 
+    /// @dev Upgrades the committee with the provided signatures and message.
+    /// @param signatures The array of signatures from committee members.
+    /// @param message The BridgeMessage containing the upgrade payload.
     function upgradeCommitteeWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
-    ) external {
-        // verify message type
-        require(
-            message.messageType == BridgeMessage.COMMITTEE_UPGRADE,
-            "BridgeCommittee: message does not match type"
-        );
-
-        // verify message type nonce
-        require(message.nonce == nonces[message.messageType], "BridgeCommittee: Invalid nonce");
-
-        // compute message hash
-        bytes32 messageHash = BridgeMessage.getMessageHash(message);
-
-        // verify signatures
-        require(
-            verifyMessageSignatures(signatures, messageHash, COMMITTEE_UPGRADE_STAKE_REQUIRED),
-            "BridgeCommittee: Invalid signatures"
-        );
-
+    )
+        external
+        nonReentrant
+        nonceInOrder(message)
+        validateMessage(message, signatures, BridgeMessage.COMMITTEE_UPGRADE)
+    {
         // decode the upgrade payload
-        address implementationAddress = decodeUpgradePayload(message.payload);
+        (address implementationAddress, bytes memory callData) =
+            BridgeMessage.decodeUpgradePayload(message.payload);
 
         // update the upgrade
-        _upgradeCommittee(implementationAddress);
-
-        // increment message type nonce
-        nonces[BridgeMessage.COMMITTEE_UPGRADE]++;
+        _upgradeCommittee(implementationAddress, callData);
     }
 
     /* ========== VIEW FUNCTIONS ========== */
