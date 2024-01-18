@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "./BridgeBaseTest.t.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../contracts/interfaces/ISuiBridge.sol";
+import "./mocks/MockSuiBridgeV2.sol";
 
 contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
     // This function is called before each unit test
@@ -377,5 +378,31 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
     // TODO: testTransferWETHWithLimitReached
 
     // TODO:
-    function testUpgradeBridge() public {}
+    function testUpgradeBridge() public {
+        MockSuiBridgeV2 newBridge = new MockSuiBridgeV2();
+        // generate upgrade message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.BRIDGE_UPGRADE,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: abi.encode(address(newBridge), 0)
+        });
+
+        // create signatures
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(encodedMessage);
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        // execute upgrade
+        // bridge.executeUpgradeWithSignatures(signatures, message);
+
+        assertTrue(bridge.paused());
+        newBridge.newMockFunction();
+        assertFalse(bridge.paused());
+    }
 }
