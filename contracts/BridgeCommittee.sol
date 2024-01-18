@@ -15,12 +15,6 @@ contract BridgeCommittee is
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
 {
-    /* ========== CONSTANTS ========== */
-
-    // The minimum stake required for a member to be added to the blocklist
-    uint16 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
-    // The minimum stake required for a member to upgrade the committee
-    uint16 public constant COMMITTEE_UPGRADE_STAKE_REQUIRED = 5001;
 
     /* ========== STATE VARIABLES ========== */
 

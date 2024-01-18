@@ -322,27 +322,25 @@ contract SuiBridge is
         if (tokenId == BridgeMessage.ETH) {
             vault.transferETH(payable(targetAddress), amount);
         } else {
-            revert("Invalid emergency operation code");
+            // transfer tokens from vault to target address
+            vault.transferERC20(tokenAddress, targetAddress, amount);
         }
+
+        // update amount bridged
+        limiter.updateBridgeTransfers(tokenId, amount);
     }
 
-    function decodeTokenTransferPayload(bytes memory payload)
-        internal
-        pure
-        returns (BridgeMessage.TokenTransferPayload memory)
-    {
-        (BridgeMessage.TokenTransferPayload memory tokenTransferPayload) =
-            abi.decode(payload, (BridgeMessage.TokenTransferPayload));
-
-        return tokenTransferPayload;
-    }
-
+    /// @dev Upgrades the bridge contract to a new implementation.
+    /// @param newImplementation The address of the new implementation contract.
+    /// @param data The data to be passed to the new implementation contract's upgrade function.
     function _upgradeBridge(address newImplementation, bytes memory data) internal {
         if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
         else _upgradeTo(newImplementation);
     }
 
-    function _authorizeUpgrade(address) internal view override {
+    /// @dev Internal function to authorize an upgrade.
+    /// @param _address The address to authorize the upgrade for.
+    function _authorizeUpgrade(address _address) internal view override {
         require(_msgSender() == address(this));
     }
 }
