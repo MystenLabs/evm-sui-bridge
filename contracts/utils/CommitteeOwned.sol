@@ -27,7 +27,7 @@ abstract contract CommitteeOwned is Initializable {
     }
 
     modifier nonceInOrder(BridgeMessage.Message memory message) {
-        require(message.nonce == nonces[message.messageType], "SuiBridge: Invalid nonce");
+        require(message.nonce == nonces[message.messageType], "CommitteeOwned: Invalid nonce");
         _;
     }
 }

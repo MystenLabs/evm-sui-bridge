@@ -56,7 +56,7 @@ contract BridgeCommittee is
     ) public view override {
         // TODO: check for duplicate signatures
 
-        require(message.messageType == messageType, "SuiBridge: message does not match type");
+        require(message.messageType == messageType, "BridgeCommittee: message does not match type");
 
         uint32 requiredStake = BridgeMessage.getRequiredStake(message);
 
