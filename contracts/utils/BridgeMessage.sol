@@ -114,7 +114,7 @@ library BridgeMessage {
     {
         // TODO: if we support multi chains, the source address length may vary
 
-        // require(payload.length == 64, "BridgeMessage: TokenTransferPayload must be 64 bytes");
+        require(payload.length == 64, "BridgeMessage: TokenTransferPayload must be 64 bytes");
 
         uint8 senderAddressLength = uint8(payload[0]);
 
@@ -164,8 +164,7 @@ library BridgeMessage {
 
     // TODO: add unit test
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
-        // TODO: Why the emergencyOpCode is uint256 and not uint8?
-        (uint256 emergencyOpCode) = abi.decode(payload, (uint256));
+        (uint8 emergencyOpCode) = abi.decode(payload, (uint8));
         require(emergencyOpCode <= 1, "BridgeMessage: Invalid op code");
         return emergencyOpCode == 0 ? true : false;
     }
