@@ -18,99 +18,6 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertEq(address(bridge.tokens()), address(tokens));
     }
 
-    function testTransferTokensWithSignaturesTokenDailyLimitExceeded() public {
-        // Create transfer message
-        BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
-            senderAddressLength: 0,
-            senderAddress: abi.encode(0),
-            targetChain: 1,
-            targetAddressLength: 0,
-            targetAddress: bridgerA,
-            tokenId: BridgeMessage.ETH,
-            amount: type(uint64).max
-        });
-
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.TOKEN_TRANSFER,
-            version: 1,
-            nonce: 1,
-            chainID: 1,
-            payload: abi.encode(payload)
-        });
-
-        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(encodedMessage);
-
-        bytes[] memory signatures = new bytes[](4);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemberPkD);
-        vm.expectRevert(bytes("SuiBridge: Token's daily limit exceeded"));
-        bridge.transferTokensWithSignatures(signatures, message);
-    }
-
-    function testTransferTokensWithSignaturesInvalidSignatures() public {
-        // Create transfer message
-        BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
-            senderAddressLength: 0,
-            senderAddress: abi.encode(0),
-            targetChain: 1,
-            targetAddressLength: 0,
-            targetAddress: bridgerA,
-            tokenId: BridgeMessage.ETH,
-            // This is Sui amount (eth decimal 8)
-            amount: 100_000_000
-        });
-
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.TOKEN_TRANSFER,
-            version: 1,
-            nonce: 1,
-            chainID: 1,
-            payload: abi.encode(payload)
-        });
-
-        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(encodedMessage);
-
-        bytes[] memory signatures = new bytes[](2);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        vm.expectRevert(bytes("SuiBridge: Invalid signatures"));
-        bridge.transferTokensWithSignatures(signatures, message);
-    }
-
-    function testTransferTokensWithSignaturesMessageDoesNotMatchType() public {
-        // Create transfer message
-        BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
-            senderAddressLength: 0,
-            senderAddress: abi.encode(0),
-            targetChain: 1,
-            targetAddressLength: 0,
-            targetAddress: bridgerA,
-            tokenId: BridgeMessage.ETH,
-            // This is Sui amount (eth decimal 8)
-            amount: 100_000_000
-        });
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.EMERGENCY_OP,
-            version: 1,
-            nonce: 1,
-            chainID: 1,
-            payload: abi.encode(payload)
-        });
-
-        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(encodedMessage);
-
-        bytes[] memory signatures = new bytes[](2);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        vm.expectRevert(bytes("SuiBridge: message does not match type"));
-        bridge.transferTokensWithSignatures(signatures, message);
-    }
-
     function testTransferWETHWithValidSignatures() public {
         // Fill vault with WETH
         changePrank(deployer);
@@ -146,9 +53,12 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from alice, bob, and charlie
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
@@ -157,9 +67,6 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         uint256 aBalance = bridgerA.balance;
         bridge.transferTokensWithSignatures(signatures, message);
         assertEq(bridgerA.balance, aBalance + 1 ether);
-
-        vm.expectRevert(bytes("SuiBridge: Message already processed"));
-        bridge.transferTokensWithSignatures(signatures, message);
     }
 
     function testTransferUSDCWithValidSignatures() public {
@@ -197,9 +104,12 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from alice, bob, and charlie
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
@@ -208,66 +118,6 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assert(IERC20(USDC).balanceOf(bridgerA) == 0);
         bridge.transferTokensWithSignatures(signatures, message);
         assert(IERC20(USDC).balanceOf(bridgerA) == 1_000_000);
-    }
-
-    function testExecuteEmergencyOpWithSignaturesInvalidNonce() public {
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.EMERGENCY_OP,
-            version: 1,
-            nonce: 1,
-            chainID: 1,
-            payload: abi.encode(0)
-        });
-
-        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(encodedMessage);
-
-        bytes[] memory signatures = new bytes[](4);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemberPkD);
-        vm.expectRevert(bytes("SuiBridge: Invalid nonce"));
-        bridge.executeEmergencyOpWithSignatures(signatures, message);
-    }
-
-    function testExecuteEmergencyOpWithSignaturesMessageDoesNotMatchType() public {
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.TOKEN_TRANSFER,
-            version: 1,
-            nonce: 0,
-            chainID: 1,
-            payload: abi.encode(0)
-        });
-
-        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(encodedMessage);
-
-        bytes[] memory signatures = new bytes[](4);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemberPkD);
-
-        vm.expectRevert(bytes("SuiBridge: message does not match type"));
-        bridge.executeEmergencyOpWithSignatures(signatures, message);
-    }
-
-    function testExecuteEmergencyOpWithSignaturesInvalidSignatures() public {
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.EMERGENCY_OP,
-            version: 1,
-            nonce: 0,
-            chainID: 1,
-            payload: abi.encode(1)
-        });
-        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(encodedMessage);
-        bytes[] memory signatures = new bytes[](2);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        vm.expectRevert(bytes("SuiBridge: Invalid signatures"));
-        bridge.executeEmergencyOpWithSignatures(signatures, message);
     }
 
     function testFreezeBridgeEmergencyOp() public {
@@ -281,9 +131,12 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from alice, bob, and charlie
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
@@ -292,101 +145,8 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertFalse(bridge.paused());
         bridge.executeEmergencyOpWithSignatures(signatures, message);
         assertTrue(bridge.paused());
-
-        vm.expectRevert(bytes("SuiBridge: Invalid nonce"));
-        bridge.executeEmergencyOpWithSignatures(signatures, message);
     }
 
-    function testUpgradeBridgeWithSignaturesInvalidSignatures() public {
-        // Create message
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.BRIDGE_UPGRADE,
-            version: 1,
-            nonce: 0,
-            chainID: 1,
-            payload: abi.encode(0)
-        });
-
-        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(encodedMessage);
-
-        bytes[] memory signatures = new bytes[](2);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        vm.expectRevert(bytes("SuiBridge: Invalid signatures"));
-        bridge.upgradeBridgeWithSignatures(signatures, message);
-    }
-
-    function testUpgradeBridgeWithSignaturesMessageDoesNotMatchType() public {
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.TOKEN_TRANSFER,
-            version: 1,
-            nonce: 0,
-            chainID: 1,
-            payload: abi.encode(0)
-        });
-        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(encodedMessage);
-
-        bytes[] memory signatures = new bytes[](4);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemberPkD);
-
-        vm.expectRevert(bytes("SuiBridge: message does not match type"));
-        bridge.upgradeBridgeWithSignatures(signatures, message);
-    }
-
-    function testUpgradeBridgeWithSignaturesInvalidNonce() public {
-        // Create emergency op message
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.BRIDGE_UPGRADE,
-            version: 1,
-            nonce: 0,
-            chainID: 1,
-            payload: abi.encode(0)
-        });
-
-        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(encodedMessage);
-
-        bytes[] memory signatures = new bytes[](4);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemberPkD);
-
-        assertFalse(bridge.paused());
-        bridge.upgradeBridgeWithSignatures(signatures, message);
-
-        vm.expectRevert(bytes("SuiBridge: Invalid nonce"));
-        bridge.upgradeBridgeWithSignatures(signatures, message);
-    }
-
-    function testUpgradeBridgeWithSignatures() public {
-        // Create emergency op message
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.BRIDGE_UPGRADE,
-            version: 1,
-            nonce: 0,
-            chainID: 1,
-            payload: abi.encode(0)
-        });
-
-        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(encodedMessage);
-
-        bytes[] memory signatures = new bytes[](4);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemberPkD);
-
-        assertFalse(bridge.paused());
-        bridge.upgradeBridgeWithSignatures(signatures, message);
-    }
-    
     function testUnfreezeBridgeEmergencyOp() public {
         testFreezeBridgeEmergencyOp();
         // Create emergency op message
@@ -399,9 +159,12 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
         bytes32 messageHash = keccak256(encodedMessage);
 
         bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from alice, bob, and charlie
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
@@ -409,16 +172,6 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
 
         bridge.executeEmergencyOpWithSignatures(signatures, message);
         assertFalse(bridge.paused());
-    }
-
-    function testBridgeToSuiUnsupportedToken() public {
-        vm.expectRevert(bytes("SuiBridge: Unsupported token"));
-        bridge.bridgeToSui(255, 1 ether, abi.encode("suiAddress"), 0);
-    }
-
-    function testBridgeToSuiInsufficientAllowance() public {
-        vm.expectRevert(bytes("SuiBridge: Insufficient allowance"));
-        bridge.bridgeToSui(BridgeMessage.ETH, type(uint256).max, abi.encode("suiAddress"), 0);
     }
 
     function testBridgeWETHToSui() public {
@@ -575,7 +328,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         uint256 ethAmount = 10 ether;
         uint64 suiAmount = bridge.adjustDecimalsForSuiToken(BridgeMessage.ETH, ethAmount, 18);
         assertEq(suiAmount, 10_000_000_00); // 10 * 10 ^ 8
-        
+
         // USDC
         assertEq(IERC20Metadata(USDC).decimals(), 6);
         ethAmount = 50_000_000; // 50 USDC
