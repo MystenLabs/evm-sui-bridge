@@ -1,91 +1,172 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./interfaces/IBridgeLimiter.sol";
+import "./interfaces/IBridgeTokens.sol";
+import "./utils/CommitteeOwned.sol";
 
 /// @title BridgeLimiter
 /// @dev A contract that limits the amount of tokens that can be bridged per day.
-contract BridgeLimiter is IBridgeLimiter, Ownable {
+contract BridgeLimiter is
+    IBridgeLimiter,
+    CommitteeOwned,
+    OwnableUpgradeable,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable
+{
     /* ========== STATE VARIABLES ========== */
 
-    uint256 private _resetTimestamp;
-    // token id => total amount bridged (on a given day)
-    mapping(uint8 => uint256) public totalAmountBridged;
-    // token id => daily bridge limit
-    mapping(uint8 => uint256) public dailyBridgeLimit;
+    IBridgeTokens public tokens;
+    // hour timestamp => total amount bridged (on a given hour)
+    mapping(uint32 => uint256) public hourlyTransferAmount;
+    // token id => token price in USD (4 decimal precision) (e.g. 1 ETH = 2000 USD => 20000000)
+    mapping(uint8 => uint256) public assetPrices;
+    // total limit in USD (4 decimal precision) (e.g. 10000000 => 1000 USD)
+    uint256 public totalLimit;
+    uint32 public oldestHourTimestamp;
 
     /* ========== INITIALIZER ========== */
 
-    /// @dev Initializes the BridgeLimiter contract.
-    /// @param _nextResetTimestamp The timestamp for the next daily reset.
-    /// @param _dailyBridgeLimits The daily bridge limits for each token.
-    constructor(uint256 _nextResetTimestamp, uint256[] memory _dailyBridgeLimits) {
-        require(
-            _nextResetTimestamp > block.timestamp,
-            "SuiBridge: reset timestamp must be in the future"
-        );
-
-        for (uint8 i = 0; i < _dailyBridgeLimits.length; i++) {
-            // skip 0 for SUI
-            dailyBridgeLimit[i + 1] = _dailyBridgeLimits[i];
+    function initialize(
+        address _committee,
+        address _tokens,
+        uint256[] memory _assetPrices,
+        uint256 _totalLimit
+    ) external initializer {
+        __Ownable_init();
+        __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
+        __CommitteeOwned_init(_committee);
+        tokens = IBridgeTokens(_tokens);
+        for (uint8 i = 0; i < _assetPrices.length; i++) {
+            assetPrices[i] = _assetPrices[i];
         }
-        _resetTimestamp = _nextResetTimestamp;
+        oldestHourTimestamp = uint32(block.timestamp / 1 hours);
+        totalLimit = _totalLimit;
     }
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    /// @dev Checks if bridging the specified amount of tokens will exceed the daily bridge limit.
-    /// @param tokenId The ID of the token.
-    /// @param amount The amount of tokens to be bridged.
-    /// @return A boolean indicating whether the amount will exceed the limit.
-    function willAmountExceedLimit(uint8 tokenId, uint256 amount)
-        public
-        view
-        override
-        returns (bool)
+    function willAmountExceedLimit(uint8 tokenId, uint256 amount) public view returns (bool) {
+        uint256 windowAmount = calculateWindowAmount();
+        uint256 USDAmount = calculateAmountInUSD(tokenId, amount);
+        return windowAmount + USDAmount > totalLimit;
+    }
+
+    function calculateWindowAmount() public view returns (uint256 total) {
+        uint32 currentHour = uint32(block.timestamp / 1 hours);
+        // aggregate the last 24 hours
+        for (uint32 i = 0; i < 24; i++) {
+            total += hourlyTransferAmount[currentHour - i];
+        }
+        return total;
+    }
+
+    function calculateAmountInUSD(uint8 tokenId, uint256 amount) public view returns (uint256) {
+        // get the token address
+        address tokenAddress = tokens.getAddress(tokenId);
+        // get the decimals
+        uint8 decimals = IERC20Metadata(tokenAddress).decimals();
+
+        return amount * assetPrices[tokenId] / (10 ** decimals);
+    }
+
+    /* ========== EXTERNAL FUNCTIONS ========== */
+
+    function updateBridgeTransfers(uint8 tokenId, uint256 amount) external override onlyOwner {
+        require(amount > 0, "BridgeLimiter: amount must be greater than 0");
+        require(
+            !willAmountExceedLimit(tokenId, amount),
+            "BridgeLimiter: amount exceeds rolling window limit"
+        );
+
+        uint32 currentHour = uint32(block.timestamp / 1 hours);
+
+        // garbage collect most recently expired hour if window is moving
+        if (hourlyTransferAmount[currentHour] == 0 && oldestHourTimestamp < currentHour - 24) {
+            garbageCollectHourlyTransferAmount(currentHour - 25, currentHour - 25);
+        }
+
+        // update hourly transfers
+        hourlyTransferAmount[currentHour] += calculateAmountInUSD(tokenId, amount);
+    }
+
+    function garbageCollectHourlyTransferAmount(uint32 startHour, uint32 endHour) public {
+        uint32 windowStart = uint32(block.timestamp / 1 hours) - 24;
+        require(
+            startHour >= oldestHourTimestamp, "BridgeLimiter: hourTimestamp must be in the past"
+        );
+        require(startHour < windowStart, "BridgeLimiter: start must be before current window");
+        require(endHour < windowStart, "BridgeLimiter: end must be before current window");
+
+        for (uint32 i = startHour; i <= endHour; i++) {
+            if (hourlyTransferAmount[i] > 0) delete hourlyTransferAmount[i];
+        }
+
+        // update oldest hour if current oldest hour was garbage collected
+        if (startHour == oldestHourTimestamp) {
+            oldestHourTimestamp = endHour + 1;
+        }
+    }
+
+    function updateAssetPriceWithSignatures(
+        bytes[] memory signatures,
+        BridgeMessage.Message memory message
+    )
+        external
+        nonReentrant
+        nonceInOrder(message)
+        validateMessage(message, signatures, BridgeMessage.UPDATE_ASSET_PRICE)
     {
-        return getDailyAmountBridged(tokenId) + amount > dailyBridgeLimit[tokenId];
+        // decode the update asset payload
+        (uint8 tokenId, uint256 price) = BridgeMessage.decodeUpdateAssetPayload(message.payload);
+
+        // update the asset price
+        assetPrices[tokenId] = price;
     }
 
-    /// @dev Gets the total amount of tokens bridged for the specified token on the current day.
-    /// @param tokenId The ID of the token.
-    /// @return The total amount of tokens bridged.
-    function getDailyAmountBridged(uint8 tokenId) public view returns (uint256) {
-        // if time has expired but not yet updated, no funds have been bridged
-        if (block.timestamp >= _resetTimestamp) {
-            return 0;
-        }
-        return totalAmountBridged[tokenId];
+    function updateLimitWithSignatures(
+        bytes[] memory signatures,
+        BridgeMessage.Message memory message
+    )
+        external
+        nonReentrant
+        nonceInOrder(message)
+        validateMessage(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
+    {
+        // decode the update limit payload
+        (uint256 newLimit) = BridgeMessage.decodeUpdateLimitPayload(message.payload);
+
+        // update the limit
+        totalLimit = newLimit;
     }
 
-    /// @dev Gets the timestamp for the next daily reset.
-    /// @return The timestamp for the next daily reset.
-    function resetTimestamp() public view returns (uint256) {
-        if (block.timestamp >= _resetTimestamp) {
-            // Calculate the difference between the current timestamp and the previous daily limit timestamp
-            uint256 timeDifference = block.timestamp - _resetTimestamp;
-            // Calculate the next daily limit timestamp while preserving the time of day
-            return block.timestamp + (1 days - (timeDifference % 1 days));
-        }
-        return _resetTimestamp;
+    function upgradeLimiterWithSignatures(
+        bytes[] memory signatures,
+        BridgeMessage.Message memory message
+    )
+        external
+        nonReentrant
+        nonceInOrder(message)
+        validateMessage(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
+    {
+        // decode the upgrade payload
+        (address newImplementation, bytes memory callData) =
+            BridgeMessage.decodeUpgradePayload(message.payload);
+
+        _upgradeLimiter(newImplementation, callData);
     }
 
-    /* ========== INTERNAL FUNCTIONS ========== */
+    function _upgradeLimiter(address newImplementation, bytes memory data) internal {
+        if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
+        else _upgradeTo(newImplementation);
+    }
 
-    /// @dev Updates the total amount of tokens bridged for the specified token.
-    /// @param tokenId The ID of the token.
-    /// @param amount The amount of tokens to be added to the total bridged amount.
-    function updateDailyAmountBridged(uint8 tokenId, uint256 amount) public override onlyOwner {
-        uint256 nextResetTimestamp = resetTimestamp();
-        // if time to reset
-        if (nextResetTimestamp != _resetTimestamp) {
-            _resetTimestamp = nextResetTimestamp;
-            // reset the daily amount bridged
-            totalAmountBridged[tokenId] = amount;
-            return;
-        }
-        // update the daily amount bridged
-        totalAmountBridged[tokenId] += amount;
+    function _authorizeUpgrade(address) internal view override {
+        require(_msgSender() == address(this));
     }
 }

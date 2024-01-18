@@ -41,9 +41,6 @@ function createTestnetConfig(
   };
 }
 
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
-
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   networks: {
@@ -98,8 +95,8 @@ const config: HardhatUserConfig = {
       },
     }),
   },
-  etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+  dependencyCompiler: {
+    paths: ["test/mocks/WETH.sol", "test/mocks/MockTokens.sol"],
   },
 };
 export default config;

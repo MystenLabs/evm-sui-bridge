@@ -14,5 +14,5 @@ interface IBridgeLimiter {
     /// @dev Updates the daily amount of tokens bridged for the specified token ID.
     /// @param tokenId The ID of the token being bridged.
     /// @param amount The amount of tokens being bridged.
-    function updateDailyAmountBridged(uint8 tokenId, uint256 amount) external;
+    function updateBridgeTransfers(uint8 tokenId, uint256 amount) external;
 }

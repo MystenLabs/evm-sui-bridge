@@ -1,5 +1,5 @@
 {
-  "address": "0x89De150115e8030790786da9415962E88f09cC17",
+  "address": "0xe0641F92180666337e47597Dbf94f3d4A170B9B1",
   "abi": [
     {
       "anonymous": false,
@@ -139,9 +139,9 @@
       "name": "BRIDGE_UPGRADE_STAKE_REQUIRED",
       "outputs": [
         {
-          "internalType": "uint16",
+          "internalType": "uint32",
           "name": "",
-          "type": "uint16"
+          "type": "uint32"
         }
       ],
       "stateMutability": "view",
@@ -152,9 +152,9 @@
       "name": "FREEZING_STAKE_REQUIRED",
       "outputs": [
         {
-          "internalType": "uint16",
+          "internalType": "uint32",
           "name": "",
-          "type": "uint16"
+          "type": "uint32"
         }
       ],
       "stateMutability": "view",
@@ -165,9 +165,9 @@
       "name": "TRANSFER_STAKE_REQUIRED",
       "outputs": [
         {
-          "internalType": "uint16",
+          "internalType": "uint32",
           "name": "",
-          "type": "uint16"
+          "type": "uint32"
         }
       ],
       "stateMutability": "view",
@@ -178,9 +178,9 @@
       "name": "UNFREEZING_STAKE_REQUIRED",
       "outputs": [
         {
-          "internalType": "uint16",
+          "internalType": "uint32",
           "name": "",
-          "type": "uint16"
+          "type": "uint32"
         }
       ],
       "stateMutability": "view",
@@ -351,7 +351,7 @@
               "type": "bytes"
             }
           ],
-          "internalType": "struct Messages.Message",
+          "internalType": "struct BridgeMessage.Message",
           "name": "message",
           "type": "tuple"
         }
@@ -364,11 +364,6 @@
     {
       "inputs": [
         {
-          "internalType": "address[]",
-          "name": "_supportedTokens",
-          "type": "address[]"
-        },
-        {
           "internalType": "address",
           "name": "_committee",
           "type": "address"
@@ -380,6 +375,11 @@
         },
         {
           "internalType": "address",
+          "name": "_limiter",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
           "name": "_weth9",
           "type": "address"
         },
@@ -387,11 +387,29 @@
           "internalType": "uint8",
           "name": "_chainId",
           "type": "uint8"
+        },
+        {
+          "internalType": "address[]",
+          "name": "_supportedTokens",
+          "type": "address[]"
         }
       ],
       "name": "initialize",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "limiter",
+      "outputs": [
+        {
+          "internalType": "contract IBridgeLimiter",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -466,25 +484,6 @@
           "type": "uint8"
         }
       ],
-      "name": "requiredApprovalStake",
-      "outputs": [
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint8",
-          "name": "",
-          "type": "uint8"
-        }
-      ],
       "name": "supportedTokens",
       "outputs": [
         {
@@ -531,7 +530,7 @@
               "type": "bytes"
             }
           ],
-          "internalType": "struct Messages.Message",
+          "internalType": "struct BridgeMessage.Message",
           "name": "message",
           "type": "tuple"
         }
@@ -576,7 +575,7 @@
               "type": "bytes"
             }
           ],
-          "internalType": "struct Messages.Message",
+          "internalType": "struct BridgeMessage.Message",
           "name": "message",
           "type": "tuple"
         }
@@ -644,15 +643,15 @@
       "type": "function"
     }
   ],
-  "transactionHash": "0x5712b9facefeb2a9a55b863207a5cc6a3b272e331ded3bb6526ada50bf27048c",
+  "transactionHash": "0xf7a06e88a6b1b03ce83269faac73c04d713aeb6216b735a536f30eba3231fe74",
   "receipt": {
     "from": "0xb18f79Fe671db47393315fFDB377Da4Ea1B7AF96",
     "gasUsed": 0,
     "blockHash": null,
-    "transactionHash": "0x5712b9facefeb2a9a55b863207a5cc6a3b272e331ded3bb6526ada50bf27048c",
+    "transactionHash": "0xf7a06e88a6b1b03ce83269faac73c04d713aeb6216b735a536f30eba3231fe74",
     "blockNumber": null,
     "cumulativeGasUsed": 0
   },
   "numDeployments": 1,
-  "metadata": "implementationAddress: 0x9B621c325d35FE6ce813FdFAf241F5ddEd8Fc2Ea"
+  "metadata": "implementationAddress: 0x291D14fc5A18D7203AA2908C339B67eA0D314c0f"
 }
