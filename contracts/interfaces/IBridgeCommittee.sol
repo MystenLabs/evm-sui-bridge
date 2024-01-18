@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "../utils/BridgeMessage.sol";
+
 interface IBridgeCommittee {
     function verifyMessageSignatures(
         bytes[] memory signatures,
-        bytes32 messageHash,
-        uint32 requiredStake
-    ) external view returns (bool);
+        BridgeMessage.Message memory message,
+        uint8 messageType
+    ) external;
 
+    /* ========== EVENTS ========== */
     event BlocklistUpdated(address[] newMembers, bool isBlocklisted);
+    event MessageProcessed(bytes message);
 }

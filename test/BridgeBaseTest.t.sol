@@ -6,7 +6,7 @@ import "../contracts/BridgeCommittee.sol";
 import "../contracts/BridgeVault.sol";
 import "../contracts/BridgeLimiter.sol";
 import "../contracts/SuiBridge.sol";
-import "../contracts/interfaces/ISuiBridge.sol";
+import "../contracts/BridgeTokens.sol";
 
 contract BridgeBaseTest is Test {
     address committeeMemberA;
@@ -27,7 +27,6 @@ contract BridgeBaseTest is Test {
 
     address deployer;
 
-    // TODO: double check these addresses (they're from co-pilot)
     address wETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
@@ -35,12 +34,19 @@ contract BridgeBaseTest is Test {
 
     address USDCWhale = 0x51eDF02152EBfb338e03E30d65C15fBf06cc9ECC;
 
-    uint8 testChainID = 99;
+    uint256 SUI_PRICE = 12800;
+    uint256 BTC_PRICE = 432518900;
+    uint256 ETH_PRICE = 25969600;
+    uint256 USDC_PRICE = 10000;
+
+    uint8 public chainID = 99;
+    uint256 totalLimit = 10000000000;
 
     BridgeCommittee public committee;
     SuiBridge public bridge;
     BridgeVault public vault;
     BridgeLimiter public limiter;
+    BridgeTokens public tokens;
 
     function testFailInitializeCommitteeAndStakeArraysMustBeOfTheSameLength() public {
         address[] memory _committee = new address[](5);
@@ -120,23 +126,24 @@ contract BridgeBaseTest is Test {
         _supportedTokens[1] = wETH;
         _supportedTokens[2] = USDC;
         _supportedTokens[3] = USDT;
-        uint256[] memory _dailyBridgeLimits = new uint256[](4);
-        _dailyBridgeLimits[0] = 100 ether;
-        _dailyBridgeLimits[1] = 100 ether;
-        _dailyBridgeLimits[2] = 100 ether;
-        _dailyBridgeLimits[3] = 100 ether;
-        uint256 _dailyLimitStart = block.timestamp + 1 days;
-        limiter = new BridgeLimiter(_dailyLimitStart, _dailyBridgeLimits);
+        tokens = new BridgeTokens(_supportedTokens);
+        uint256[] memory assetPrices = new uint256[](4);
+        assetPrices[0] = SUI_PRICE;
+        assetPrices[1] = BTC_PRICE;
+        assetPrices[2] = ETH_PRICE;
+        assetPrices[3] = USDC_PRICE;
+        limiter = new BridgeLimiter();
+        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
-        uint8 _chainId = testChainID;
         bridge.initialize(
-            address(committee), address(vault), address(limiter), wETH, _chainId, _supportedTokens
+            address(committee), address(tokens), address(vault), address(limiter), wETH, chainID
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
+        tokens.transferOwnership(address(bridge));
     }
 
-    function test() public {}
+    function testMock() public {}
 
     // Helper function to get the signature components from an address
     function getSignature(bytes32 digest, uint256 privateKey) public pure returns (bytes memory) {

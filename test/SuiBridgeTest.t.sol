@@ -12,14 +12,10 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
     }
 
     function testSuiBridgeInitialization() public {
-        assertTrue(bridge.supportedTokens(1) == wBTC);
-        assertTrue(bridge.supportedTokens(2) == wETH);
-        assertTrue(bridge.supportedTokens(3) == USDC);
-        assertTrue(bridge.supportedTokens(4) == USDT);
         assertEq(address(bridge.committee()), address(committee));
         assertEq(address(bridge.vault()), address(vault));
         assertEq(address(bridge.weth9()), wETH);
-        assertEq(bridge.chainId(), testChainID);
+        assertEq(address(bridge.tokens()), address(tokens));
     }
 
     function testTransferTokensWithSignaturesTokenDailyLimitExceeded() public {
@@ -121,24 +117,32 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         IWETH9(wETH).deposit{value: 10 ether}();
         // IWETH9(wETH).withdraw(1 ether);
         IERC20(wETH).transfer(address(vault), 10 ether);
-        // Create transfer message
-        BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
-            senderAddressLength: 0,
-            senderAddress: abi.encode(0),
-            targetChain: 1,
-            targetAddressLength: 0,
-            targetAddress: bridgerA,
-            tokenId: BridgeMessage.ETH,
-            // This is Sui amount (eth decimal 8)
-            amount: 100_000_000
-        });
+        // Create transfer payload
+        uint8 senderAddressLength = 32;
+        bytes memory senderAddress = abi.encode(0);
+        uint8 targetChain = 1;
+        uint8 targetAddressLength = 20;
+        address targetAddress = bridgerA;
+        uint8 tokenId = BridgeMessage.ETH;
+        bytes memory payload = abi.encodePacked(
+            senderAddressLength,
+            senderAddress,
+            targetChain,
+            targetAddressLength,
+            targetAddress,
+            tokenId
+        );
+        // little endian encoded of u64 1_000_000
+        bytes memory amountBytes = hex"00e1f50500000000";
+        payload = bytes.concat(payload, amountBytes);
 
+        // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
             chainID: 1,
-            payload: abi.encode(payload)
+            payload: payload
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -163,23 +167,33 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         changePrank(USDCWhale);
         IERC20(USDC).transfer(address(vault), 100_000_000);
         changePrank(deployer);
-        // Create transfer message
-        BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
-            senderAddressLength: 0,
-            senderAddress: abi.encode(0),
-            targetChain: 1,
-            targetAddressLength: 0,
-            targetAddress: bridgerA,
-            tokenId: BridgeMessage.USDC,
-            amount: 1_000_000
-        });
 
+        // Create transfer payload
+        uint8 senderAddressLength = 32;
+        bytes memory senderAddress = abi.encode(0);
+        uint8 targetChain = 1;
+        uint8 targetAddressLength = 20;
+        address targetAddress = bridgerA;
+        uint8 tokenId = BridgeMessage.USDC;
+        bytes memory payload = abi.encodePacked(
+            senderAddressLength,
+            senderAddress,
+            targetChain,
+            targetAddressLength,
+            targetAddress,
+            tokenId
+        );
+        // little endian encoded of u64 1_000_000
+        bytes memory amountBytes = hex"40420f0000000000";
+        payload = bytes.concat(payload, amountBytes);
+
+        // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
             chainID: 1,
-            payload: abi.encode(payload)
+            payload: payload
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -417,7 +431,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         // assert emitted event
         vm.expectEmit(true, true, true, false);
         emit TokensBridgedToSui(
-            testChainID,
+            chainID,
             0, // nonce
             0, // destination chain id
             BridgeMessage.ETH,
@@ -434,7 +448,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         // Now test rounding. For ETH, the last 10 digits are rounded
         vm.expectEmit(true, true, true, false);
         emit TokensBridgedToSui(
-            testChainID,
+            chainID,
             1, // nonce
             0, // destination chain id
             BridgeMessage.ETH,
@@ -471,7 +485,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         // assert emitted event
         vm.expectEmit(true, true, true, false);
         emit ISuiBridge.TokensBridgedToSui(
-            testChainID,
+            chainID,
             0, // nonce
             0, // destination chain id
             BridgeMessage.ETH,
@@ -486,21 +500,73 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertEq(bridge.nonces(BridgeMessage.TOKEN_TRANSFER), 1);
     }
 
-    function testAdjustDecimalsForSuiTokenEthDecimalShouldBeLargerThanSuiDecimal() public {
-        vm.expectRevert(bytes("Eth decimal should be larger than sui decimal"));
-        bridge.adjustDecimalsForSuiToken(BridgeMessage.ETH, 10 ether, 1);
-    }
+    // An e2e token transfer regression test covering message ser/de and signature verification
+    function testTransferSuiToEthRegressionTest() public {
+        address[] memory _committee = new address[](4);
+        uint16[] memory _stake = new uint16[](4);
+        _committee[0] = 0x68B43fD906C0B8F024a18C56e06744F7c6157c65;
+        _committee[1] = 0xaCAEf39832CB995c4E049437A3E2eC6a7bad1Ab5;
+        _committee[2] = 0x8061f127910e8eF56F16a2C411220BaD25D61444;
+        _committee[3] = 0x508F3F1ff45F4ca3D8e86CDCC91445F00aCC59fC;
+        _stake[0] = 2500;
+        _stake[1] = 2500;
+        _stake[2] = 2500;
+        _stake[3] = 2500;
+        committee = new BridgeCommittee();
+        committee.initialize(_committee, _stake);
+        vault = new BridgeVault(wETH);
+        uint256[] memory assetPrices = new uint256[](4);
+        assetPrices[0] = 10000; // SUI PRICE
+        assetPrices[1] = 10000; // BTC PRICE
+        assetPrices[2] = 10000; // ETH PRICE
+        assetPrices[3] = 10000; // USDC PRICE
+        uint256 totalLimit = 1000000;
 
-    function testAdjustDecimalsForSuiTokenAmountTooLargeForUint64() public {
-        vm.expectRevert(bytes("Amount too large for uint64"));
-        bridge.adjustDecimalsForSuiToken(BridgeMessage.ETH, type(uint256).max, BridgeMessage.SUI_DECIMAL_ON_SUI);
-        vm.expectRevert(bytes("Amount too large for uint64"));
-        bridge.adjustDecimalsForSuiToken(BridgeMessage.SUI, type(uint256).max, BridgeMessage.SUI_DECIMAL_ON_SUI);
-    }
+        skip(2 days);
+        limiter = new BridgeLimiter();
+        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
+        bridge = new SuiBridge();
+        uint8 _chainId = chainID;
+        bridge.initialize(
+            address(committee), address(tokens), address(vault), address(limiter), wETH, _chainId
+        );
+        vault.transferOwnership(address(bridge));
+        limiter.transferOwnership(address(bridge));
 
-    function testAdjustDecimalsForSuiTokenTokenIdDoesNotHaveSuiDecimalSet() public {
-        vm.expectRevert(bytes("TokenId does not have Sui decimal set"));
-        bridge.adjustDecimalsForSuiToken(type(uint8).max, 10 ether, 18);
+        // Fill vault with WETH
+        changePrank(deployer);
+        IWETH9(wETH).deposit{value: 10 ether}();
+        IERC20(wETH).transfer(address(vault), 10 ether);
+        address targetAddress = 0xb18f79Fe671db47393315fFDB377Da4Ea1B7AF96;
+
+        bytes memory payload =
+            hex"2080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af960290d0030000000000";
+        // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.TOKEN_TRANSFER,
+            version: 1,
+            nonce: 4,
+            chainID: 1,
+            payload: payload
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes memory expectedEncodedMessage =
+            hex"5355495f4252494447455f4d45535341474500010400000000000000012080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af960290d0030000000000";
+
+        assertEq(encodedMessage, expectedEncodedMessage);
+
+        bytes[] memory signatures = new bytes[](2);
+
+        signatures[0] =
+            hex"0518a39b869f3765c88e27a5889867c16fa994c6ba7d2bd9672268656a08ac536c0eaddfc2285035e720dafdaca631c1aad9e3c622f0a6d500d7392cc60a0fc401";
+        signatures[1] =
+            hex"93029995ee7034f0b518fbdab29302f7f4d45682e96a16802226674fecb7f1e60179df724eec6c60e05ede02375028966dd09aaadc564487ce24b6c797b8a24900";
+
+        uint256 aBalance = targetAddress.balance;
+        committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
+
+        bridge.transferTokensWithSignatures(signatures, message);
+        assertEq(targetAddress.balance, aBalance + 0.0025 ether);
     }
 
     function testEthToSuiDecimalConversion() public {

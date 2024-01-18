@@ -1,5 +1,5 @@
 {
-  "address": "0xF942De1CBEeb1ACD49De60256e287694ec9b9a6D",
+  "address": "0x6c33DFda56D541782e3c5129989a761A3765000f",
   "abi": [
     {
       "anonymous": false,
@@ -31,6 +31,25 @@
         }
       ],
       "name": "BeaconUpgraded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address[]",
+          "name": "newMembers",
+          "type": "address[]"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "isBlocklisted",
+          "type": "bool"
+        }
+      ],
+      "name": "BlocklistUpdated",
       "type": "event"
     },
     {
@@ -139,49 +158,6 @@
     {
       "inputs": [
         {
-          "internalType": "bytes",
-          "name": "payload",
-          "type": "bytes"
-        }
-      ],
-      "name": "decodeBlocklistPayload",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        },
-        {
-          "internalType": "address[]",
-          "name": "",
-          "type": "address[]"
-        }
-      ],
-      "stateMutability": "pure",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes",
-          "name": "payload",
-          "type": "bytes"
-        }
-      ],
-      "name": "decodeUpgradePayload",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "pure",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
           "internalType": "address[]",
           "name": "_committee",
           "type": "address[]"
@@ -264,7 +240,7 @@
               "type": "bytes"
             }
           ],
-          "internalType": "struct Messages.Message",
+          "internalType": "struct BridgeMessage.Message",
           "name": "message",
           "type": "tuple"
         }
@@ -309,7 +285,7 @@
               "type": "bytes"
             }
           ],
-          "internalType": "struct Messages.Message",
+          "internalType": "struct BridgeMessage.Message",
           "name": "message",
           "type": "tuple"
         }
@@ -363,32 +339,26 @@
           "type": "bytes32"
         },
         {
-          "internalType": "uint16",
+          "internalType": "uint32",
           "name": "requiredStake",
-          "type": "uint16"
+          "type": "uint32"
         }
       ],
       "name": "verifyMessageSignatures",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
+      "outputs": [],
       "stateMutability": "view",
       "type": "function"
     }
   ],
-  "transactionHash": "0xcd0273f65460f2fcdf54ebf26888bdcbfa946a44ef7394caae0c7c1c421d1f01",
+  "transactionHash": "0x0d56dd68a600739199492f6ff7a2221ea87ffc55cab3b11b752b8fae09bb7d97",
   "receipt": {
     "from": "0xb18f79Fe671db47393315fFDB377Da4Ea1B7AF96",
     "gasUsed": 0,
     "blockHash": null,
-    "transactionHash": "0xcd0273f65460f2fcdf54ebf26888bdcbfa946a44ef7394caae0c7c1c421d1f01",
+    "transactionHash": "0x0d56dd68a600739199492f6ff7a2221ea87ffc55cab3b11b752b8fae09bb7d97",
     "blockNumber": null,
     "cumulativeGasUsed": 0
   },
   "numDeployments": 1,
-  "metadata": "implementationAddress: 0x24F4C29970993Aba7281be5D2737C3902998402A"
+  "metadata": "implementationAddress: 0x91E91AD391E2B96A2506275ED2dA0AeFB28a04e2"
 }
