@@ -15,7 +15,6 @@ contract BridgeCommittee is
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable
 {
-
     /* ========== STATE VARIABLES ========== */
 
     // member address => stake amount
@@ -114,80 +113,6 @@ contract BridgeCommittee is
     /// @dev Upgrades the committee with the provided signatures and message.
     /// @param signatures The array of signatures from committee members.
     /// @param message The BridgeMessage containing the upgrade payload.
-    function upgradeCommitteeWithSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message
-    )
-        external
-        nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.COMMITTEE_UPGRADE)
-    {
-        // decode the upgrade payload
-        (address implementationAddress, bytes memory callData) =
-            BridgeMessage.decodeUpgradePayload(message.payload);
-
-        // update the upgrade
-        _upgradeCommittee(implementationAddress, callData);
-    }
-
-    /* ========== VIEW FUNCTIONS ========== */
-
-    /// @notice Verifies the signatures of the committee members for a given message.
-    /// @param signatures The signatures of the committee members.
-    /// @param messageHash The hash of the message.
-    /// @param requiredStake The minimum stake required for the signatures to be valid.
-    /// @return A boolean indicating whether the signatures have the required stake.
-    function verifyMessageSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message,
-        uint8 messageType
-    ) public view override {
-        // TODO: check for duplicate signatures
-
-        require(message.messageType == messageType, "SuiBridge: message does not match type");
-
-        uint32 requiredStake = BridgeMessage.getRequiredStake(message);
-
-        // Loop over the signatures and check if they are valid
-        uint16 approvalStake;
-        address signer;
-        for (uint16 i = 0; i < signatures.length; i++) {
-            bytes memory signature = signatures[i];
-            // recover the signer from the signature
-            (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
-
-            (signer,) = ECDSA.tryRecover(BridgeMessage.computeHash(message), v, r, s);
-
-            // Check if the signer is a committee member and not already approved
-            require(committeeMembers[signer] > 0, "BridgeCommittee: Not a committee member");
-
-            // If signer is block listed skip this signature
-            if (blocklist[signer]) continue;
-
-            approvalStake += committeeMembers[signer];
-        }
-
-        require(approvalStake >= requiredStake, "BridgeCommittee: Insufficient stake amount");
-    }
-
-    function updateBlocklistWithSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message
-    )
-        external
-        nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.BLOCKLIST)
-    {
-        // decode the blocklist payload
-        (bool isBlocklisted, address[] memory _blocklist) =
-            BridgeMessage.decodeBlocklistPayload(message.payload);
-
-        // update the blocklist
-        _updateBlocklist(_blocklist, isBlocklisted);
-    }
-
     function upgradeCommitteeWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
