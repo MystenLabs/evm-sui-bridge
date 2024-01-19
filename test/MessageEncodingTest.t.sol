@@ -36,9 +36,14 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
     }
 
     function testDecodeTransferTokenPayload() public {
-        bytes memory payload = abi.encodePacked(
-            hex"2080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af960200000000000186a0"
-        );
+        // 20: sender length 1 bytes
+        // 80ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c: sender 32 bytes
+        // 0b: target chain 1 bytes
+        // 14: target adress length 1 bytes
+        // b18f79fe671db47393315ffdb377da4ea1b7af96: target address 20 bytes
+        // 02: token id 1 byte
+        // 000000c70432b1dd: amount 8 bytes
+        bytes memory payload = hex"2080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af9602000000c70432b1dd";
 
         BridgeMessage.TokenTransferPayload memory _payload =
             BridgeMessage.decodeTokenTransferPayload(payload);
@@ -52,7 +57,7 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
         assertEq(_payload.targetAddressLength, uint8(20));
         assertEq(_payload.targetAddress, 0xb18f79Fe671db47393315fFDB377Da4Ea1B7AF96);
         assertEq(_payload.tokenId, BridgeMessage.ETH);
-        assertEq(_payload.amount, uint64(100000));
+        assertEq(_payload.amount, uint64(854768923101));
     }
 
     // TODO:
