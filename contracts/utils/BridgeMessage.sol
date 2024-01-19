@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+/// @title BridgeMessage
+/// @notice This library defines the message format and constants for the Sui native bridge.
+/// @dev The message prefix and the token decimals are fixed for the Sui bridge.
 library BridgeMessage {
     // message Ids
     uint8 public constant TOKEN_TRANSFER = 0;
@@ -37,6 +40,12 @@ library BridgeMessage {
 
     string public constant MESSAGE_PREFIX = "SUI_BRIDGE_MESSAGE";
 
+    /// @dev A struct that represents a bridge message
+    /// @param messageType The type of the message, such as token transfer, blocklist, etc.
+    /// @param version The version of the message format
+    /// @param nonce The nonce of the message, used to prevent replay attacks
+    /// @param chainID The chain ID of the source chain
+    /// @param payload The payload of the message, which depends on the message type
     struct Message {
         uint8 messageType;
         uint8 version;
@@ -45,6 +54,14 @@ library BridgeMessage {
         bytes payload;
     }
 
+    /// @dev A struct that represents a token transfer payload
+    /// @param senderAddressLength The length of the sender address in bytes
+    /// @param senderAddress The address of the sender on the source chain
+    /// @param targetChain The chain ID of the target chain
+    /// @param targetAddressLength The length of the target address in bytes
+    /// @param targetAddress The address of the recipient on the target chain
+    /// @param tokenId The ID of the token to be transferred
+    /// @param amount The amount of the token to be transferred
     struct TokenTransferPayload {
         uint8 senderAddressLength;
         bytes senderAddress;
@@ -56,6 +73,9 @@ library BridgeMessage {
     }
 
     // TODO: add unit test for this function
+    /// @dev Encodes a bridge message into bytes, useing abi.encodePacked to concatenate the message fields
+    /// @param message The bridge message to be encoded.
+    /// @return The encoded message as bytes.
     function encodeMessage(Message memory message) internal pure returns (bytes memory) {
         bytes memory prefixTypeAndVersion =
             abi.encodePacked(MESSAGE_PREFIX, message.messageType, message.version);

@@ -9,6 +9,8 @@ import "./interfaces/IBridgeLimiter.sol";
 import "./interfaces/IBridgeTokens.sol";
 import "./utils/CommitteeOwned.sol";
 
+/// @title BridgeLimiter
+/// @dev A contract that limits the amount of tokens that can be bridged per day.
 contract BridgeLimiter is
     IBridgeLimiter,
     CommitteeOwned,

@@ -7,6 +7,8 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./interfaces/IBridgeCommittee.sol";
 import "./utils/CommitteeOwned.sol";
 
+/// @title BridgeCommittee
+/// @dev A contract that manages a bridge committee for a bridge between two blockchains. The committee is responsible for approving and processing messages related to the bridge operations.
 contract BridgeCommittee is
     IBridgeCommittee,
     CommitteeOwned,
@@ -22,6 +24,8 @@ contract BridgeCommittee is
 
     /* ========== INITIALIZER ========== */
 
+    /// @notice Initializes the contract with the deployer as the admin.
+    /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
     function initialize(address[] memory _committeeMembers, uint16[] memory stakes)
         external
         initializer
@@ -49,6 +53,10 @@ contract BridgeCommittee is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
+    /// @dev Verifies the signatures of the given messages.
+    /// @param signatures The array of signatures to be verified.
+    /// @param message The message to be verified.
+    /// @param messageType The type of the message.
     function verifyMessageSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message,
@@ -82,6 +90,9 @@ contract BridgeCommittee is
         require(approvalStake >= requiredStake, "BridgeCommittee: Insufficient stake amount");
     }
 
+    /// @dev Updates the blocklist with the provided signatures and message.
+    /// @param signatures The array of signatures for the message.
+    /// @param message The BridgeMessage containing the blocklist payload.
     function updateBlocklistWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
@@ -99,6 +110,9 @@ contract BridgeCommittee is
         _updateBlocklist(_blocklist, isBlocklisted);
     }
 
+    /// @dev Upgrades the committee with the provided signatures and message.
+    /// @param signatures The array of signatures from committee members.
+    /// @param message The BridgeMessage containing the upgrade payload.
     function upgradeCommitteeWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
@@ -118,6 +132,9 @@ contract BridgeCommittee is
 
     /* ========== INTERNAL FUNCTIONS ========== */
 
+    /// @dev Internal function to update the blocklist status of multiple addresses.
+    /// @param _blocklist The array of addresses to update the blocklist status for.
+    /// @param isBlocklisted The new blocklist status to set for the addresses.
     function _updateBlocklist(address[] memory _blocklist, bool isBlocklisted) internal {
         // check original blocklist value of each validator
         for (uint16 i = 0; i < _blocklist.length; i++) {
