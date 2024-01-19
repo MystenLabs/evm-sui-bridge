@@ -87,7 +87,7 @@ contract BridgeCommittee is
 					break;
 				}
 			}
-			require(!found, 'Duplicate signature: Address already seen');
+			require(!found, "BridgeCommittee: Duplicate signature, address already seen");
 
 			// Add the address to the array
 			seen[seenIndex++] = signer;

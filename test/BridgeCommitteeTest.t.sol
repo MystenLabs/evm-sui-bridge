@@ -83,6 +83,31 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
     }
 
+    function testVerifyMessageSignaturesDuplicateSignature() public {
+        // Create a message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.TOKEN_TRANSFER,
+            version: 1,
+            nonce: 1,
+            chainID: 1,
+            payload: "0x0"
+        });
+
+        bytes memory messageBytes = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(messageBytes);
+
+        bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from A - C
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkA);
+        signatures[2] = getSignature(messageHash, committeeMemberPkB);
+        signatures[3] = getSignature(messageHash, committeeMemberPkC);
+
+        // Call the verifyMessageSignatures function and expect it to revert
+        vm.expectRevert(bytes("BridgeCommittee: Duplicate signature, address already seen"));
+        committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
+    }
 
     function testFailUpdateBlocklistWithSignaturesInvalidNonce() public {
         // create payload
