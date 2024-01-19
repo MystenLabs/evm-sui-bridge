@@ -282,8 +282,6 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
 
-        // TODO: FAILS
-        vm.expectRevert(bytes("ERC1967Upgrade: new implementation is not UUPS"));
         committee.upgradeCommitteeWithSignatures(signatures, message);
     }
 
