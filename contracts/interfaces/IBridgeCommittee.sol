@@ -5,7 +5,7 @@ import "../utils/BridgeMessage.sol";
 
 interface IBridgeCommittee {
 
-    /// @dev Verifies the signatures of multiple messages.
+    /// @dev Verifies the signatures of the given messages.
     /// @param signatures The array of signatures to be verified.
     /// @param message The message to be verified.
     /// @param messageType The type of the message.
