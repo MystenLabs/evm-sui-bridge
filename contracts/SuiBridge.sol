@@ -269,6 +269,8 @@ contract SuiBridge is
             vault.transferERC20(tokenAddress, targetAddress, amount);
         }
 
+        // Do we want to move the limit checks earlier, e.g. even for signature verification?
+        // in the event of exhaustion of transfer allowance, the user can pay fewer gas fees
         // update amount bridged
         limiter.updateBridgeTransfers(tokenId, amount);
     }

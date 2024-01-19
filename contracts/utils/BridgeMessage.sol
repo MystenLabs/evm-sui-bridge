@@ -93,6 +93,7 @@ library BridgeMessage {
         pure
         returns (address, bytes memory)
     {
+        // should it be abi.decodePacked()
         (address implementationAddress, bytes memory callData) =
             abi.decode(payload, (address, bytes));
         return (implementationAddress, callData);
@@ -186,6 +187,7 @@ library BridgeMessage {
 
     // TODO: add unit test
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
+        // should it be abi.decodePacked()
         (uint8 emergencyOpCode) = abi.decode(payload, (uint8));
         require(emergencyOpCode <= 1, "BridgeMessage: Invalid op code");
 
@@ -204,6 +206,7 @@ library BridgeMessage {
         pure
         returns (bool, address[] memory)
     {
+        // should it be abi.decodePacked()
         (uint8 blocklistType, address[] memory validators) = abi.decode(payload, (uint8, address[]));
         // blocklistType: 0 = blocklist, 1 = unblocklist
         bool blocklisted = (blocklistType == 0) ? true : false;
@@ -216,11 +219,15 @@ library BridgeMessage {
         pure
         returns (uint8, uint256)
     {
+    // 1. could price smaller uint?
+    // 2. should it be abi.decodePacked()
+    // 3. do we want uint256 or whatever type to be big endian?
         (uint8 tokenId, uint256 price) = abi.decode(payload, (uint8, uint256));
         return (tokenId, price);
     }
 
     // TODO: add unit test
+    // ditto
     function decodeUpdateLimitPayload(bytes memory payload) internal pure returns (uint256) {
         (uint256 newLimit) = abi.decode(payload, (uint256));
         return newLimit;

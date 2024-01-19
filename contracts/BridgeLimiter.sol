@@ -55,6 +55,9 @@ contract BridgeLimiter is
         return windowAmount + USDAmount > totalLimit;
     }
 
+    // 1. We should look at hourlyTransferAmount[currentHour] because that's the most likely
+    // time window a large amount of fund goes out if bridge is hacked
+    // 2. rename to `calculateLast24hAmount` ?
     function calculateWindowAmount() public view returns (uint256 total) {
         uint32 currentHour = uint32(block.timestamp / 1 hours);
         // aggregate the last 24 hours
@@ -64,6 +67,7 @@ contract BridgeLimiter is
         return total;
     }
 
+    // FIXME
     function calculateAmountInUSD(uint8 tokenId, uint256 amount) public view returns (uint256) {
         // get the token address
         address tokenAddress = tokens.getAddress(tokenId);
@@ -75,6 +79,8 @@ contract BridgeLimiter is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
+    // there are duplicated calls to `calculateAmountInUSD`, one in `willAmountExceedLimit`
+    // and one in in line 100. Can we modify `willAmountExceedLimit` to let it take the USD amount instead?
     function updateBridgeTransfers(uint8 tokenId, uint256 amount) external override onlyOwner {
         require(amount > 0, "BridgeLimiter: amount must be greater than 0");
         require(
@@ -82,10 +88,13 @@ contract BridgeLimiter is
             "BridgeLimiter: amount exceeds rolling window limit"
         );
 
+        // We have this in a few places as well
         uint32 currentHour = uint32(block.timestamp / 1 hours);
 
         // garbage collect most recently expired hour if window is moving
+        // why do we need `hourlyTransferAmount[currentHour] == 0`?
         if (hourlyTransferAmount[currentHour] == 0 && oldestHourTimestamp < currentHour - 24) {
+            // are the parameters correct?
             garbageCollectHourlyTransferAmount(currentHour - 25, currentHour - 25);
         }
 
@@ -93,6 +102,7 @@ contract BridgeLimiter is
         hourlyTransferAmount[currentHour] += calculateAmountInUSD(tokenId, amount);
     }
 
+    // I don't understand this function, primarily because I don't understand the args passed in a few lines above
     function garbageCollectHourlyTransferAmount(uint32 startHour, uint32 endHour) public {
         uint32 windowStart = uint32(block.timestamp / 1 hours) - 24;
         require(
