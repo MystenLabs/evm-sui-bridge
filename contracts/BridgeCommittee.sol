@@ -62,8 +62,6 @@ contract BridgeCommittee is
         BridgeMessage.Message memory message,
         uint8 messageType
     ) public view override {
-        // TODO: check for duplicate signatures
-
         require(message.messageType == messageType, "BridgeCommittee: message does not match type");
 
         uint32 requiredStake = BridgeMessage.getRequiredStake(message);
@@ -71,12 +69,28 @@ contract BridgeCommittee is
         // Loop over the signatures and check if they are valid
         uint16 approvalStake;
         address signer;
+		// Declare an array to store the recovered addresses
+		address[] memory seen = new address[](signatures.length);
+        uint256 seenIndex = 0;
         for (uint16 i = 0; i < signatures.length; i++) {
             bytes memory signature = signatures[i];
             // recover the signer from the signature
             (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
 
             (signer,) = ECDSA.tryRecover(BridgeMessage.computeHash(message), v, r, s);
+
+			// Check if the address has already been seen
+			bool found = false;
+			for (uint256 j = 0; j < seen.length; j++) {
+				if (seen[j] == signer) {
+					found = true;
+					break;
+				}
+			}
+			require(!found, 'Duplicate signature: Address already seen');
+
+			// Add the address to the array
+			seen[seenIndex++] = signer;
 
             // Check if the signer is a committee member and not already approved
             require(committeeMembers[signer] > 0, "BridgeCommittee: Not a committee member");
