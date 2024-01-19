@@ -21,7 +21,6 @@ contract BridgeVault is Ownable, IBridgeVault {
     /// @param tokenAddress The address of the ERC20 token.
     /// @param targetAddress The address to transfer the tokens to.
     /// @param amount The amount of tokens to transfer.
-    /// @throws BridgeVault: Transfer failed if the token transfer fails.
     function transferERC20(address tokenAddress, address targetAddress, uint256 amount)
         external
         override
@@ -40,7 +39,6 @@ contract BridgeVault is Ownable, IBridgeVault {
     /// @dev Transfers ETH from the contract to a target address.  Only the owner of the contract can call this function.
     /// @param targetAddress The address to transfer the ETH to.
     /// @param amount The amount of ETH to transfer.
-    /// @throws BridgeVault: Transfer failed if the ETH transfer fails.
     function transferETH(address payable targetAddress, uint256 amount)
         external
         override

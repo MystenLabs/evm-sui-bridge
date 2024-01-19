@@ -5,11 +5,10 @@ import "../utils/BridgeMessage.sol";
 
 interface IBridgeCommittee {
 
-    /// @dev Verifies the signatures of the given messages.
+    /// @dev Verifies the signatures of multiple messages.
     /// @param signatures The array of signatures to be verified.
-    /// @param messageHash The hash of the message to be verified.
-    /// @param requiredStake The required stake for the verification.
-    /// @return A boolean indicating whether the signatures are valid.
+    /// @param message The message to be verified.
+    /// @param messageType The type of the message.
     function verifyMessageSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message,

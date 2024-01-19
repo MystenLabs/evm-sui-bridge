@@ -169,6 +169,8 @@ contract BridgeCommittee is
         if (v < 27) v += 27;
     }
 
+    /// @dev Internal function to authorize an upgrade to a new implementation contract. Only the contract itself can authorize an upgrade.
+    /// @param newImplementation The address of the new implementation contract.
     function _authorizeUpgrade(address newImplementation) internal view override {
         require(msg.sender == address(this));
     }
