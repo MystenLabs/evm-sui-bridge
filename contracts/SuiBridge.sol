@@ -35,12 +35,12 @@ contract SuiBridge is
     /* ========== INITIALIZER ========== */
 
     /// @dev Initializes the SuiBridge contract with the provided parameters.
-    /// @param _committee The address of the bridge committee contract.
+    /// @param _committee The address of the committee contract.
+    /// @param _tokens The address of the bridge tokens contract.
     /// @param _vault The address of the bridge vault contract.
     /// @param _limiter The address of the bridge limiter contract.
     /// @param _weth9 The address of the WETH9 contract.
-    /// @param _chainId The chain ID of the network.
-    /// @param _supportedTokens An array of addresses representing the supported tokens.
+    /// @param _chainID The chain ID of the network.
     function initialize(
         address _committee,
         address _tokens,
@@ -144,7 +144,7 @@ contract SuiBridge is
     /// @param tokenId The ID of the token to be bridged.
     /// @param amount The amount of tokens to be bridged.
     /// @param targetAddress The address on the Sui chain where the tokens will be sent.
-    /// @param destinationChainId The ID of the destination chain.
+    /// @param destinationChainID The ID of the destination chain.
     function bridgeToSui(
         uint8 tokenId,
         uint256 amount,
@@ -189,7 +189,7 @@ contract SuiBridge is
 
     /// @dev Bridges ETH to SUI tokens on a specified destination chain.
     /// @param targetAddress The address on the destination chain where the SUI tokens will be sent.
-    /// @param destinationChainId The ID of the destination chain.
+    /// @param destinationChainID The ID of the destination chain.
     function bridgeETHToSui(bytes memory targetAddress, uint8 destinationChainID)
         external
         payable

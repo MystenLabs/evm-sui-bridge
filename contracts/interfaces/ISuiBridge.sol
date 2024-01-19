@@ -6,9 +6,9 @@ pragma solidity ^0.8.0;
 interface ISuiBridge {
 
     /// @dev Emitted when tokens are bridged to Sui.
-    /// @param sourceChainId The ID of the source chain.
+    /// @param sourceChainID The ID of the source chain.
     /// @param nonce The nonce of the transaction.
-    /// @param destinationChainId The ID of the destination chain.
+    /// @param destinationChainID The ID of the destination chain.
     /// @param tokenCode The code of the token.
     /// @param suiAdjustedAmount The adjusted amount of tokens.
     /// @param sourceAddress The address of the source.

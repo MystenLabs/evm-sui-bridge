@@ -209,6 +209,25 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assert(IERC20(USDC).balanceOf(bridgerA) == 1_000_000);
     }
 
+    function testExecuteEmergencyOpWithSignaturesInvalidOpCode() public {
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.EMERGENCY_OP,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: abi.encode(2)
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(encodedMessage);
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+        vm.expectRevert(bytes("BridgeMessage: Invalid op code"));
+        bridge.executeEmergencyOpWithSignatures(signatures, message);
+    }
+
     function testExecuteEmergencyOpWithSignaturesInvalidNonce() public {
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.EMERGENCY_OP,

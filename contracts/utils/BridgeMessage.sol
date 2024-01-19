@@ -98,6 +98,7 @@ library BridgeMessage {
         return keccak256(encodeMessage(message));
     }
 
+    // TODO: Check if the values for UPDATE_BRIDGE_LIMIT, UPDATE_ASSET_PRICE, and COMMITTEE_UPGRADE are correct
     function getRequiredStake(Message memory message) internal pure returns (uint32) {
         if (message.messageType == TOKEN_TRANSFER) {
             return TRANSFER_STAKE_REQUIRED;
@@ -107,10 +108,16 @@ library BridgeMessage {
             bool isFreezing = decodeEmergencyOpPayload(message.payload);
             if (isFreezing) return FREEZING_STAKE_REQUIRED;
             return UNFREEZING_STAKE_REQUIRED;
+        } else if (message.messageType == UPDATE_BRIDGE_LIMIT) {
+            return ASSET_LIMIT_STAKE_REQUIRED;
+        } else if (message.messageType == UPDATE_ASSET_PRICE) {
+            return ASSET_LIMIT_STAKE_REQUIRED;
         } else if (message.messageType == BRIDGE_UPGRADE) {
             return BRIDGE_UPGRADE_STAKE_REQUIRED;
         } else if (message.messageType == COMMITTEE_UPGRADE) {
             return COMMITTEE_UPGRADE_STAKE_REQUIRED;
+        } else if (message.messageType == LIMITER_UPGRADE) {
+            return ASSET_LIMIT_STAKE_REQUIRED;
         } else {
             revert("BridgeMessage: Invalid message type");
         }
@@ -182,14 +189,12 @@ library BridgeMessage {
         );
     }
 
-    // TODO: add unit test
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
         (uint8 emergencyOpCode) = abi.decode(payload, (uint8));
         require(emergencyOpCode <= 1, "BridgeMessage: Invalid op code");
         return emergencyOpCode == 0 ? true : false;
     }
 
-    // TODO: add unit test
     function decodeBlocklistPayload(bytes memory payload)
         internal
         pure
