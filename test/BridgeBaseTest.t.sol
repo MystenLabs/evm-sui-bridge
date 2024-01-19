@@ -48,6 +48,60 @@ contract BridgeBaseTest is Test {
     BridgeLimiter public limiter;
     BridgeTokens public tokens;
 
+    function testFailInitializeCommitteeAndStakeArraysMustBeOfTheSameLength() public {
+        address[] memory _committee = new address[](5);
+        _committee[0] = committeeMemberA;
+        _committee[1] = committeeMemberB;
+        _committee[2] = committeeMemberC;
+        _committee[3] = committeeMemberD;
+        _committee[4] = committeeMemberE;
+
+        uint16[] memory _stake = new uint16[](4);
+        _stake[0] = 1000;
+        _stake[1] = 1000;
+        _stake[2] = 1000;
+        _stake[3] = 2002;
+
+        vm.expectRevert(bytes("BridgeCommittee: Committee and stake arrays must be of the same length"));
+        committee.initialize(_committee, _stake);
+    }
+
+    function testFailInitializeCommitteeDuplicateCommitteeMember() public {
+        address[] memory _committee = new address[](5);
+        _committee[0] = committeeMemberA;
+        _committee[1] = committeeMemberB;
+        _committee[2] = committeeMemberC;
+        _committee[3] = committeeMemberD;
+        _committee[4] = committeeMemberA;
+
+        uint16[] memory _stake = new uint16[](5);
+        _stake[0] = 1000;
+        _stake[1] = 1000;
+        _stake[2] = 1000;
+        _stake[3] = 2002;
+        _stake[4] = 1000;
+
+        vm.expectRevert(bytes("BridgeCommittee: Duplicate committee member"));
+        committee.initialize(_committee, _stake);
+    }
+
+    function testFailInitializeTotalStakeMustBe10000() public {
+        address[] memory _committee = new address[](4);
+        _committee[0] = committeeMemberA;
+        _committee[1] = committeeMemberB;
+        _committee[2] = committeeMemberC;
+        _committee[3] = committeeMemberD;
+
+        uint16[] memory _stake = new uint16[](4);
+        _stake[0] = 1000;
+        _stake[1] = 1000;
+        _stake[2] = 1000;
+        _stake[3] = 2000;
+
+        vm.expectRevert(bytes("BridgeCommittee: Total stake must be 10000"));
+        committee.initialize(_committee, _stake);
+    }
+
     function setUpBridgeTest() public {
         vm.createSelectFork(
             string.concat("https://mainnet.infura.io/v3/", vm.envString("INFURA_API_KEY"))
@@ -82,6 +136,7 @@ contract BridgeBaseTest is Test {
         _stake[3] = 2002;
         _stake[4] = 4998;
         committee = new BridgeCommittee();
+
         committee.initialize(_committee, _stake);
         vault = new BridgeVault(wETH);
         address[] memory _supportedTokens = new address[](4);

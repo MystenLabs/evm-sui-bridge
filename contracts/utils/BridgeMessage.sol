@@ -186,14 +186,7 @@ library BridgeMessage {
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
         (uint8 emergencyOpCode) = abi.decode(payload, (uint8));
         require(emergencyOpCode <= 1, "BridgeMessage: Invalid op code");
-
-        if (emergencyOpCode == 0) {
-            return true;
-        } else if (emergencyOpCode == 1) {
-            return false;
-        } else {
-            revert("BridgeMessage: Invalid emergency operation code");
-        }
+        return emergencyOpCode == 0 ? true : false;
     }
 
     // TODO: add unit test
