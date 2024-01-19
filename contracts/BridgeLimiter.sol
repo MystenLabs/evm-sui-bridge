@@ -67,7 +67,7 @@ contract BridgeLimiter is
     }
 
     /// @dev Calculates the total transfer amount within a 24-hour window.
-    /// @return The total transfer amount within the window.
+    /// @return total The total transfer amount within the window.
     function calculateWindowAmount() public view returns (uint256 total) {
         uint32 currentHour = uint32(block.timestamp / 1 hours);
         // aggregate the last 24 hours
