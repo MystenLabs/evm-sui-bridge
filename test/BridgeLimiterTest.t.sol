@@ -121,4 +121,33 @@ contract BridgeLimiterTest is BridgeBaseTest {
             assertEq(limiter.hourlyTransferAmount(uint32(startingHour + i)), 0);
         }
     }
+
+    function testUpdateAssetPriceWithSignatures() public {
+        changePrank(address(bridge));
+        bytes memory payload = abi.encode(uint8(1), uint256(100000000));
+        // Create a sample BridgeMessage
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPDATE_ASSET_PRICE,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: payload
+        });
+
+        bytes memory messageBytes = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(messageBytes);
+
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        // Call the updateAssetPriceWithSignatures function
+        limiter.updateAssetPriceWithSignatures(signatures, message);
+
+        // Assert that the asset price has been updated correctly
+        assertEq(limiter.assetPrices(1), 100000000);
+    }
+
 }
