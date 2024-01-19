@@ -12,6 +12,8 @@ contract BridgeVault is Ownable, IBridgeVault {
     // The WETH address
     IWETH9 public immutable wETH;
 
+    /// @dev Constructor function for the BridgeVault contract.
+    /// @param _wETH The address of the Wrapped Ether (WETH) contract.
     constructor(address _wETH) Ownable() {
         // Set the WETH address
         wETH = IWETH9(_wETH);

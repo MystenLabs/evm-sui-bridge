@@ -144,12 +144,19 @@ contract BridgeCommittee is
         emit BlocklistUpdated(_blocklist, isBlocklisted);
     }
 
+    /// @dev Upgrades the committee implementation to a new address and optionally calls a function on the new implementation.
+    /// @param newImplementation The address of the new committee implementation.
+    /// @param data The data to be passed to the new implementation's function, if any.
     function _upgradeCommittee(address newImplementation, bytes memory data) internal {
         if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
         else _upgradeTo(newImplementation);
     }
 
-    // Helper function to split a signature into R, S, and V components
+    /// @dev Helper function to split a signature into R, S, and V components.
+    /// @param sig The signature to be split.
+    /// @return r The R component of the signature.
+    /// @return s The S component of the signature.
+    /// @return v The V component of the signature.
     function splitSignature(bytes memory sig)
         internal
         pure

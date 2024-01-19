@@ -31,6 +31,11 @@ contract BridgeLimiter is
 
     /* ========== INITIALIZER ========== */
 
+    /// @dev Initializes the BridgeLimiter contract.
+    /// @param _committee The address of the committee contract.
+    /// @param _tokens The address of the BridgeTokens contract.
+    /// @param _assetPrices An array of asset prices.
+    /// @param _totalLimit The total limit for the bridge.
     function initialize(
         address _committee,
         address _tokens,
@@ -51,12 +56,18 @@ contract BridgeLimiter is
 
     /* ========== VIEW FUNCTIONS ========== */
 
+    /// @dev Checks if the total amount, including the given `amount` in USD, will exceed the `totalLimit`.
+    /// @param tokenId The ID of the token.
+    /// @param amount The amount of the token.
+    /// @return A boolean indicating whether the total amount will exceed the limit.
     function willAmountExceedLimit(uint8 tokenId, uint256 amount) public view returns (bool) {
         uint256 windowAmount = calculateWindowAmount();
         uint256 USDAmount = calculateAmountInUSD(tokenId, amount);
         return windowAmount + USDAmount > totalLimit;
     }
 
+    /// @dev Calculates the total transfer amount within a 24-hour window.
+    /// @return The total transfer amount within the window.
     function calculateWindowAmount() public view returns (uint256 total) {
         uint32 currentHour = uint32(block.timestamp / 1 hours);
         // aggregate the last 24 hours
@@ -66,6 +77,10 @@ contract BridgeLimiter is
         return total;
     }
 
+    /// @dev Calculates the amount in USD for a given token and amount.
+    /// @param tokenId The ID of the token.
+    /// @param amount The amount of tokens.
+    /// @return The amount in USD.
     function calculateAmountInUSD(uint8 tokenId, uint256 amount) public view returns (uint256) {
         // get the token address
         address tokenAddress = tokens.getAddress(tokenId);
@@ -77,6 +92,12 @@ contract BridgeLimiter is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
+    /// @dev Updates the bridge transfers for a specific token ID and amount. Only the contract owner can call this function.
+    /// Requirements:
+    /// - The amount must be greater than 0.
+    /// - The amount must not exceed the rolling window limit.
+    /// @param tokenId The ID of the token.
+    /// @param amount The amount of tokens to be transferred.
     function updateBridgeTransfers(uint8 tokenId, uint256 amount) external override onlyOwner {
         require(amount > 0, "BridgeLimiter: amount must be greater than 0");
         require(
@@ -95,6 +116,16 @@ contract BridgeLimiter is
         hourlyTransferAmount[currentHour] += calculateAmountInUSD(tokenId, amount);
     }
 
+    /// @dev Performs garbage collection of hourly transfer amounts within a specified time window.
+    /// @param startHour The starting hour (inclusive) of the time window.
+    /// @param endHour The ending hour (inclusive) of the time window.
+    /// Requirements:
+    /// - `startHour` must be in the past.
+    /// - `startHour` must be before the current window.
+    /// - `endHour` must be before the current window.
+    /// Effects:
+    /// - Deletes the hourly transfer amounts for each hour within the specified time window.
+    /// - Updates the oldest hour timestamp if the current oldest hour was garbage collected.
     function garbageCollectHourlyTransferAmount(uint32 startHour, uint32 endHour) public {
         uint32 windowStart = uint32(block.timestamp / 1 hours) - 24;
         require(
@@ -113,6 +144,9 @@ contract BridgeLimiter is
         }
     }
 
+    /// @dev Updates the asset price with the provided signatures and message.
+    /// @param signatures The array of signatures for the message.
+    /// @param message The BridgeMessage containing the update asset payload.
     function updateAssetPriceWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
@@ -129,6 +163,9 @@ contract BridgeLimiter is
         assetPrices[tokenId] = price;
     }
 
+    /// @dev Updates the bridge limit with the provided signatures and message.
+    /// @param signatures The array of signatures for the message.
+    /// @param message The BridgeMessage containing the update limit payload.
     function updateLimitWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
@@ -145,6 +182,9 @@ contract BridgeLimiter is
         totalLimit = newLimit;
     }
 
+    /// @dev Upgrades the BridgeLimiter contract with the provided signatures and message.
+    /// @param signatures The array of signatures to validate the message.
+    /// @param message The BridgeMessage containing the upgrade payload.
     function upgradeLimiterWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
@@ -161,12 +201,18 @@ contract BridgeLimiter is
         _upgradeLimiter(newImplementation, callData);
     }
 
+    /// @dev Upgrades the limiter contract to a new implementation.
+    /// @param newImplementation The address of the new implementation contract.
+    /// @param data The initialization data to be passed to the new implementation contract. If the data is empty, the contract will be upgraded without initialization.
     function _upgradeLimiter(address newImplementation, bytes memory data) internal {
         if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
         else _upgradeTo(newImplementation);
     }
 
-    function _authorizeUpgrade(address) internal view override {
+    /// @dev Internal function to authorize an upgrade.
+    /// @param newImplementation The address of the new implementation contract.
+    /// @notice This function is called internally to authorize an upgrade. It ensures that only the contract itself can authorize an upgrade.
+    function _authorizeUpgrade(address newImplementation) internal view override {
         require(_msgSender() == address(this));
     }
 }

@@ -48,6 +48,8 @@ contract BridgeBaseTest is Test {
     BridgeLimiter public limiter;
     BridgeTokens public tokens;
 
+/**
+    // TODO: It does not run if it is outside of setUpBridgeTest
     function testFailInitializeCommitteeAndStakeArraysMustBeOfTheSameLength() public {
         address[] memory _committee = new address[](5);
         _committee[0] = committeeMemberA;
@@ -66,6 +68,7 @@ contract BridgeBaseTest is Test {
         committee.initialize(_committee, _stake);
     }
 
+    // TODO: It does not run if it is outside of setUpBridgeTest
     function testFailInitializeCommitteeDuplicateCommitteeMember() public {
         address[] memory _committee = new address[](5);
         _committee[0] = committeeMemberA;
@@ -85,6 +88,7 @@ contract BridgeBaseTest is Test {
         committee.initialize(_committee, _stake);
     }
 
+    // TODO: It does not run if it is outside of setUpBridgeTest
     function testFailInitializeTotalStakeMustBe10000() public {
         address[] memory _committee = new address[](4);
         _committee[0] = committeeMemberA;
@@ -101,6 +105,7 @@ contract BridgeBaseTest is Test {
         vm.expectRevert(bytes("BridgeCommittee: Total stake must be 10000"));
         committee.initialize(_committee, _stake);
     }
+*/
 
     function setUpBridgeTest() public {
         vm.createSelectFork(
@@ -136,6 +141,57 @@ contract BridgeBaseTest is Test {
         _stake[3] = 2002;
         _stake[4] = 4998;
         committee = new BridgeCommittee();
+
+        // Test fail initialize: committee and stake arrays must be of the same length
+        address[] memory _committeeNotSameLength = new address[](5);
+        _committeeNotSameLength[0] = committeeMemberA;
+        _committeeNotSameLength[1] = committeeMemberB;
+        _committeeNotSameLength[2] = committeeMemberC;
+        _committeeNotSameLength[3] = committeeMemberD;
+        _committeeNotSameLength[4] = committeeMemberE;
+
+        uint16[] memory _stakeNotSameLength = new uint16[](4);
+        _stakeNotSameLength[0] = 1000;
+        _stakeNotSameLength[1] = 1000;
+        _stakeNotSameLength[2] = 1000;
+        _stakeNotSameLength[3] = 2002;
+
+        vm.expectRevert(bytes("BridgeCommittee: Committee and stake arrays must be of the same length"));
+        committee.initialize(_committeeNotSameLength, _stakeNotSameLength);
+
+        // Test fail initialize: Committee Duplicate Committee Member
+        address[] memory _committeeDuplicateCommitteeMember = new address[](5);
+        _committeeDuplicateCommitteeMember[0] = committeeMemberA;
+        _committeeDuplicateCommitteeMember[1] = committeeMemberB;
+        _committeeDuplicateCommitteeMember[2] = committeeMemberC;
+        _committeeDuplicateCommitteeMember[3] = committeeMemberD;
+        _committeeDuplicateCommitteeMember[4] = committeeMemberA;
+
+        uint16[] memory _stakeDuplicateCommitteeMember = new uint16[](5);
+        _stakeDuplicateCommitteeMember[0] = 1000;
+        _stakeDuplicateCommitteeMember[1] = 1000;
+        _stakeDuplicateCommitteeMember[2] = 1000;
+        _stakeDuplicateCommitteeMember[3] = 2002;
+        _stakeDuplicateCommitteeMember[4] = 1000;
+
+        vm.expectRevert(bytes("BridgeCommittee: Duplicate committee member"));
+        committee.initialize(_committeeDuplicateCommitteeMember, _stakeDuplicateCommitteeMember);
+
+        // Test fail initialize: Total Stake Must Be 10000
+        address[] memory _committeeTotalStakeMustBe10000 = new address[](4);
+        _committeeTotalStakeMustBe10000[0] = committeeMemberA;
+        _committeeTotalStakeMustBe10000[1] = committeeMemberB;
+        _committeeTotalStakeMustBe10000[2] = committeeMemberC;
+        _committeeTotalStakeMustBe10000[3] = committeeMemberD;
+
+        uint16[] memory _stakeTotalStakeMustBe10000 = new uint16[](4);
+        _stakeTotalStakeMustBe10000[0] = 1000;
+        _stakeTotalStakeMustBe10000[1] = 1000;
+        _stakeTotalStakeMustBe10000[2] = 1000;
+        _stakeTotalStakeMustBe10000[3] = 2000;
+
+        vm.expectRevert(bytes("BridgeCommittee: Total stake must be 10000"));
+        committee.initialize(_committeeTotalStakeMustBe10000, _stakeTotalStakeMustBe10000);
 
         committee.initialize(_committee, _stake);
         vault = new BridgeVault(wETH);

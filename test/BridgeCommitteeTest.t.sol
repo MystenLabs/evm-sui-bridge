@@ -259,6 +259,34 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         committee.upgradeCommitteeWithSignatures(signatures, message);
     }
 
+    function testUpgradeCommitteeWithSignaturesEmptyData() public {
+        // create payload
+        bytes memory payload = abi.encode(address(this), "");
+
+        // Create a message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.COMMITTEE_UPGRADE,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: payload
+        });
+
+        bytes memory messageBytes = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(messageBytes);
+        bytes[] memory signatures = new bytes[](4);
+
+        // Create signatures from A - D
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        // TODO: FAILS
+        vm.expectRevert(bytes("ERC1967Upgrade: new implementation is not UUPS"));
+        committee.upgradeCommitteeWithSignatures(signatures, message);
+    }
+
     function testUpgradeCommitteeWithSignatures() public {
         // create payload
         bytes memory payload = abi.encode(address(this), "test");
