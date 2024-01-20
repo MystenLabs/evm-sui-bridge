@@ -1,25 +1,17 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./utils/CommitteeOwned.sol";
+import "./utils/CommitteeUpgradeable.sol";
 import "./interfaces/IWETH9.sol";
 import "./interfaces/IBridgeVault.sol";
 import "./interfaces/IBridgeLimiter.sol";
 import "./interfaces/ISuiBridge.sol";
 import "./interfaces/IBridgeTokens.sol";
 
-contract SuiBridge is
-    ISuiBridge,
-    CommitteeOwned,
-    PausableUpgradeable,
-    ReentrancyGuardUpgradeable,
-    UUPSUpgradeable
-{
+contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
     IBridgeVault public vault;
@@ -40,10 +32,8 @@ contract SuiBridge is
         address _weth9,
         uint8 _chainID
     ) external initializer {
-        __ReentrancyGuard_init();
+        __CommitteeUpgradeable_init(_committee);
         __Pausable_init();
-        __UUPSUpgradeable_init();
-        __CommitteeOwned_init(_committee);
         tokens = IBridgeTokens(_tokens);
         vault = IBridgeVault(_vault);
         limiter = IBridgeLimiter(_limiter);
@@ -56,7 +46,7 @@ contract SuiBridge is
     function transferTokensWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
-    ) external nonReentrant validateMessage(message, signatures, BridgeMessage.TOKEN_TRANSFER) {
+    ) external nonReentrant verifySignatures(message, signatures, BridgeMessage.TOKEN_TRANSFER) {
         // verify that message has not been processed
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
 
@@ -79,34 +69,12 @@ contract SuiBridge is
     function executeEmergencyOpWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
-    )
-        external
-        nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.EMERGENCY_OP)
-    {
+    ) external nonReentrant verifySignatures(message, signatures, BridgeMessage.EMERGENCY_OP) {
         // decode the emergency op message
         bool isFreezing = BridgeMessage.decodeEmergencyOpPayload(message.payload);
 
         if (isFreezing) _pause();
         else _unpause();
-    }
-
-    function upgradeBridgeWithSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message
-    )
-        external
-        nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.BRIDGE_UPGRADE)
-    {
-        // decode the upgrade payload
-        (address implementationAddress, bytes memory callData) =
-            BridgeMessage.decodeUpgradePayload(message.payload);
-
-        // update the upgrade
-        _upgradeBridge(implementationAddress, callData);
     }
 
     function bridgeToSui(
@@ -145,7 +113,7 @@ contract SuiBridge is
             suiAdjustedAmount,
             msg.sender,
             targetAddress
-            );
+        );
 
         // increment token transfer nonce
         nonces[BridgeMessage.TOKEN_TRANSFER]++;
@@ -177,7 +145,7 @@ contract SuiBridge is
             suiAdjustedAmount,
             msg.sender,
             targetAddress
-            );
+        );
 
         // increment token transfer nonce
         nonces[BridgeMessage.TOKEN_TRANSFER]++;
@@ -271,14 +239,5 @@ contract SuiBridge is
 
         // update amount bridged
         limiter.updateBridgeTransfers(tokenId, amount);
-    }
-
-    function _upgradeBridge(address newImplementation, bytes memory data) internal {
-        if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
-        else _upgradeTo(newImplementation);
-    }
-
-    function _authorizeUpgrade(address) internal view override {
-        require(_msgSender() == address(this));
     }
 }

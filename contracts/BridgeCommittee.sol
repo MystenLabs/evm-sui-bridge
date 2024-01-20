@@ -1,18 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./interfaces/IBridgeCommittee.sol";
-import "./utils/CommitteeOwned.sol";
+import "./utils/CommitteeUpgradeable.sol";
 
-contract BridgeCommittee is
-    IBridgeCommittee,
-    CommitteeOwned,
-    UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
-{
+contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
     // member address => stake amount
@@ -26,9 +19,8 @@ contract BridgeCommittee is
         external
         initializer
     {
+        __CommitteeUpgradeable_init(address(this));
         __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
-        __CommitteeOwned_init(address(this));
         require(
             _committeeMembers.length == stakes.length,
             "BridgeCommittee: Committee and stake arrays must be of the same length"
@@ -68,7 +60,7 @@ contract BridgeCommittee is
             // recover the signer from the signature
             (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
 
-            (signer,) = ECDSA.tryRecover(BridgeMessage.computeHash(message), v, r, s);
+            (signer,,) = ECDSA.tryRecover(BridgeMessage.computeHash(message), v, r, s);
 
             // Check if the signer is a committee member and not already approved
             require(committeeMembers[signer] > 0, "BridgeCommittee: Not a committee member");
@@ -85,35 +77,13 @@ contract BridgeCommittee is
     function updateBlocklistWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
-    )
-        external
-        nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.BLOCKLIST)
-    {
+    ) external nonReentrant verifySignatures(message, signatures, BridgeMessage.BLOCKLIST) {
         // decode the blocklist payload
         (bool isBlocklisted, address[] memory _blocklist) =
             BridgeMessage.decodeBlocklistPayload(message.payload);
 
         // update the blocklist
         _updateBlocklist(_blocklist, isBlocklisted);
-    }
-
-    function upgradeCommitteeWithSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message
-    )
-        external
-        nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.COMMITTEE_UPGRADE)
-    {
-        // decode the upgrade payload
-        (address implementationAddress, bytes memory callData) =
-            BridgeMessage.decodeUpgradePayload(message.payload);
-
-        // update the upgrade
-        _upgradeCommittee(implementationAddress, callData);
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
@@ -125,11 +95,6 @@ contract BridgeCommittee is
         }
 
         emit BlocklistUpdated(_blocklist, isBlocklisted);
-    }
-
-    function _upgradeCommittee(address newImplementation, bytes memory data) internal {
-        if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
-        else _upgradeTo(newImplementation);
     }
 
     // Helper function to split a signature into R, S, and V components
@@ -150,9 +115,5 @@ contract BridgeCommittee is
 
         //adjust for ethereum signature verification
         if (v < 27) v += 27;
-    }
-
-    function _authorizeUpgrade(address newImplementation) internal view override {
-        require(msg.sender == address(this));
     }
 }

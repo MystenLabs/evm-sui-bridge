@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -10,7 +10,7 @@ contract BridgeVault is Ownable, IBridgeVault {
     // The WETH address
     IWETH9 public immutable wETH;
 
-    constructor(address _wETH) Ownable() {
+    constructor(address _wETH) Ownable(msg.sender) {
         // Set the WETH address
         wETH = IWETH9(_wETH);
     }

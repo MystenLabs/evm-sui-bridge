@@ -1,21 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./interfaces/IBridgeLimiter.sol";
 import "./interfaces/IBridgeTokens.sol";
-import "./utils/CommitteeOwned.sol";
+import "./utils/CommitteeUpgradeable.sol";
 
-contract BridgeLimiter is
-    IBridgeLimiter,
-    CommitteeOwned,
-    OwnableUpgradeable,
-    UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
-{
+contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
     IBridgeTokens public tokens;
@@ -35,10 +27,8 @@ contract BridgeLimiter is
         uint256[] memory _assetPrices,
         uint256 _totalLimit
     ) external initializer {
-        __Ownable_init();
-        __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
-        __CommitteeOwned_init(_committee);
+        __CommitteeUpgradeable_init(_committee);
+        __Ownable_init(msg.sender);
         tokens = IBridgeTokens(_tokens);
         for (uint8 i = 0; i < _assetPrices.length; i++) {
             assetPrices[i] = _assetPrices[i];
@@ -117,8 +107,7 @@ contract BridgeLimiter is
     )
         external
         nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.UPDATE_ASSET_PRICE)
+        verifySignatures(message, signatures, BridgeMessage.UPDATE_ASSET_PRICE)
     {
         // decode the update asset payload
         (uint8 tokenId, uint256 price) = BridgeMessage.decodeUpdateAssetPayload(message.payload);
@@ -133,38 +122,12 @@ contract BridgeLimiter is
     )
         external
         nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
+        verifySignatures(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
     {
         // decode the update limit payload
         (uint256 newLimit) = BridgeMessage.decodeUpdateLimitPayload(message.payload);
 
         // update the limit
         totalLimit = newLimit;
-    }
-
-    function upgradeLimiterWithSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message
-    )
-        external
-        nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
-    {
-        // decode the upgrade payload
-        (address newImplementation, bytes memory callData) =
-            BridgeMessage.decodeUpgradePayload(message.payload);
-
-        _upgradeLimiter(newImplementation, callData);
-    }
-
-    function _upgradeLimiter(address newImplementation, bytes memory data) internal {
-        if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
-        else _upgradeTo(newImplementation);
-    }
-
-    function _authorizeUpgrade(address) internal view override {
-        require(_msgSender() == address(this));
     }
 }
