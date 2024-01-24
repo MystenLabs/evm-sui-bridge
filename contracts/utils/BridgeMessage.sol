@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+/// @title BridgeMessage
+/// @notice This library defines the message format and constants for the Sui native bridge.
+/// @dev The message prefix and the token decimals are fixed for the Sui bridge.
 library BridgeMessage {
     // message Ids
     uint8 public constant TOKEN_TRANSFER = 0;
@@ -37,6 +40,12 @@ library BridgeMessage {
 
     string public constant MESSAGE_PREFIX = "SUI_BRIDGE_MESSAGE";
 
+    /// @dev A struct that represents a bridge message
+    /// @param messageType The type of the message, such as token transfer, blocklist, etc.
+    /// @param version The version of the message format
+    /// @param nonce The nonce of the message, used to prevent replay attacks
+    /// @param chainID The chain ID of the source chain
+    /// @param payload The payload of the message, which depends on the message type
     struct Message {
         uint8 messageType;
         uint8 version;
@@ -45,6 +54,14 @@ library BridgeMessage {
         bytes payload;
     }
 
+    /// @dev A struct that represents a token transfer payload
+    /// @param senderAddressLength The length of the sender address in bytes
+    /// @param senderAddress The address of the sender on the source chain
+    /// @param targetChain The chain ID of the target chain
+    /// @param targetAddressLength The length of the target address in bytes
+    /// @param targetAddress The address of the recipient on the target chain
+    /// @param tokenId The ID of the token to be transferred
+    /// @param amount The amount of the token to be transferred
     struct TokenTransferPayload {
         uint8 senderAddressLength;
         bytes senderAddress;
@@ -56,28 +73,22 @@ library BridgeMessage {
     }
 
     // TODO: add unit test for this function
+    /// @dev Encodes a bridge message into bytes, useing abi.encodePacked to concatenate the message fields
+    /// @param message The bridge message to be encoded.
+    /// @return The encoded message as bytes.
     function encodeMessage(Message memory message) internal pure returns (bytes memory) {
         bytes memory prefixTypeAndVersion =
             abi.encodePacked(MESSAGE_PREFIX, message.messageType, message.version);
-        bytes memory bigEndianNonce = abi.encodePacked(message.nonce);
-        bytes memory littleEndianNonce = bigEndiantToLittleEndian(bigEndianNonce);
+        bytes memory nonce = abi.encodePacked(message.nonce);
         bytes memory chainID = abi.encodePacked(message.chainID);
-        return bytes.concat(prefixTypeAndVersion, littleEndianNonce, chainID, message.payload);
-    }
-
-    // TODO: replace with assembly?
-    function bigEndiantToLittleEndian(bytes memory message) internal pure returns (bytes memory) {
-        bytes memory littleEndianMessage = new bytes(message.length);
-        for (uint256 i = 0; i < message.length; i++) {
-            littleEndianMessage[message.length - i - 1] = message[i];
-        }
-        return littleEndianMessage;
+        return bytes.concat(prefixTypeAndVersion, nonce, chainID, message.payload);
     }
 
     function computeHash(Message memory message) internal pure returns (bytes32) {
         return keccak256(encodeMessage(message));
     }
 
+    // TODO: Check if the values for UPDATE_BRIDGE_LIMIT, UPDATE_ASSET_PRICE, and COMMITTEE_UPGRADE are correct
     function getRequiredStake(Message memory message) internal pure returns (uint32) {
         if (message.messageType == TOKEN_TRANSFER) {
             return TRANSFER_STAKE_REQUIRED;
@@ -87,10 +98,16 @@ library BridgeMessage {
             bool isFreezing = decodeEmergencyOpPayload(message.payload);
             if (isFreezing) return FREEZING_STAKE_REQUIRED;
             return UNFREEZING_STAKE_REQUIRED;
+        } else if (message.messageType == UPDATE_BRIDGE_LIMIT) {
+            return ASSET_LIMIT_STAKE_REQUIRED;
+        } else if (message.messageType == UPDATE_ASSET_PRICE) {
+            return ASSET_LIMIT_STAKE_REQUIRED;
         } else if (message.messageType == BRIDGE_UPGRADE) {
             return BRIDGE_UPGRADE_STAKE_REQUIRED;
         } else if (message.messageType == COMMITTEE_UPGRADE) {
             return COMMITTEE_UPGRADE_STAKE_REQUIRED;
+        } else if (message.messageType == LIMITER_UPGRADE) {
+            return ASSET_LIMIT_STAKE_REQUIRED;
         } else {
             revert("BridgeMessage: Invalid message type");
         }
@@ -107,48 +124,79 @@ library BridgeMessage {
         return (implementationAddress, callData);
     }
 
+    // TokenTransfer payload is 64 bytes.
+    // byte 0       : sender address length
+    // bytes 1-32   : sender address (as we only support Sui now, it has to be 32 bytes long)
+    // bytes 33     : target chain id
+    // byte 34      : target address length
+    // bytes 35-54  : target address
+    // byte 55      : token id
+    // bytes 56-63  : amount
     function decodeTokenTransferPayload(bytes memory payload)
         internal
         pure
         returns (BridgeMessage.TokenTransferPayload memory)
     {
-        // TODO: if we support multi chains, the source address length may vary
-
         require(payload.length == 64, "BridgeMessage: TokenTransferPayload must be 64 bytes");
 
         uint8 senderAddressLength = uint8(payload[0]);
 
+        require(
+            senderAddressLength == 32,
+            "BridgeMessage: Invalid sender address length, Sui address must be 32 bytes"
+        );
+
+        // used to offset already read bytes
+        uint8 offset = 1;
+
+        // extract sender address from payload bytes 1-32
         bytes memory senderAddress = new bytes(senderAddressLength);
         for (uint256 i = 0; i < senderAddressLength; i++) {
-            senderAddress[i] = payload[i + 1];
+            senderAddress[i] = payload[i + offset];
         }
 
-        uint8 targetChain = uint8(payload[1 + senderAddressLength]);
+        // move offset past the sender address length
+        offset += senderAddressLength;
 
-        // TODO I think we want to assert chainID here.
-        // should do this in message verification not decoding
+        // target chain is a single byte
+        uint8 targetChain = uint8(payload[offset++]);
 
-        uint8 targetAddressLength = uint8(payload[1 + senderAddressLength + 1]);
+        // target address length is a single byte
+        uint8 targetAddressLength = uint8(payload[offset++]);
         require(
             targetAddressLength == 20,
             "BridgeMessage: Invalid target address length, EVM address must be 20 bytes"
         );
 
-        // targetAddress starts from index 35
-        uint160 addr = 0;
-        for (uint256 i = 0; i < 20; i++) {
-            addr = uint160(addr) | (uint160(uint8(payload[i + 35])) << uint160(((19 - i) * 8)));
+        // extract target address from payload (35-54)
+        address targetAddress;
+        // why `add(targetAddressLength, offset)`?
+        // At this point, offset = 35, targetAddressLength = 20. `mload(add(payload, 55))`
+        // reads the next 32 bytes from bytes 23 in paylod, because the first 32 bytes
+        // of payload stores its length. So in reality, bytes 23 - 54 is loaded. During
+        // casting to address (20 bytes), the least sigificiant bytes are retained, namely
+        // `targetAddress` is bytes 35-54
+        assembly {
+            targetAddress := mload(add(payload, add(targetAddressLength, offset)))
         }
-        address targetAddress = address(addr);
 
-        uint256 tokenIdOffset = 1 + senderAddressLength + 1 + 1 + 20;
-        uint8 tokenId = uint8(payload[tokenIdOffset]);
+        // move offset past the target address length
+        offset += targetAddressLength;
 
+        // token id is a single byte
+        uint8 tokenId = uint8(payload[offset++]);
+
+        // extract amount from payload
         uint64 amount;
-        uint8 offset;
-        for (uint256 i = payload.length - 8; i < payload.length; i++) {
-            amount |= uint64(uint8(payload[i])) << (offset * 8);
-            offset++;
+        uint8 amountLength = 8; // uint64 = 8 bits
+        // Why `add(amountLength, offset)`?
+        // At this point, offset = 56, amountLength = 8. `mload(add(payload, 64))`
+        // reads the next 32 bytes from bytes 32 in paylod, because the first 32 bytes
+        // of payload stores its length. So in reality, bytes 32 - 63 is loaded. During
+        // casting to uint64 (8 bytes), the least sigificiant bytes are retained, namely
+        // `targetAddress` is bytes 56-63
+        assembly {
+            amount := mload(add(payload, add(amountLength, offset)))
         }
 
         return TokenTransferPayload(
@@ -162,21 +210,12 @@ library BridgeMessage {
         );
     }
 
-    // TODO: add unit test
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
         (uint8 emergencyOpCode) = abi.decode(payload, (uint8));
         require(emergencyOpCode <= 1, "BridgeMessage: Invalid op code");
-
-        if (emergencyOpCode == 0) {
-            return true;
-        } else if (emergencyOpCode == 1) {
-            return false;
-        } else {
-            revert("BridgeMessage: Invalid emergency operation code");
-        }
+        return emergencyOpCode == 0 ? true : false;
     }
 
-    // TODO: add unit test
     function decodeBlocklistPayload(bytes memory payload)
         internal
         pure
