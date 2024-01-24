@@ -32,24 +32,20 @@ contract BridgeCommittee is
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __CommitteeOwned_init(address(this));
-        uint256 _committeeMembersArrayLength = _committeeMembers.length;
+uint256 _committeeMembersArrayLength = _committeeMembers.length;
         require(
             _committeeMembersArrayLength == stakes.length,
             "BridgeCommittee: Committee and stake arrays must be of the same length"
         );
 
-        uint16 total_stake = 0;
-        for (uint16 i = 0; i < _committeeMembersArrayLength;) {
+        uint16 total_stake;
+        for (uint16 i; i < _committeeMembersArrayLength; i++) {
             require(
                 committeeMembers[_committeeMembers[i]] == 0,
                 "BridgeCommittee: Duplicate committee member"
             );
             committeeMembers[_committeeMembers[i]] = stakes[i];
             total_stake += stakes[i];
-            // use an unchecked block to save gas
-            unchecked {
-                i++;
-            }
         }
 
         require(total_stake == 10000, "BridgeCommittee: Total stake must be 10000");
@@ -78,7 +74,7 @@ contract BridgeCommittee is
 		// Declare an array to store the recovered addresses
 		address[] memory seen = new address[](signaturesArrayLength);
         uint256 seenIndex;
-        for (uint16 i; i < signaturesArrayLength;) {
+        for (uint16 i; i < signaturesArrayLength; i++) {
             bytes memory signature = signatures[i];
             // recover the signer from the signature
             (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
@@ -105,10 +101,6 @@ contract BridgeCommittee is
             if (blocklist[signer]) continue;
 
             approvalStake += committeeMembers[signer];
-            // use an unchecked block to save gas
-            unchecked {
-                i++;
-            }
         }
 
         require(approvalStake >= requiredStake, "BridgeCommittee: Insufficient stake amount");
