@@ -28,7 +28,7 @@ abstract contract MessageVerifier is Initializable {
 
         // increment message type nonce
         if (messageType != BridgeMessage.TOKEN_TRANSFER) {
-            require(message.nonce == nonces[message.messageType], "SuiBridge: Invalid nonce");
+            require(message.nonce == nonces[message.messageType], "MessageVerifier: Invalid nonce");
             nonces[message.messageType]++;
         }
         _;
