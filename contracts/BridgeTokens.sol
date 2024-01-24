@@ -8,7 +8,7 @@ import "./interfaces/IBridgeTokens.sol";
 /// @dev This contract manages the supported tokens on the bridge.
 contract BridgeTokens is Ownable, IBridgeTokens {
     // token id => token address
-    mapping(uint8 => address) public supportedTokens;
+    mapping(uint8 tokenId => address tokenAddress) public supportedTokens;
 
     /// @dev Constructor function
     /// @param _supportedTokens An array of addresses representing the supported tokens

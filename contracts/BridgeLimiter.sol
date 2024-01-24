@@ -22,9 +22,9 @@ contract BridgeLimiter is
 
     IBridgeTokens public tokens;
     // hour timestamp => total amount bridged (on a given hour)
-    mapping(uint32 => uint256) public hourlyTransferAmount;
+    mapping(uint32 hourTimestamp => uint256 totalAmountBridged) public hourlyTransferAmount;
     // token id => token price in USD (4 decimal precision) (e.g. 1 ETH = 2000 USD => 20000000)
-    mapping(uint8 => uint256) public assetPrices;
+    mapping(uint8 tokenId => uint256 tokenPriceInUSD) public assetPrices;
     // total limit in USD (4 decimal precision) (e.g. 10000000 => 1000 USD)
     uint256 public totalLimit;
     uint32 public oldestHourTimestamp;
@@ -213,6 +213,6 @@ contract BridgeLimiter is
     /// @param newImplementation The address of the new implementation contract.
     /// @notice This function is called internally to authorize an upgrade. It ensures that only the contract itself can authorize an upgrade.
     function _authorizeUpgrade(address newImplementation) internal view override {
-        require(_msgSender() == address(this));
+        require(_msgSender() == address(this), "BridgeLimiter: not authorized");
     }
 }

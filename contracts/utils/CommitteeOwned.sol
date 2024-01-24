@@ -9,7 +9,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 abstract contract CommitteeOwned is Initializable {
     IBridgeCommittee public committee;
     // messageType => nonce
-    mapping(uint8 => uint64) public nonces;
+    mapping(uint8 messageType => uint64 nonce) public nonces;
 
     /// @dev Initializes the contract with the specified committee address.
     /// @param _committee The address of the committee contract.

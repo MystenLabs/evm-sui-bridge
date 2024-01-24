@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "./interfaces/IBridgeCommittee.sol";
 import "./utils/CommitteeOwned.sol";
 
 /// @title BridgeCommittee
@@ -18,9 +17,9 @@ contract BridgeCommittee is
     /* ========== STATE VARIABLES ========== */
 
     // member address => stake amount
-    mapping(address => uint16) public committeeMembers;
+    mapping(address committeeMemberAddress => uint16 committeeMemberStakeAmount) public committeeMembers;
     // member address => is blocklisted
-    mapping(address => bool) public blocklist;
+    mapping(address blocklistAddress => bool isBlocklisted) public blocklist;
 
     /* ========== INITIALIZER ========== */
 
@@ -33,19 +32,24 @@ contract BridgeCommittee is
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __CommitteeOwned_init(address(this));
+        uint256 _committeeMembersArrayLength = _committeeMembers.length;
         require(
-            _committeeMembers.length == stakes.length,
+            _committeeMembersArrayLength == stakes.length,
             "BridgeCommittee: Committee and stake arrays must be of the same length"
         );
 
         uint16 total_stake = 0;
-        for (uint16 i = 0; i < _committeeMembers.length; i++) {
+        for (uint16 i = 0; i < _committeeMembersArrayLength;) {
             require(
                 committeeMembers[_committeeMembers[i]] == 0,
                 "BridgeCommittee: Duplicate committee member"
             );
             committeeMembers[_committeeMembers[i]] = stakes[i];
             total_stake += stakes[i];
+            // use an unchecked block to save gas
+            unchecked {
+                i++;
+            }
         }
 
         require(total_stake == 10000, "BridgeCommittee: Total stake must be 10000");
@@ -61,8 +65,10 @@ contract BridgeCommittee is
         bytes[] memory signatures,
         BridgeMessage.Message memory message,
         uint8 messageType
-    ) public view override {
+    ) external view override {
         require(message.messageType == messageType, "BridgeCommittee: message does not match type");
+
+        uint256 signaturesArrayLength = signatures.length;
 
         uint32 requiredStake = BridgeMessage.getRequiredStake(message);
 
@@ -70,9 +76,9 @@ contract BridgeCommittee is
         uint16 approvalStake;
         address signer;
 		// Declare an array to store the recovered addresses
-		address[] memory seen = new address[](signatures.length);
-        uint256 seenIndex = 0;
-        for (uint16 i = 0; i < signatures.length; i++) {
+		address[] memory seen = new address[](signaturesArrayLength);
+        uint256 seenIndex;
+        for (uint16 i; i < signaturesArrayLength;) {
             bytes memory signature = signatures[i];
             // recover the signer from the signature
             (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
@@ -99,6 +105,10 @@ contract BridgeCommittee is
             if (blocklist[signer]) continue;
 
             approvalStake += committeeMembers[signer];
+            // use an unchecked block to save gas
+            unchecked {
+                i++;
+            }
         }
 
         require(approvalStake >= requiredStake, "BridgeCommittee: Insufficient stake amount");
@@ -149,7 +159,7 @@ contract BridgeCommittee is
     /// @dev Internal function to update the blocklist status of multiple addresses.
     /// @param _blocklist The array of addresses to update the blocklist status for.
     /// @param isBlocklisted The new blocklist status to set for the addresses.
-    function _updateBlocklist(address[] memory _blocklist, bool isBlocklisted) internal {
+    function _updateBlocklist(address[] memory _blocklist, bool isBlocklisted) private {
         // check original blocklist value of each validator
         for (uint16 i = 0; i < _blocklist.length; i++) {
             blocklist[_blocklist[i]] = isBlocklisted;
@@ -161,7 +171,7 @@ contract BridgeCommittee is
     /// @dev Upgrades the committee implementation to a new address and optionally calls a function on the new implementation.
     /// @param newImplementation The address of the new committee implementation.
     /// @param data The data to be passed to the new implementation's function, if any.
-    function _upgradeCommittee(address newImplementation, bytes memory data) internal {
+    function _upgradeCommittee(address newImplementation, bytes memory data) private {
         if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
         else _upgradeTo(newImplementation);
     }
@@ -172,7 +182,7 @@ contract BridgeCommittee is
     /// @return s The S component of the signature.
     /// @return v The V component of the signature.
     function splitSignature(bytes memory sig)
-        internal
+        private
         pure
         returns (bytes32 r, bytes32 s, uint8 v)
     {
@@ -193,6 +203,6 @@ contract BridgeCommittee is
     /// @dev Internal function to authorize an upgrade to a new implementation contract. Only the contract itself can authorize an upgrade.
     /// @param newImplementation The address of the new implementation contract.
     function _authorizeUpgrade(address newImplementation) internal view override {
-        require(msg.sender == address(this));
+        require(msg.sender == address(this), "BridgeCommittee: Only contract can authorize upgrades");
     }
 }

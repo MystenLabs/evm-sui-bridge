@@ -5,7 +5,6 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./utils/CommitteeOwned.sol";
 import "./interfaces/IWETH9.sol";
 import "./interfaces/IBridgeVault.sol";
@@ -29,7 +28,7 @@ contract SuiBridge is
     IBridgeTokens public tokens;
     IWETH9 public weth9;
     // message nonce => processed
-    mapping(uint64 => bool) public messageProcessed;
+    mapping(uint64 nonce => bool isProcessed) public messageProcessed;
     uint8 public chainID;
 
     /* ========== INITIALIZER ========== */
@@ -290,7 +289,7 @@ contract SuiBridge is
     /// @param tokenId The ID of the token.
     /// @return The decimal value of the token on SuiBridge.
     /// @dev Reverts if the token ID does not have a Sui decimal set.
-    function getDecimalOnSui(uint8 tokenId) internal pure returns (uint8) {
+    function getDecimalOnSui(uint8 tokenId) private pure returns (uint8) {
         if (tokenId == BridgeMessage.SUI) {
             return BridgeMessage.SUI_DECIMAL_ON_SUI;
         } else if (tokenId == BridgeMessage.BTC) {
@@ -310,7 +309,7 @@ contract SuiBridge is
     /// @param targetAddress The address to which the tokens are being transferred.
     /// @param amount The amount of tokens being transferred.
     function _transferTokensFromVault(uint8 tokenId, address targetAddress, uint256 amount)
-        internal
+        private
         whenNotPaused
     {
         address tokenAddress = tokens.getAddress(tokenId);
@@ -333,7 +332,7 @@ contract SuiBridge is
     /// @dev Upgrades the bridge contract to a new implementation.
     /// @param newImplementation The address of the new implementation contract.
     /// @param data The data to be passed to the new implementation contract's upgrade function.
-    function _upgradeBridge(address newImplementation, bytes memory data) internal {
+    function _upgradeBridge(address newImplementation, bytes memory data) private {
         if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
         else _upgradeTo(newImplementation);
     }
@@ -341,6 +340,6 @@ contract SuiBridge is
     /// @dev Internal function to authorize an upgrade.
     /// @param _address The address to authorize the upgrade for.
     function _authorizeUpgrade(address _address) internal view override {
-        require(_msgSender() == address(this));
+        require(_msgSender() == address(this), "SuiBridge: not authorized");
     }
 }

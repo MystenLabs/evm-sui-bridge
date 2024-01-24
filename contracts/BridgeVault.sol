@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IWETH9.sol";
 import "./interfaces/IBridgeVault.sol";
 
@@ -51,7 +50,9 @@ contract BridgeVault is Ownable, IBridgeVault {
 
         // TODO: check transfer success
         // Transfer the unwrapped ETH to the target address
-        targetAddress.transfer(amount);
+        // Send ether and specify a custom gas amount
+        (bool success, ) = targetAddress.call{value: amount/**, gas: 5000*/}("");
+        require(success, "BridgeVault: Transfer failed");
     }
 
     // These are needed to receive ETH when unwrapping WETH

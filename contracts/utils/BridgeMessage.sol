@@ -214,7 +214,7 @@ library BridgeMessage {
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
         (uint8 emergencyOpCode) = abi.decode(payload, (uint8));
         require(emergencyOpCode <= 1, "BridgeMessage: Invalid op code");
-        return emergencyOpCode == 0 ? true : false;
+        return (emergencyOpCode == 0);
     }
 
     function decodeBlocklistPayload(bytes memory payload)
@@ -224,7 +224,7 @@ library BridgeMessage {
     {
         (uint8 blocklistType, address[] memory validators) = abi.decode(payload, (uint8, address[]));
         // blocklistType: 0 = blocklist, 1 = unblocklist
-        bool blocklisted = (blocklistType == 0) ? true : false;
+        bool blocklisted = (blocklistType == 0);
         return (blocklisted, validators);
     }
 
