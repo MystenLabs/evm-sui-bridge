@@ -39,6 +39,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
 
     /* ========== VIEW FUNCTIONS ========== */
 
+    // TODO: enable this function to handle the amount in USD (or add a new function for USD amount?)
     function willAmountExceedLimit(uint8 tokenId, uint256 amount) public view returns (bool) {
         uint256 windowAmount = calculateWindowAmount();
         uint256 USDAmount = calculateAmountInUSD(tokenId, amount);
@@ -65,6 +66,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
+    // TODO: add currentHour function and remove code redundancy
     function updateBridgeTransfers(uint8 tokenId, uint256 amount) external override onlyOwner {
         require(amount > 0, "BridgeLimiter: amount must be greater than 0");
         require(
@@ -75,7 +77,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
         uint32 currentHour = uint32(block.timestamp / 1 hours);
 
         // garbage collect most recently expired hour if window is moving
-        if (hourlyTransferAmount[currentHour] == 0 && oldestHourTimestamp < currentHour - 24) {
+        if (oldestHourTimestamp < currentHour - 24) {
             garbageCollectHourlyTransferAmount(currentHour - 25, currentHour - 25);
         }
 

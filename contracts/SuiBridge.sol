@@ -43,6 +43,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
+    // TODO: add modifier to check limit is not exceeded to save gas for reverted txs
     function transferTokensWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message

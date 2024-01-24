@@ -11,4 +11,6 @@ contract MockSuiBridgeV2 is SuiBridge {
     function newMockFunction() external {
         _unpause();
     }
+
+    function test() external view {}
 }
