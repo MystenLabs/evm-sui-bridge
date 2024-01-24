@@ -28,7 +28,7 @@ contract SuiBridge is
     IBridgeTokens public tokens;
     IWETH9 public weth9;
     // message nonce => processed
-    mapping(uint64 nonce => bool isProcessed) public messageProcessed;
+    mapping(uint64 nonce => bool hasBeenProcessed) public messageProcessed;
     uint8 public chainID;
 
     /* ========== INITIALIZER ========== */
