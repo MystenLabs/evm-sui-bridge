@@ -10,6 +10,7 @@ import "../contracts/BridgeVault.sol";
 import "../contracts/BridgeTokens.sol";
 import "../contracts/BridgeLimiter.sol";
 import "../contracts/SuiBridge.sol";
+import "../test/mocks/MockTokens.sol";
 
 contract DeployBridge is Script {
     function run() external {
@@ -21,11 +22,25 @@ contract DeployBridge is Script {
         string memory path = string.concat(root, "/deploy_configs/", chainID, ".json");
         string memory json = vm.readFile(path);
         bytes memory bytesJson = vm.parseJson(json);
-        // console.logBytes(bytesJson);
         DeployConfig memory config = abi.decode(bytesJson, (DeployConfig));
+
         // TODO: validate config values before deploying
 
-        // TODO: deploy mocks if local network
+        // if deploying to local network, deploy mock tokens
+        if (keccak256(abi.encode(chainID)) == keccak256(abi.encode("31337"))) {
+            // deploy WETH
+            config.WETH = address(new WETH());
+
+            // deploy mock tokens
+            MockWBTC wBTC = new MockWBTC();
+            MockUSDC USDC = new MockUSDC();
+
+            // update config with mock addresses
+            config.supportedTokens = new address[](3);
+            config.supportedTokens[0] = address(wBTC);
+            config.supportedTokens[1] = config.WETH;
+            config.supportedTokens[2] = address(USDC);
+        }
 
         // deploy Bridge Committee
 
@@ -93,6 +108,7 @@ contract DeployBridge is Script {
     }
 }
 
+// TODO: add gotchas and references to foundry docs
 struct DeployConfig {
     uint256[] assetPrices;
     uint256[] committeeMemberStake;

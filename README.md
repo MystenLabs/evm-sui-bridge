@@ -42,13 +42,15 @@ forge coverage
 > The file should be named `<chainID>.json` and should have the same fields and in the same order (alphabetical) as the `example.json`.
 
 ```bash
-forge script deploy/deploy_bridge.s.sol --rpc-url <<alias>> --broadcast --verify --ffi
+forge clean
+forge script script/deploy_bridge.s.sol --rpc-url <<alias>> --broadcast --verify --ffi
 ```
 
 **Local deployment**
 
 ```bash
-forge script deploy/deploy_bridge.s.sol --fork-url anvil --broadcast --ffi
+forge clean
+forge script script/deploy_bridge.s.sol --fork-url anvil --broadcast --ffi
 ```
 
 All deployments are saved in the `broadcast` directory.

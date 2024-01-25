@@ -12,8 +12,6 @@ abstract contract MessageVerifier is Initializable {
     // messageType => nonce
     mapping(uint8 => uint64) public nonces;
 
-    bool private _upgradeAuthorized;
-
     function __MessageVerifier_init(address _committee) internal onlyInitializing {
         committee = IBridgeCommittee(_committee);
     }
