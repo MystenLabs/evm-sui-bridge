@@ -151,7 +151,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
     )
         external
         nonReentrant
-        verifySignatures(message, signatures, BridgeMessage.UPDATE_ASSET_PRICE)
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.UPDATE_ASSET_PRICE)
     {
         // decode the update asset payload
         (uint8 tokenId, uint256 price) = BridgeMessage.decodeUpdateAssetPayload(message.payload);
@@ -169,7 +169,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
     )
         external
         nonReentrant
-        verifySignatures(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
     {
         // decode the update limit payload
         (uint256 newLimit) = BridgeMessage.decodeUpdateLimitPayload(message.payload);

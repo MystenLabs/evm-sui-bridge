@@ -62,7 +62,11 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     function transferTokensWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
-    ) external nonReentrant verifySignatures(message, signatures, BridgeMessage.TOKEN_TRANSFER) {
+    )
+        external
+        nonReentrant
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.TOKEN_TRANSFER)
+    {
         // verify that message has not been processed
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
 
@@ -94,7 +98,11 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     function executeEmergencyOpWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
-    ) external nonReentrant verifySignatures(message, signatures, BridgeMessage.EMERGENCY_OP) {
+    )
+        external
+        nonReentrant
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.EMERGENCY_OP)
+    {
         // decode the emergency op message
         bool isFreezing = BridgeMessage.decodeEmergencyOpPayload(message.payload);
 

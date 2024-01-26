@@ -102,7 +102,11 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
     function updateBlocklistWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
-    ) external nonReentrant verifySignatures(message, signatures, BridgeMessage.BLOCKLIST) {
+    )
+        external
+        nonReentrant
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.BLOCKLIST)
+    {
         // decode the blocklist payload
         (bool isBlocklisted, address[] memory _blocklist) =
             BridgeMessage.decodeBlocklistPayload(message.payload);

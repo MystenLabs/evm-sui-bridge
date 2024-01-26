@@ -27,7 +27,7 @@ abstract contract CommitteeUpgradeable is
     function upgradeWithSignatures(bytes[] memory signatures, BridgeMessage.Message memory message)
         external
         nonReentrant
-        verifySignatures(message, signatures, BridgeMessage.BRIDGE_UPGRADE)
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.BRIDGE_UPGRADE)
     {
         // decode the upgrade payload
         (address implementationAddress, bytes memory callData) =
