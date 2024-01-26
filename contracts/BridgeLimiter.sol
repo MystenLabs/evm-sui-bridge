@@ -38,13 +38,12 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
         for (uint8 i = 0; i < _assetPrices.length; i++) {
             assetPrices[i] = _assetPrices[i];
         }
-        oldestHourTimestamp = uint32(block.timestamp / 1 hours);
+        oldestHourTimestamp = currentHour();
         totalLimit = _totalLimit;
     }
 
     /* ========== VIEW FUNCTIONS ========== */
 
-    // TODO: enable this function to handle the amount in USD (or add a new function for USD amount?)
     /// @dev Checks if the total amount, including the given `amount` in USD, will exceed the `totalLimit`.
     /// @param tokenId The ID of the token.
     /// @param amount The amount of the token.
@@ -55,13 +54,18 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
         return windowAmount + USDAmount > totalLimit;
     }
 
+    function willUSDAmountExceedLimit(uint256 amount) public view returns (bool) {
+        uint256 windowAmount = calculateWindowAmount();
+        return windowAmount + amount > totalLimit;
+    }
+
     /// @dev Calculates the total transfer amount within a 24-hour window.
     /// @return total The total transfer amount within the window.
     function calculateWindowAmount() public view returns (uint256 total) {
-        uint32 currentHour = uint32(block.timestamp / 1 hours);
+        uint32 _currentHour = currentHour();
         // aggregate the last 24 hours
         for (uint32 i = 0; i < 24; i++) {
-            total += hourlyTransferAmount[currentHour - i];
+            total += hourlyTransferAmount[_currentHour - i];
         }
         return total;
     }
@@ -79,6 +83,10 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
         return amount * assetPrices[tokenId] / (10 ** decimals);
     }
 
+    function currentHour() public view returns (uint32) {
+        return uint32(block.timestamp / 1 hours);
+    }
+
     /* ========== EXTERNAL FUNCTIONS ========== */
 
     /// @dev Updates the bridge transfers for a specific token ID and amount. Only the contract owner can call this function.
@@ -89,21 +97,21 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
     /// @param amount The amount of tokens to be transferred.
     function updateBridgeTransfers(uint8 tokenId, uint256 amount) external override onlyOwner {
         require(amount > 0, "BridgeLimiter: amount must be greater than 0");
+        uint256 usdAmount = calculateAmountInUSD(tokenId, amount);
         require(
-            !willAmountExceedLimit(tokenId, amount),
+            !willUSDAmountExceedLimit(usdAmount),
             "BridgeLimiter: amount exceeds rolling window limit"
         );
 
-        // TODO: add currentHour function and remove code redundancy
-        uint32 currentHour = uint32(block.timestamp / 1 hours);
+        uint32 _currentHour = currentHour();
 
         // garbage collect most recently expired hour if window is moving
-        if (oldestHourTimestamp < currentHour - 24) {
-            garbageCollectHourlyTransferAmount(currentHour - 25, currentHour - 25);
+        if (oldestHourTimestamp < _currentHour - 24) {
+            garbageCollectHourlyTransferAmount(_currentHour - 25, _currentHour - 25);
         }
 
         // update hourly transfers
-        hourlyTransferAmount[currentHour] += calculateAmountInUSD(tokenId, amount);
+        hourlyTransferAmount[_currentHour] += usdAmount;
     }
 
     /// @dev Performs garbage collection of hourly transfer amounts within a specified time window.

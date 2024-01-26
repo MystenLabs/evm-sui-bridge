@@ -73,7 +73,7 @@ library BridgeMessage {
     }
 
     // TODO: add unit test for this function
-    /// @dev Encodes a bridge message into bytes, useing abi.encodePacked to concatenate the message fields
+    /// @dev Encodes a bridge message into bytes, using abi.encodePacked to concatenate the message fields
     /// @param message The bridge message to be encoded.
     /// @return The encoded message as bytes.
     function encodeMessage(Message memory message) internal pure returns (bytes memory) {
