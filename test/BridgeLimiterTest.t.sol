@@ -97,27 +97,76 @@ contract BridgeLimiterTest is BridgeBaseTest {
         assertEq(deleteAmount, 0);
     }
 
-    function testGarbageCollectHourlyTransferAmount() public {
+    function garbageCollect() public {
         changePrank(address(bridge));
         uint8 tokenId = 1;
-        uint256 amount = 100000000; // wBTC has 8 decimals
+        uint256 amount = 1_00_000_000; // 1 wBTC: wBTC has 8 decimals
         uint32 startingHour = uint32(block.timestamp / 1 hours);
         // create many transfer updates across hours
         for (uint256 i = 0; i < 20; i++) {
             limiter.updateBridgeTransfers(tokenId, amount);
             skip(1 hours);
         }
+        assertEq(limiter.calculateWindowAmount(), BTC_PRICE * 20);
+
         skip(50 hours);
-        // garbage collect the first 10 hours
-        uint32 startHour = startingHour;
-        uint32 endHour = startingHour + 10;
+
+        assertEq(limiter.calculateWindowAmount(), 0);
+
         assertEq(limiter.oldestHourTimestamp(), startingHour);
-        for (uint256 i = 0; i < 10; i++) {
+        for (uint256 i = 0; i < 20; i++) {
             assertEq(limiter.hourlyTransferAmount(uint32(startingHour + i)), BTC_PRICE);
         }
-        limiter.garbageCollectHourlyTransferAmount(startHour, endHour);
-        assertEq(limiter.oldestHourTimestamp(), startingHour + 11);
-        for (uint256 i = 0; i < 10; i++) {
+
+        // create one transfer updates in, which triggers GC
+        limiter.updateBridgeTransfers(tokenId, amount);
+
+        uint32 _currentHour = uint32(block.timestamp / 1 hours);
+        assertEq(_currentHour, startingHour + 70);
+        // create many transfer updates across hours
+        assertEq(limiter.oldestHourTimestamp(), _currentHour - 23);
+        for (uint256 i = 0; i < 70; i++) {
+            assertEq(limiter.hourlyTransferAmount(uint32(startingHour + i)), 0);
+        }
+        assertEq(limiter.hourlyTransferAmount(uint32(startingHour + 70)), BTC_PRICE);
+        assertEq(limiter.calculateWindowAmount(), BTC_PRICE);
+    }
+
+    function testGarbageCollectCalledExternally() public {
+        changePrank(address(bridge));
+        uint8 tokenId = 1;
+        uint256 amount = 1_00_000_000; // 1 wBTC: wBTC has 8 decimals
+        uint32 startingHour = uint32(block.timestamp / 1 hours);
+        // create many transfer updates across hours
+        for (uint256 i = 0; i < 20; i++) {
+            limiter.updateBridgeTransfers(tokenId, amount);
+            skip(1 hours);
+        }
+        assertEq(limiter.calculateWindowAmount(), BTC_PRICE * 20);
+        assertEq(limiter.oldestHourTimestamp(), startingHour);
+        // Nothing to GC at this point
+        limiter.garbageCollect();
+        assertEq(limiter.calculateWindowAmount(), BTC_PRICE * 20);
+        assertEq(limiter.oldestHourTimestamp(), startingHour);
+
+        skip(4 hours);
+
+        // the first hour is GCed
+        limiter.garbageCollect();
+        assertEq(limiter.calculateWindowAmount(), BTC_PRICE * 19);
+        assertEq(limiter.oldestHourTimestamp(), startingHour + 1);
+
+        assertEq(limiter.hourlyTransferAmount(uint32(startingHour)), 0);
+        assertEq(limiter.hourlyTransferAmount(uint32(startingHour + 1)), BTC_PRICE);
+
+        skip(24 hours);
+
+        // everything is GCed
+        limiter.garbageCollect();
+        assertEq(limiter.calculateWindowAmount(), 0);
+        assertEq(limiter.oldestHourTimestamp(), startingHour + 25);
+
+        for (uint256 i = 0; i < 47; i++) {
             assertEq(limiter.hourlyTransferAmount(uint32(startingHour + i)), 0);
         }
     }

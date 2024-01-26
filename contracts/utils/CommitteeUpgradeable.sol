@@ -24,6 +24,7 @@ abstract contract CommitteeUpgradeable is
         require(_upgradeAuthorized, "SuiBridge: Unauthorized upgrade");
     }
 
+    // TODO: assert proxy address to be upgraded
     function upgradeWithSignatures(bytes[] memory signatures, BridgeMessage.Message memory message)
         external
         nonReentrant
