@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 /// @title IBridgeLimiter
 /// @dev Interface for a bridge limiter contract that imposes limits on token bridging operations.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "./BridgeBaseTest.t.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -43,7 +43,8 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
         // b18f79fe671db47393315ffdb377da4ea1b7af96: target address 20 bytes
         // 02: token id 1 byte
         // 000000c70432b1dd: amount 8 bytes
-        bytes memory payload = hex"2080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af9602000000c70432b1dd";
+        bytes memory payload =
+            hex"2080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af9602000000c70432b1dd";
 
         BridgeMessage.TokenTransferPayload memory _payload =
             BridgeMessage.decodeTokenTransferPayload(payload);
@@ -66,6 +67,4 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
     function testDecodeBridgeUpgradePayload() public {}
     // TODO:
     function testDecodeBlocklistPayload() public {}
-    // TODO:
-    function testDecodeCommitteeUpgradePayload() public {}
 }

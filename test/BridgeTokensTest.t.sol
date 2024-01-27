@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./mocks/MockTokens.sol";
 import "./BridgeBaseTest.t.sol";
 
 contract BridgeTokensTest is BridgeBaseTest {
@@ -22,7 +22,7 @@ contract BridgeTokensTest is BridgeBaseTest {
 
     function testAddToken() public {
         // create mock token
-        address mockToken = address(new ERC20("MockToken", "MTK"));
+        address mockToken = address(new MockUSDC());
         changePrank(address(bridge));
         tokens.addToken(6, mockToken);
         assertEq(tokens.getAddress(6), mockToken);

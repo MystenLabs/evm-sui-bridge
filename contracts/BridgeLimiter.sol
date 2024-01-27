@@ -1,23 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./interfaces/IBridgeLimiter.sol";
 import "./interfaces/IBridgeTokens.sol";
-import "./utils/CommitteeOwned.sol";
+import "./utils/CommitteeUpgradeable.sol";
 
-/// @title BridgeLimiter
-/// @dev A contract that limits the amount of tokens that can be bridged per day.
-contract BridgeLimiter is
-    IBridgeLimiter,
-    CommitteeOwned,
-    OwnableUpgradeable,
-    UUPSUpgradeable,
-    ReentrancyGuardUpgradeable
-{
+contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeable {
+
+    uint32 public constant MAX_HOURS_TO_GC_PER_CALL = 720;
+
     /* ========== STATE VARIABLES ========== */
 
     IBridgeTokens public tokens;
@@ -42,15 +35,13 @@ contract BridgeLimiter is
         uint256[] memory _assetPrices,
         uint256 _totalLimit
     ) external initializer {
-        __Ownable_init();
-        __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
-        __CommitteeOwned_init(_committee);
+        __CommitteeUpgradeable_init(_committee);
+        __Ownable_init(msg.sender);
         tokens = IBridgeTokens(_tokens);
         for (uint8 i = 0; i < _assetPrices.length; i++) {
             assetPrices[i] = _assetPrices[i];
         }
-        oldestHourTimestamp = uint32(block.timestamp / 1 hours);
+        oldestHourTimestamp = currentHour();
         totalLimit = _totalLimit;
     }
 
@@ -66,13 +57,18 @@ contract BridgeLimiter is
         return windowAmount + USDAmount > totalLimit;
     }
 
+    function willUSDAmountExceedLimit(uint256 amount) public view returns (bool) {
+        uint256 windowAmount = calculateWindowAmount();
+        return windowAmount + amount > totalLimit;
+    }
+
     /// @dev Calculates the total transfer amount within a 24-hour window.
     /// @return total The total transfer amount within the window.
     function calculateWindowAmount() public view returns (uint256 total) {
-        uint32 currentHour = uint32(block.timestamp / 1 hours);
+        uint32 _currentHour = currentHour();
         // aggregate the last 24 hours
         for (uint32 i = 0; i < 24; i++) {
-            total += hourlyTransferAmount[currentHour - i];
+            total += hourlyTransferAmount[_currentHour - i];
         }
         return total;
     }
@@ -90,6 +86,10 @@ contract BridgeLimiter is
         return amount * assetPrices[tokenId] / (10 ** decimals);
     }
 
+    function currentHour() public view returns (uint32) {
+        return uint32(block.timestamp / 1 hours);
+    }
+
     /* ========== EXTERNAL FUNCTIONS ========== */
 
     /// @dev Updates the bridge transfers for a specific token ID and amount. Only the contract owner can call this function.
@@ -100,48 +100,49 @@ contract BridgeLimiter is
     /// @param amount The amount of tokens to be transferred.
     function updateBridgeTransfers(uint8 tokenId, uint256 amount) external override onlyOwner {
         require(amount > 0, "BridgeLimiter: amount must be greater than 0");
+        uint256 usdAmount = calculateAmountInUSD(tokenId, amount);
         require(
-            !willAmountExceedLimit(tokenId, amount),
+            !willUSDAmountExceedLimit(usdAmount),
             "BridgeLimiter: amount exceeds rolling window limit"
         );
 
-        uint32 currentHour = uint32(block.timestamp / 1 hours);
+        uint32 _currentHour = currentHour();
 
         // garbage collect most recently expired hour if window is moving
-        if (hourlyTransferAmount[currentHour] == 0 && oldestHourTimestamp < currentHour - 24) {
-            garbageCollectHourlyTransferAmount(currentHour - 25, currentHour - 25);
-        }
+        garbageCollectAfterTransfer(_currentHour);
 
         // update hourly transfers
-        hourlyTransferAmount[currentHour] += calculateAmountInUSD(tokenId, amount);
+        hourlyTransferAmount[_currentHour] += usdAmount;
     }
 
-    /// @dev Performs garbage collection of hourly transfer amounts within a specified time window.
-    /// @param startHour The starting hour (inclusive) of the time window.
-    /// @param endHour The ending hour (inclusive) of the time window.
-    /// Requirements:
-    /// - `startHour` must be in the past.
-    /// - `startHour` must be before the current window.
-    /// - `endHour` must be before the current window.
+    /// @dev Performs garbage collection of hourly transfer amounts.
     /// Effects:
-    /// - Deletes the hourly transfer amounts for each hour within the specified time window.
+    /// - Deletes the hourly transfer amounts for each hour that are beyond the current time window.
     /// - Updates the oldest hour timestamp if the current oldest hour was garbage collected.
-    function garbageCollectHourlyTransferAmount(uint32 startHour, uint32 endHour) public {
-        uint32 windowStart = uint32(block.timestamp / 1 hours) - 24;
-        require(
-            startHour >= oldestHourTimestamp, "BridgeLimiter: hourTimestamp must be in the past"
-        );
-        require(startHour < windowStart, "BridgeLimiter: start must be before current window");
-        require(endHour < windowStart, "BridgeLimiter: end must be before current window");
+    function garbageCollect() public {
+        uint32 _currentHour = currentHour();
+        garbageCollectAfterTransfer(_currentHour);
+    }
 
-        for (uint32 i = startHour; i <= endHour; i++) {
-            if (hourlyTransferAmount[i] > 0) delete hourlyTransferAmount[i];
+    function garbageCollectAfterTransfer(uint32 _currentHour) internal {
+        if (oldestHourTimestamp + 24 > _currentHour) {
+            // If within 24 hours, nothing to GC
+            return;
+        }
+        // Do at most `MAX_HOURS_TO_GC_PER_CALL` cleanups per call
+        uint32 end = (oldestHourTimestamp + MAX_HOURS_TO_GC_PER_CALL < _currentHour - 24)
+            ? oldestHourTimestamp + MAX_HOURS_TO_GC_PER_CALL 
+            : _currentHour - 24;
+
+        uint32 i = oldestHourTimestamp;
+        while (i <= end) {
+            if (hourlyTransferAmount[i] > 0) {
+                delete hourlyTransferAmount[i];
+            }
+            i++;
         }
 
-        // update oldest hour if current oldest hour was garbage collected
-        if (startHour == oldestHourTimestamp) {
-            oldestHourTimestamp = endHour + 1;
-        }
+        oldestHourTimestamp = i;
     }
 
     /// @dev Updates the asset price with the provided signatures and message.
@@ -153,8 +154,7 @@ contract BridgeLimiter is
     )
         external
         nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.UPDATE_ASSET_PRICE)
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.UPDATE_ASSET_PRICE)
     {
         // decode the update asset payload
         (uint8 tokenId, uint256 price) = BridgeMessage.decodeUpdateAssetPayload(message.payload);
@@ -172,47 +172,12 @@ contract BridgeLimiter is
     )
         external
         nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
     {
         // decode the update limit payload
         (uint256 newLimit) = BridgeMessage.decodeUpdateLimitPayload(message.payload);
 
         // update the limit
         totalLimit = newLimit;
-    }
-
-    /// @dev Upgrades the BridgeLimiter contract with the provided signatures and message.
-    /// @param signatures The array of signatures to validate the message.
-    /// @param message The BridgeMessage containing the upgrade payload.
-    function upgradeLimiterWithSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message
-    )
-        external
-        nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
-    {
-        // decode the upgrade payload
-        (address newImplementation, bytes memory callData) =
-            BridgeMessage.decodeUpgradePayload(message.payload);
-
-        _upgradeLimiter(newImplementation, callData);
-    }
-
-    /// @dev Upgrades the limiter contract to a new implementation.
-    /// @param newImplementation The address of the new implementation contract.
-    /// @param data The initialization data to be passed to the new implementation contract. If the data is empty, the contract will be upgraded without initialization.
-    function _upgradeLimiter(address newImplementation, bytes memory data) internal {
-        if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
-        else _upgradeTo(newImplementation);
-    }
-
-    /// @dev Internal function to authorize an upgrade.
-    /// @param newImplementation The address of the new implementation contract.
-    /// @notice This function is called internally to authorize an upgrade. It ensures that only the contract itself can authorize an upgrade.
-    function _authorizeUpgrade(address newImplementation) internal view override {
-        require(_msgSender() == address(this));
     }
 }

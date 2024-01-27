@@ -1,9 +1,9 @@
 {
-  "committeeMembers": ["0x000"],
+  "assetPrices": [12800, 432518900, 25969600, 10000],
   "committeeMemberStake": [0],
-  "supportedTokens": ["Tokens listed here should be listed in the same order as the tokens in the token list"],
-  "wETHAddress": "0x000",
+  "committeeMembers": ["0x000"],
   "sourceChainId": 0,
+  "supportedTokens": ["Tokens listed here should be listed in the same order as the tokens in the token list"],
   "totalBridgeLimitInDollars": 1000000,
-  "assetPrices": [1.28, 43251.89, 2596.96, 1]
+  "wETHAddress": "0x000"
 }

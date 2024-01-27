@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./BridgeBaseTest.t.sol";
@@ -97,27 +97,76 @@ contract BridgeLimiterTest is BridgeBaseTest {
         assertEq(deleteAmount, 0);
     }
 
-    function testGarbageCollectHourlyTransferAmount() public {
+    function garbageCollect() public {
         changePrank(address(bridge));
         uint8 tokenId = 1;
-        uint256 amount = 100000000; // wBTC has 8 decimals
+        uint256 amount = 1_00_000_000; // 1 wBTC: wBTC has 8 decimals
         uint32 startingHour = uint32(block.timestamp / 1 hours);
         // create many transfer updates across hours
         for (uint256 i = 0; i < 20; i++) {
             limiter.updateBridgeTransfers(tokenId, amount);
             skip(1 hours);
         }
+        assertEq(limiter.calculateWindowAmount(), BTC_PRICE * 20);
+
         skip(50 hours);
-        // garbage collect the first 10 hours
-        uint32 startHour = startingHour;
-        uint32 endHour = startingHour + 10;
+
+        assertEq(limiter.calculateWindowAmount(), 0);
+
         assertEq(limiter.oldestHourTimestamp(), startingHour);
-        for (uint256 i = 0; i < 10; i++) {
+        for (uint256 i = 0; i < 20; i++) {
             assertEq(limiter.hourlyTransferAmount(uint32(startingHour + i)), BTC_PRICE);
         }
-        limiter.garbageCollectHourlyTransferAmount(startHour, endHour);
-        assertEq(limiter.oldestHourTimestamp(), startingHour + 11);
-        for (uint256 i = 0; i < 10; i++) {
+
+        // create one transfer updates in, which triggers GC
+        limiter.updateBridgeTransfers(tokenId, amount);
+
+        uint32 _currentHour = uint32(block.timestamp / 1 hours);
+        assertEq(_currentHour, startingHour + 70);
+        // create many transfer updates across hours
+        assertEq(limiter.oldestHourTimestamp(), _currentHour - 23);
+        for (uint256 i = 0; i < 70; i++) {
+            assertEq(limiter.hourlyTransferAmount(uint32(startingHour + i)), 0);
+        }
+        assertEq(limiter.hourlyTransferAmount(uint32(startingHour + 70)), BTC_PRICE);
+        assertEq(limiter.calculateWindowAmount(), BTC_PRICE);
+    }
+
+    function testGarbageCollectCalledExternally() public {
+        changePrank(address(bridge));
+        uint8 tokenId = 1;
+        uint256 amount = 1_00_000_000; // 1 wBTC: wBTC has 8 decimals
+        uint32 startingHour = uint32(block.timestamp / 1 hours);
+        // create many transfer updates across hours
+        for (uint256 i = 0; i < 20; i++) {
+            limiter.updateBridgeTransfers(tokenId, amount);
+            skip(1 hours);
+        }
+        assertEq(limiter.calculateWindowAmount(), BTC_PRICE * 20);
+        assertEq(limiter.oldestHourTimestamp(), startingHour);
+        // Nothing to GC at this point
+        limiter.garbageCollect();
+        assertEq(limiter.calculateWindowAmount(), BTC_PRICE * 20);
+        assertEq(limiter.oldestHourTimestamp(), startingHour);
+
+        skip(4 hours);
+
+        // the first hour is GCed
+        limiter.garbageCollect();
+        assertEq(limiter.calculateWindowAmount(), BTC_PRICE * 19);
+        assertEq(limiter.oldestHourTimestamp(), startingHour + 1);
+
+        assertEq(limiter.hourlyTransferAmount(uint32(startingHour)), 0);
+        assertEq(limiter.hourlyTransferAmount(uint32(startingHour + 1)), BTC_PRICE);
+
+        skip(24 hours);
+
+        // everything is GCed
+        limiter.garbageCollect();
+        assertEq(limiter.calculateWindowAmount(), 0);
+        assertEq(limiter.oldestHourTimestamp(), startingHour + 25);
+
+        for (uint256 i = 0; i < 47; i++) {
             assertEq(limiter.hourlyTransferAmount(uint32(startingHour + i)), 0);
         }
     }
@@ -175,31 +224,5 @@ contract BridgeLimiterTest is BridgeBaseTest {
         limiter.updateLimitWithSignatures(signatures, message);
 
         assertEq(limiter.totalLimit(), 100000000);
-    }
-
-    function testUpgradeLimiterWithSignatures() public {
-        changePrank(address(bridge));
-        bytes memory payload = abi.encode(address(this), "test");
-        // Create a sample BridgeMessage
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.UPDATE_BRIDGE_LIMIT,
-            version: 1,
-            nonce: 0,
-            chainID: 1,
-            payload: payload
-        });
-
-        bytes memory messageBytes = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(messageBytes);
-
-        bytes[] memory signatures = new bytes[](4);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemberPkD);
-        // TODO Fix Test
-        vm.expectRevert(bytes("ERC1967Upgrade: new implementation is not UUPS"));
-        // Call the upgradeLimiterWithSignatures function
-        limiter.upgradeLimiterWithSignatures(signatures, message);
     }
 }

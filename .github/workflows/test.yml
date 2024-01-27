@@ -62,4 +62,4 @@ jobs:
 
       # Run tests using forge test
       - name: Run tests
-        run: forge test
+        run: forge test --ffi

@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./utils/CommitteeOwned.sol";
+import "./utils/CommitteeUpgradeable.sol";
 import "./interfaces/IWETH9.sol";
 import "./interfaces/IBridgeVault.sol";
 import "./interfaces/IBridgeLimiter.sol";
@@ -14,14 +12,11 @@ import "./interfaces/ISuiBridge.sol";
 import "./interfaces/IBridgeTokens.sol";
 
 /// @title SuiBridge
-/// @dev This contract implements a bridge between Ethereum and another blockchain. It allows users to transfer tokens and ETH between the two blockchains. The bridge supports multiple tokens and implements various security measures such as message verification, stake requirements, and upgradeability.
-contract SuiBridge is
-    ISuiBridge,
-    CommitteeOwned,
-    PausableUpgradeable,
-    ReentrancyGuardUpgradeable,
-    UUPSUpgradeable
-{
+/// @dev This contract implements a bridge between Ethereum and another blockchain.
+/// It allows users to transfer tokens and ETH between the two blockchains. The bridge supports
+/// multiple tokens and implements various security measures such as message verification,
+/// stake requirements, and upgradeability.
+contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
     IBridgeVault public vault;
@@ -49,10 +44,8 @@ contract SuiBridge is
         address _weth9,
         uint8 _chainID
     ) external initializer {
-        __ReentrancyGuard_init();
+        __CommitteeUpgradeable_init(_committee);
         __Pausable_init();
-        __UUPSUpgradeable_init();
-        __CommitteeOwned_init(_committee);
         tokens = IBridgeTokens(_tokens);
         vault = IBridgeVault(_vault);
         limiter = IBridgeLimiter(_limiter);
@@ -62,13 +55,18 @@ contract SuiBridge is
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
+    // TODO: add modifier to check limit is not exceeded to save gas for reverted txs
     /// @dev Transfers tokens with signatures.
     /// @param signatures The array of signatures.
     /// @param message The BridgeMessage containing the transfer details.
     function transferTokensWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
-    ) external nonReentrant validateMessage(message, signatures, BridgeMessage.TOKEN_TRANSFER) {
+    )
+        external
+        nonReentrant
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.TOKEN_TRANSFER)
+    {
         // verify that message has not been processed
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
 
@@ -103,41 +101,13 @@ contract SuiBridge is
     )
         external
         nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.EMERGENCY_OP)
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.EMERGENCY_OP)
     {
         // decode the emergency op message
         bool isFreezing = BridgeMessage.decodeEmergencyOpPayload(message.payload);
 
         if (isFreezing) _pause();
         else _unpause();
-    }
-
-    /// @dev Upgrades the bridge contract with the provided signatures and message.
-    /// @param signatures The array of signatures to verify.
-    /// @param message The BridgeMessage containing the upgrade details.
-    /// Requirements:
-    /// - The message nonce must match the nonce for the message type.
-    /// - The message type must be BRIDGE_UPGRADE.
-    /// - The signatures must be valid.
-    /// - The upgrade payload must be decoded successfully.
-    /// - The bridge upgrade must be performed successfully.
-    /// - The message type nonce must be incremented.
-    function upgradeBridgeWithSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message
-    )
-        external
-        nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.BRIDGE_UPGRADE)
-    {
-        // decode the upgrade payload
-        (address implementationAddress, bytes memory callData) =
-            BridgeMessage.decodeUpgradePayload(message.payload);
-
-        // update the upgrade
-        _upgradeBridge(implementationAddress, callData);
     }
 
     /// @dev Bridges tokens from the current chain to the Sui chain.
@@ -181,7 +151,7 @@ contract SuiBridge is
             suiAdjustedAmount,
             msg.sender,
             targetAddress
-            );
+        );
 
         // increment token transfer nonce
         nonces[BridgeMessage.TOKEN_TRANSFER]++;
@@ -216,7 +186,7 @@ contract SuiBridge is
             suiAdjustedAmount,
             msg.sender,
             targetAddress
-            );
+        );
 
         // increment token transfer nonce
         nonces[BridgeMessage.TOKEN_TRANSFER]++;
@@ -328,19 +298,5 @@ contract SuiBridge is
 
         // update amount bridged
         limiter.updateBridgeTransfers(tokenId, amount);
-    }
-
-    /// @dev Upgrades the bridge contract to a new implementation.
-    /// @param newImplementation The address of the new implementation contract.
-    /// @param data The data to be passed to the new implementation contract's upgrade function.
-    function _upgradeBridge(address newImplementation, bytes memory data) internal {
-        if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
-        else _upgradeTo(newImplementation);
-    }
-
-    /// @dev Internal function to authorize an upgrade.
-    /// @param _address The address to authorize the upgrade for.
-    function _authorizeUpgrade(address _address) internal view override {
-        require(_msgSender() == address(this));
     }
 }
