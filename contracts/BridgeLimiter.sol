@@ -8,6 +8,9 @@ import "./interfaces/IBridgeTokens.sol";
 import "./utils/CommitteeUpgradeable.sol";
 
 contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeable {
+
+    uint32 public constant MAX_HOURS_TO_GC_PER_CALL = 720;
+
     /* ========== STATE VARIABLES ========== */
 
     IBridgeTokens public tokens;
@@ -126,10 +129,20 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
             // If within 24 hours, nothing to GC
             return;
         }
-        for (uint32 i = oldestHourTimestamp; i <= _currentHour - 24; i++) {
-            delete hourlyTransferAmount[i];
-            oldestHourTimestamp = i + 1;
+        // Do at most `MAX_HOURS_TO_GC_PER_CALL` cleanups per call
+        uint32 end = (oldestHourTimestamp + MAX_HOURS_TO_GC_PER_CALL < _currentHour - 24)
+            ? oldestHourTimestamp + MAX_HOURS_TO_GC_PER_CALL 
+            : _currentHour - 24;
+
+        uint32 i = oldestHourTimestamp;
+        while (i <= end) {
+            if (hourlyTransferAmount[i] > 0) {
+                delete hourlyTransferAmount[i];
+            }
+            i++;
         }
+
+        oldestHourTimestamp = i;
     }
 
     /// @dev Updates the asset price with the provided signatures and message.
