@@ -8,6 +8,9 @@ import "./interfaces/IBridgeTokens.sol";
 import "./utils/CommitteeUpgradeable.sol";
 
 contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeable {
+
+    uint32 public constant MAX_HOURS_TO_GC_PER_CALL = 720;
+
     /* ========== STATE VARIABLES ========== */
 
     IBridgeTokens public tokens;
@@ -106,40 +109,40 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
         uint32 _currentHour = currentHour();
 
         // garbage collect most recently expired hour if window is moving
-        if (oldestHourTimestamp < _currentHour - 24) {
-            garbageCollectHourlyTransferAmount(_currentHour - 25, _currentHour - 25);
-        }
+        garbageCollectAfterTransfer(_currentHour);
 
         // update hourly transfers
         hourlyTransferAmount[_currentHour] += usdAmount;
     }
 
-    /// @dev Performs garbage collection of hourly transfer amounts within a specified time window.
-    /// @param startHour The starting hour (inclusive) of the time window.
-    /// @param endHour The ending hour (inclusive) of the time window.
-    /// Requirements:
-    /// - `startHour` must be in the past.
-    /// - `startHour` must be before the current window.
-    /// - `endHour` must be before the current window.
+    /// @dev Performs garbage collection of hourly transfer amounts.
     /// Effects:
-    /// - Deletes the hourly transfer amounts for each hour within the specified time window.
+    /// - Deletes the hourly transfer amounts for each hour that are beyond the current time window.
     /// - Updates the oldest hour timestamp if the current oldest hour was garbage collected.
-    function garbageCollectHourlyTransferAmount(uint32 startHour, uint32 endHour) public {
-        uint32 windowStart = uint32(block.timestamp / 1 hours) - 24;
-        require(
-            startHour >= oldestHourTimestamp, "BridgeLimiter: hourTimestamp must be in the past"
-        );
-        require(startHour < windowStart, "BridgeLimiter: start must be before current window");
-        require(endHour < windowStart, "BridgeLimiter: end must be before current window");
+    function garbageCollect() public {
+        uint32 _currentHour = currentHour();
+        garbageCollectAfterTransfer(_currentHour);
+    }
 
-        for (uint32 i = startHour; i <= endHour; i++) {
-            if (hourlyTransferAmount[i] > 0) delete hourlyTransferAmount[i];
+    function garbageCollectAfterTransfer(uint32 _currentHour) internal {
+        if (oldestHourTimestamp + 24 > _currentHour) {
+            // If within 24 hours, nothing to GC
+            return;
+        }
+        // Do at most `MAX_HOURS_TO_GC_PER_CALL` cleanups per call
+        uint32 end = (oldestHourTimestamp + MAX_HOURS_TO_GC_PER_CALL < _currentHour - 24)
+            ? oldestHourTimestamp + MAX_HOURS_TO_GC_PER_CALL 
+            : _currentHour - 24;
+
+        uint32 i = oldestHourTimestamp;
+        while (i <= end) {
+            if (hourlyTransferAmount[i] > 0) {
+                delete hourlyTransferAmount[i];
+            }
+            i++;
         }
 
-        // update oldest hour if current oldest hour was garbage collected
-        if (startHour == oldestHourTimestamp) {
-            oldestHourTimestamp = endHour + 1;
-        }
+        oldestHourTimestamp = i;
     }
 
     /// @dev Updates the asset price with the provided signatures and message.
