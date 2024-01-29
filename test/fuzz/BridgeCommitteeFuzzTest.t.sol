@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Test.sol";
+import "./BridgeBaseFuzzTest.t.sol";
 import "../../contracts/BridgeCommittee.sol";
 import "../../contracts/utils/BridgeMessage.sol";
 
-contract BridgeCommitteeFuzzTest is Test {
+contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
     BridgeCommittee public bridgeCommittee;
-
-    // vm.createSelectFork(
-    //     string.concat("https://mainnet.infura.io/v3/", vm.envString("INFURA_API_KEY"))
-    // );
 
     address committeeMemeberAddressA;
     uint256 committeeMemeberPkA;
@@ -53,19 +49,6 @@ contract BridgeCommitteeFuzzTest is Test {
         _stake[4] = committeeMemeberStakeE;
 
         bridgeCommittee.initialize(_committeeMemebers, _stake);
-    }
-
-    // Helper function to get the signature components from an address
-    function getSignature(
-        bytes32 digest,
-        uint256 privateKey
-    ) private pure returns (bytes memory) {
-        // r and s are the outputs of the ECDSA signature
-        // r,s and v are packed into the signature. It should be 65 bytes: 32 + 32 + 1
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
-
-        // pack v, r, s into 65bytes signature
-        return abi.encodePacked(r, s, v);
     }
 
     function testFuzz_verifyMessageSignatures(
@@ -136,14 +119,7 @@ contract BridgeCommitteeFuzzTest is Test {
         signatures[4] = getSignature(messageHash, committeeMemeberPkE);
 
         // Call the function to test with the generated parameters
-        // vm.expectEmit(_blocklist, isBlocklisted);
         bridgeCommittee.updateBlocklistWithSignatures(signatures, message);
-
-        // (bool isBlocklisted, address[] memory _blocklist) =
-        //     BridgeMessage.decodeBlocklistPayload(message.payload);
-        // for (uint16 i = 0; i < _blocklist.length; i++) {
-        //     assertEq(bridge.blocklist(_blocklist[i]) == isBlocklisted);
-        // }
     }
 
     // uint16 committeeMemeberStakeA,
