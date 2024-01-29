@@ -55,7 +55,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
 
         // Create upgrade message
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.BRIDGE_UPGRADE,
+            messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
             chainID: 1,
@@ -83,7 +83,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
 
         // Create upgrade message
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.BRIDGE_UPGRADE,
+            messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
             chainID: 1,
@@ -119,7 +119,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
 
     function testUpgradeWithSignaturesInvalidNonce() public {
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.BRIDGE_UPGRADE,
+            messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 10,
             chainID: 1,
@@ -141,7 +141,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
         bytes memory payload = abi.encode(address(this), initializer);
 
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.BRIDGE_UPGRADE,
+            messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
             chainID: 1,
