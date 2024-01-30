@@ -11,9 +11,7 @@ library BridgeMessage {
     uint8 public constant EMERGENCY_OP = 2;
     uint8 public constant UPDATE_BRIDGE_LIMIT = 3;
     uint8 public constant UPDATE_ASSET_PRICE = 4;
-    uint8 public constant BRIDGE_UPGRADE = 5;
-    uint8 public constant COMMITTEE_UPGRADE = 6;
-    uint8 public constant LIMITER_UPGRADE = 7;
+    uint8 public constant UPGRADE = 5;
 
     // token Ids
     uint8 public constant SUI = 0;
@@ -33,9 +31,8 @@ library BridgeMessage {
     uint32 public constant TRANSFER_STAKE_REQUIRED = 3334;
     uint32 public constant FREEZING_STAKE_REQUIRED = 450;
     uint32 public constant UNFREEZING_STAKE_REQUIRED = 5001;
-    uint32 public constant BRIDGE_UPGRADE_STAKE_REQUIRED = 5001;
+    uint32 public constant UPGRADE_STAKE_REQUIRED = 5001;
     uint16 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
-    uint16 public constant COMMITTEE_UPGRADE_STAKE_REQUIRED = 5001;
     uint32 public constant ASSET_LIMIT_STAKE_REQUIRED = 5001;
 
     string public constant MESSAGE_PREFIX = "SUI_BRIDGE_MESSAGE";
@@ -88,7 +85,7 @@ library BridgeMessage {
         return keccak256(encodeMessage(message));
     }
 
-    // TODO: Check if the values for UPDATE_BRIDGE_LIMIT, UPDATE_ASSET_PRICE, and COMMITTEE_UPGRADE are correct
+    // TODO: Check if the values for UPDATE_BRIDGE_LIMIT, UPDATE_ASSET_PRICE, and UPGRADE are correct
     function getRequiredStake(Message memory message) internal pure returns (uint32) {
         if (message.messageType == TOKEN_TRANSFER) {
             return TRANSFER_STAKE_REQUIRED;
@@ -102,12 +99,8 @@ library BridgeMessage {
             return ASSET_LIMIT_STAKE_REQUIRED;
         } else if (message.messageType == UPDATE_ASSET_PRICE) {
             return ASSET_LIMIT_STAKE_REQUIRED;
-        } else if (message.messageType == BRIDGE_UPGRADE) {
-            return BRIDGE_UPGRADE_STAKE_REQUIRED;
-        } else if (message.messageType == COMMITTEE_UPGRADE) {
-            return COMMITTEE_UPGRADE_STAKE_REQUIRED;
-        } else if (message.messageType == LIMITER_UPGRADE) {
-            return ASSET_LIMIT_STAKE_REQUIRED;
+        } else if (message.messageType == UPGRADE) {
+            return UPGRADE_STAKE_REQUIRED;
         } else {
             revert("BridgeMessage: Invalid message type");
         }

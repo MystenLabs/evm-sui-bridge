@@ -247,7 +247,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
 
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.COMMITTEE_UPGRADE,
+            messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
             chainID: 1,

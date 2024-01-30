@@ -8,7 +8,6 @@ import "./interfaces/IBridgeTokens.sol";
 import "./utils/CommitteeUpgradeable.sol";
 
 contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeable {
-
     uint32 public constant MAX_HOURS_TO_GC_PER_CALL = 720;
 
     /* ========== STATE VARIABLES ========== */
@@ -108,41 +107,13 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
 
         uint32 _currentHour = currentHour();
 
-        // garbage collect most recently expired hour if window is moving
-        garbageCollectAfterTransfer(_currentHour);
+        // garbage collect most recently expired hour if possible
+        if (hourlyTransferAmount[_currentHour - 25] > 0) {
+            delete hourlyTransferAmount[_currentHour - 25];
+        }
 
         // update hourly transfers
         hourlyTransferAmount[_currentHour] += usdAmount;
-    }
-
-    /// @dev Performs garbage collection of hourly transfer amounts.
-    /// Effects:
-    /// - Deletes the hourly transfer amounts for each hour that are beyond the current time window.
-    /// - Updates the oldest hour timestamp if the current oldest hour was garbage collected.
-    function garbageCollect() public {
-        uint32 _currentHour = currentHour();
-        garbageCollectAfterTransfer(_currentHour);
-    }
-
-    function garbageCollectAfterTransfer(uint32 _currentHour) internal {
-        if (oldestHourTimestamp + 24 > _currentHour) {
-            // If within 24 hours, nothing to GC
-            return;
-        }
-        // Do at most `MAX_HOURS_TO_GC_PER_CALL` cleanups per call
-        uint32 end = (oldestHourTimestamp + MAX_HOURS_TO_GC_PER_CALL < _currentHour - 24)
-            ? oldestHourTimestamp + MAX_HOURS_TO_GC_PER_CALL 
-            : _currentHour - 24;
-
-        uint32 i = oldestHourTimestamp;
-        while (i <= end) {
-            if (hourlyTransferAmount[i] > 0) {
-                delete hourlyTransferAmount[i];
-            }
-            i++;
-        }
-
-        oldestHourTimestamp = i;
     }
 
     /// @dev Updates the asset price with the provided signatures and message.
