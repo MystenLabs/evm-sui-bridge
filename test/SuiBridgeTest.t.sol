@@ -21,22 +21,30 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
 
     function testTransferTokensWithSignaturesTokenDailyLimitExceeded() public {
         // Create transfer message
-        BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
-            senderAddressLength: 32,
-            senderAddress: abi.encode(0),
-            targetChain: 1,
-            targetAddressLength: 20,
-            targetAddress: bridgerA,
-            tokenId: BridgeMessage.ETH,
-            amount: type(uint64).max
-        });
+
+        uint8 senderAddressLength = 32;
+        bytes memory senderAddress = abi.encode(0);
+        uint8 targetChain = 1;
+        uint8 targetAddressLength = 20;
+        address targetAddress = bridgerA;
+        uint8 tokenId = BridgeMessage.ETH;
+        uint64 amount = 100000000000000;
+        bytes memory payload = abi.encodePacked(
+            senderAddressLength,
+            senderAddress,
+            targetChain,
+            targetAddressLength,
+            targetAddress,
+            tokenId,
+            amount
+        );
 
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
             chainID: 1,
-            payload: abi.encode(payload)
+            payload: payload
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -47,9 +55,8 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
-        // TODO: FAILS
-        // vm.expectRevert(bytes("SuiBridge: Token's daily limit exceeded"));
-        // bridge.transferTokensWithSignatures(signatures, message);
+        vm.expectRevert(bytes("SuiBridge: Amount exceeds bridge limit"));
+        bridge.transferTokensWithSignatures(signatures, message);
     }
 
     function testTransferTokensWithSignaturesInsufficientStakeAmount() public {
@@ -561,12 +568,5 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         suiAmount = 3_000_000_00; // 3 BTC
         ethAmount = bridge.adjustDecimalsForErc20(BridgeMessage.BTC, suiAmount, 8);
         assertEq(suiAmount, ethAmount);
-    }
-
-    // TODO: testTransferWETHWithLimitReached
-
-    // TODO:
-    function testUpgradeBridge() public {
-        // TODO: redeploy bridge using upgrades
     }
 }

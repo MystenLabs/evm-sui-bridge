@@ -61,10 +61,16 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
         assertEq(_payload.amount, uint64(854768923101));
     }
 
+    // Waiting for move generated payloads to be generated
+
     // TODO:
     function testDecodeEmergencyOpPayload() public {}
     // TODO:
-    function testDecodeBridgeUpgradePayload() public {}
+    function testDecodeUpgradePayload() public {}
     // TODO:
     function testDecodeBlocklistPayload() public {}
+    // TODO:
+    function testDecodeUpdateAssetPayload() public {}
+    // TODO:
+    function testDecodeUpdateLimitPayload() public {}
 }

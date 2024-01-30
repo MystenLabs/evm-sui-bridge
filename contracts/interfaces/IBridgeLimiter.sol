@@ -8,4 +8,6 @@ interface IBridgeLimiter {
     /// @param tokenId The ID of the token being bridged.
     /// @param amount The amount of tokens being bridged.
     function updateBridgeTransfers(uint8 tokenId, uint256 amount) external;
+
+    function willAmountExceedLimit(uint8 tokenId, uint256 amount) external view returns (bool);
 }

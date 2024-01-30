@@ -24,14 +24,13 @@ abstract contract CommitteeUpgradeable is
         require(_upgradeAuthorized, "SuiBridge: Unauthorized upgrade");
     }
 
-    // TODO: assert proxy address to be upgraded
     function upgradeWithSignatures(bytes[] memory signatures, BridgeMessage.Message memory message)
         external
         nonReentrant
         verifySignaturesAndNonce(message, signatures, BridgeMessage.UPGRADE)
     {
         // decode the upgrade payload
-        (address implementationAddress, bytes memory callData) =
+        (address proxy, address implementation, bytes memory callData) =
             BridgeMessage.decodeUpgradePayload(message.payload);
 
         // TODO: check the proxy address is valid
@@ -39,7 +38,7 @@ abstract contract CommitteeUpgradeable is
         // authorize upgrade
         _upgradeAuthorized = true;
         // upgrade contract
-        upgradeToAndCall(implementationAddress, callData);
+        upgradeToAndCall(implementation, callData);
         // reset upgrade authorization
         _upgradeAuthorized = false;
     }

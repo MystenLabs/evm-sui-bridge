@@ -69,7 +69,6 @@ library BridgeMessage {
         uint64 amount;
     }
 
-    // TODO: add unit test for this function
     /// @dev Encodes a bridge message into bytes, using abi.encodePacked to concatenate the message fields
     /// @param message The bridge message to be encoded.
     /// @return The encoded message as bytes.
@@ -85,7 +84,6 @@ library BridgeMessage {
         return keccak256(encodeMessage(message));
     }
 
-    // TODO: Check if the values for UPDATE_BRIDGE_LIMIT, UPDATE_ASSET_PRICE, and UPGRADE are correct
     function getRequiredStake(Message memory message) internal pure returns (uint32) {
         if (message.messageType == TOKEN_TRANSFER) {
             return TRANSFER_STAKE_REQUIRED;
@@ -106,25 +104,6 @@ library BridgeMessage {
         }
     }
 
-    // TODO: add unit tests
-    function decodeUpgradePayload(bytes memory payload)
-        internal
-        pure
-        returns (address, bytes memory)
-    {
-        (address implementationAddress, bytes memory callData) =
-            abi.decode(payload, (address, bytes));
-        return (implementationAddress, callData);
-    }
-
-    // TokenTransfer payload is 64 bytes.
-    // byte 0       : sender address length
-    // bytes 1-32   : sender address (as we only support Sui now, it has to be 32 bytes long)
-    // bytes 33     : target chain id
-    // byte 34      : target address length
-    // bytes 35-54  : target address
-    // byte 55      : token id
-    // bytes 56-63  : amount
     function decodeTokenTransferPayload(bytes memory payload)
         internal
         pure
@@ -163,12 +142,7 @@ library BridgeMessage {
 
         // extract target address from payload (35-54)
         address targetAddress;
-        // why `add(targetAddressLength, offset)`?
-        // At this point, offset = 35, targetAddressLength = 20. `mload(add(payload, 55))`
-        // reads the next 32 bytes from bytes 23 in paylod, because the first 32 bytes
-        // of payload stores its length. So in reality, bytes 23 - 54 is loaded. During
-        // casting to address (20 bytes), the least sigificiant bytes are retained, namely
-        // `targetAddress` is bytes 35-54
+
         assembly {
             targetAddress := mload(add(payload, add(targetAddressLength, offset)))
         }
@@ -182,12 +156,7 @@ library BridgeMessage {
         // extract amount from payload
         uint64 amount;
         uint8 amountLength = 8; // uint64 = 8 bits
-        // Why `add(amountLength, offset)`?
-        // At this point, offset = 56, amountLength = 8. `mload(add(payload, 64))`
-        // reads the next 32 bytes from bytes 32 in paylod, because the first 32 bytes
-        // of payload stores its length. So in reality, bytes 32 - 63 is loaded. During
-        // casting to uint64 (8 bytes), the least sigificiant bytes are retained, namely
-        // `targetAddress` is bytes 56-63
+
         assembly {
             amount := mload(add(payload, add(amountLength, offset)))
         }
@@ -201,6 +170,16 @@ library BridgeMessage {
             tokenId,
             amount
         );
+    }
+
+    function decodeUpgradePayload(bytes memory payload)
+        internal
+        pure
+        returns (address, address, bytes memory)
+    {
+        (address proxy, address implementation, bytes memory callData) =
+            abi.decode(payload, (address, address, bytes));
+        return (proxy, implementation, callData);
     }
 
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
@@ -220,7 +199,6 @@ library BridgeMessage {
         return (blocklisted, validators);
     }
 
-    // TODO: add unit test
     function decodeUpdateAssetPayload(bytes memory payload)
         internal
         pure
@@ -230,7 +208,6 @@ library BridgeMessage {
         return (tokenId, price);
     }
 
-    // TODO: add unit test
     function decodeUpdateLimitPayload(bytes memory payload) internal pure returns (uint256) {
         (uint256 newLimit) = abi.decode(payload, (uint256));
         return newLimit;
