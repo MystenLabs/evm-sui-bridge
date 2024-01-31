@@ -108,7 +108,7 @@ contract DeployBridge is Script {
     }
 }
 
-// TODO: add gotchas and references to foundry docs
+// TODO: add gotchas and references to foundry docs (ex. struct fields must be in alphabetical order)
 struct DeployConfig {
     uint256[] assetPrices;
     uint256[] committeeMemberStake;

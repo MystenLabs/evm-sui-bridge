@@ -49,7 +49,6 @@ contract BridgeVault is Ownable, IBridgeVault {
         // Unwrap the WETH
         wETH.withdraw(amount);
 
-        // TODO: check transfer success
         // Transfer the unwrapped ETH to the target address
         targetAddress.transfer(amount);
     }

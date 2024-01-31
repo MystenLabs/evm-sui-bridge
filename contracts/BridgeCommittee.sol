@@ -71,6 +71,7 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
 
             (signer,,) = ECDSA.tryRecover(BridgeMessage.computeHash(message), v, r, s);
 
+            // TODO: explore alternative dup checking methods (this is O(n^2)
             // Check if the address has already been seen
             bool found = false;
             for (uint256 j = 0; j < seen.length; j++) {

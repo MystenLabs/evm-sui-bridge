@@ -69,7 +69,6 @@ library BridgeMessage {
         uint64 amount;
     }
 
-    // TODO: add unit test for this function
     /// @dev Encodes a bridge message into bytes, using abi.encodePacked to concatenate the message fields
     /// @param message The bridge message to be encoded.
     /// @return The encoded message as bytes.
@@ -85,7 +84,6 @@ library BridgeMessage {
         return keccak256(encodeMessage(message));
     }
 
-    // TODO: Check if the values for UPDATE_BRIDGE_LIMIT, UPDATE_ASSET_PRICE, and UPGRADE are correct
     function getRequiredStake(Message memory message) internal pure returns (uint32) {
         if (message.messageType == TOKEN_TRANSFER) {
             return TRANSFER_STAKE_REQUIRED;
@@ -104,17 +102,6 @@ library BridgeMessage {
         } else {
             revert("BridgeMessage: Invalid message type");
         }
-    }
-
-    // TODO: add unit tests
-    function decodeUpgradePayload(bytes memory payload)
-        internal
-        pure
-        returns (address, bytes memory)
-    {
-        (address implementationAddress, bytes memory callData) =
-            abi.decode(payload, (address, bytes));
-        return (implementationAddress, callData);
     }
 
     // TokenTransfer payload is 64 bytes.
@@ -163,6 +150,7 @@ library BridgeMessage {
 
         // extract target address from payload (35-54)
         address targetAddress;
+
         // why `add(targetAddressLength, offset)`?
         // At this point, offset = 35, targetAddressLength = 20. `mload(add(payload, 55))`
         // reads the next 32 bytes from bytes 23 in paylod, because the first 32 bytes
@@ -182,6 +170,7 @@ library BridgeMessage {
         // extract amount from payload
         uint64 amount;
         uint8 amountLength = 8; // uint64 = 8 bits
+
         // Why `add(amountLength, offset)`?
         // At this point, offset = 56, amountLength = 8. `mload(add(payload, 64))`
         // reads the next 32 bytes from bytes 32 in paylod, because the first 32 bytes
@@ -203,6 +192,16 @@ library BridgeMessage {
         );
     }
 
+    function decodeUpgradePayload(bytes memory payload)
+        internal
+        pure
+        returns (address, address, bytes memory)
+    {
+        (address proxy, address implementation, bytes memory callData) =
+            abi.decode(payload, (address, address, bytes));
+        return (proxy, implementation, callData);
+    }
+
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
         (uint8 emergencyOpCode) = abi.decode(payload, (uint8));
         require(emergencyOpCode <= 1, "BridgeMessage: Invalid op code");
@@ -220,7 +219,6 @@ library BridgeMessage {
         return (blocklisted, validators);
     }
 
-    // TODO: add unit test
     function decodeUpdateAssetPayload(bytes memory payload)
         internal
         pure
@@ -230,7 +228,6 @@ library BridgeMessage {
         return (tokenId, price);
     }
 
-    // TODO: add unit test
     function decodeUpdateLimitPayload(bytes memory payload) internal pure returns (uint256) {
         (uint256 newLimit) = abi.decode(payload, (uint256));
         return newLimit;

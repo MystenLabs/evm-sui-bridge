@@ -55,7 +55,6 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
-    // TODO: add modifier to check limit is not exceeded to save gas for reverted txs
     /// @dev Transfers tokens with signatures.
     /// @param signatures The array of signatures.
     /// @param message The BridgeMessage containing the transfer details.
@@ -78,6 +77,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         uint256 erc20AdjustedAmount = adjustDecimalsForErc20(
             tokenTransferPayload.tokenId, tokenTransferPayload.amount, erc20Decimal
         );
+
         _transferTokensFromVault(
             tokenTransferPayload.tokenId, tokenTransferPayload.targetAddress, erc20AdjustedAmount
         );
@@ -192,8 +192,6 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         nonces[BridgeMessage.TOKEN_TRANSFER]++;
     }
 
-    // TODO: garbage collect messageProcessed with design from notion (add watermark concept)
-
     /* ========== VIEW FUNCTIONS ========== */
 
     // Adjust ERC20 amount to Sui token amount to cover the decimal differences
@@ -260,7 +258,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /// @param tokenId The ID of the token.
     /// @return The decimal value of the token on SuiBridge.
     /// @dev Reverts if the token ID does not have a Sui decimal set.
-    function getDecimalOnSui(uint8 tokenId) internal pure returns (uint8) {
+    function getDecimalOnSui(uint8 tokenId) private pure returns (uint8) {
         if (tokenId == BridgeMessage.SUI) {
             return BridgeMessage.SUI_DECIMAL_ON_SUI;
         } else if (tokenId == BridgeMessage.BTC) {
@@ -280,8 +278,9 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /// @param targetAddress The address to which the tokens are being transferred.
     /// @param amount The amount of tokens being transferred.
     function _transferTokensFromVault(uint8 tokenId, address targetAddress, uint256 amount)
-        internal
+        private
         whenNotPaused
+        limitNotExceeded(tokenId, amount)
     {
         address tokenAddress = tokens.getAddress(tokenId);
 
@@ -298,5 +297,18 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
         // update amount bridged
         limiter.updateBridgeTransfers(tokenId, amount);
+    }
+
+    /* ========== MODIFIERS ========== */
+
+    /// @dev Checks that the amount being transferred does not exceed the limit.
+    /// @param tokenId The ID of the token being transferred.
+    /// @param amount The amount of tokens being transferred.
+    modifier limitNotExceeded(uint8 tokenId, uint256 amount) {
+        require(
+            !limiter.willAmountExceedLimit(tokenId, amount),
+            "SuiBridge: Amount exceeds bridge limit"
+        );
+        _;
     }
 }
