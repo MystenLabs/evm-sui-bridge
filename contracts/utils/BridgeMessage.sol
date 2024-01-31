@@ -104,6 +104,14 @@ library BridgeMessage {
         }
     }
 
+    // TokenTransfer payload is 64 bytes.
+    // byte 0       : sender address length
+    // bytes 1-32   : sender address (as we only support Sui now, it has to be 32 bytes long)
+    // bytes 33     : target chain id
+    // byte 34      : target address length
+    // bytes 35-54  : target address
+    // byte 55      : token id
+    // bytes 56-63  : amount
     function decodeTokenTransferPayload(bytes memory payload)
         internal
         pure
@@ -143,6 +151,12 @@ library BridgeMessage {
         // extract target address from payload (35-54)
         address targetAddress;
 
+        // why `add(targetAddressLength, offset)`?
+        // At this point, offset = 35, targetAddressLength = 20. `mload(add(payload, 55))`
+        // reads the next 32 bytes from bytes 23 in paylod, because the first 32 bytes
+        // of payload stores its length. So in reality, bytes 23 - 54 is loaded. During
+        // casting to address (20 bytes), the least sigificiant bytes are retained, namely
+        // `targetAddress` is bytes 35-54
         assembly {
             targetAddress := mload(add(payload, add(targetAddressLength, offset)))
         }
@@ -157,6 +171,12 @@ library BridgeMessage {
         uint64 amount;
         uint8 amountLength = 8; // uint64 = 8 bits
 
+        // Why `add(amountLength, offset)`?
+        // At this point, offset = 56, amountLength = 8. `mload(add(payload, 64))`
+        // reads the next 32 bytes from bytes 32 in paylod, because the first 32 bytes
+        // of payload stores its length. So in reality, bytes 32 - 63 is loaded. During
+        // casting to uint64 (8 bytes), the least sigificiant bytes are retained, namely
+        // `targetAddress` is bytes 56-63
         assembly {
             amount := mload(add(payload, add(amountLength, offset)))
         }
