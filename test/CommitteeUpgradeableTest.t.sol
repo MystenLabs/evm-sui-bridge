@@ -77,7 +77,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
     function testUpgradeWithSignaturesInsufficientStakeAmount() public {
         // Create message
         // deploy mockbridgev2
-        MockSuiBridgeV2 bridgeV2 = new MockSuiBridgeV2();
+        bridgeV2 = new MockSuiBridgeV2();
         bytes memory initializer = abi.encodeCall(MockSuiBridgeV2.initializeV2, ());
         bytes memory payload = abi.encode(address(bridgeV2), initializer);
 

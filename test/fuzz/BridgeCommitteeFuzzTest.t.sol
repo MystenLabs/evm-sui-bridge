@@ -25,6 +25,9 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
     uint16 private committeeMemeberStakeD = 2000;
     uint16 private committeeMemeberStakeE = 2000;
 
+    address[] _committeeMemebers;
+    uint256[] signers = new uint256[](5);
+
     function setUp() public {
         bridgeCommittee = new BridgeCommittee();
 
@@ -34,7 +37,13 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         (committeeMemeberAddressD, committeeMemeberPkD) = makeAddrAndKey("D");
         (committeeMemeberAddressE, committeeMemeberPkE) = makeAddrAndKey("E");
 
-        address[] memory _committeeMemebers = new address[](5);
+        signers[0] = committeeMemeberPkA;
+        signers[1] = committeeMemeberPkB;
+        signers[2] = committeeMemeberPkC;
+        signers[3] = committeeMemeberPkD;
+        signers[4] = committeeMemeberPkE;
+
+        _committeeMemebers = new address[](5);
         _committeeMemebers[0] = committeeMemeberAddressA;
         _committeeMemebers[1] = committeeMemeberAddressB;
         _committeeMemebers[2] = committeeMemeberAddressC;
@@ -51,14 +60,65 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         bridgeCommittee.initialize(_committeeMemebers, _stake);
     }
 
+    /**
+    function testFuzz_Initialize(
+        address[10] memory committeeMembersFuzz,
+        uint16[10] memory stakesFuzz
+    ) public {
+        // create the input data
+        address[] memory committeeMembers = new address[](5);
+        uint16[] memory stakes = new uint16[](5);
+        for (uint16 i = 0; i < 5; i++) {
+            committeeMembers[i] = committeeMembersFuzz[i];
+            stakes[i] = stakesFuzz[i];
+        }
+
+        vm.assume(isUnique(committeeMembers)); // addresses must be unique
+        vm.assume(sum(stakes) == 10000); // total stake must be 10000
+
+        // call the function to be tested
+        bridgeCommittee.initialize(committeeMembers, stakes);
+
+        // check the postconditions
+        // assertEq(bridgeCommittee.totalStake(), 10000); // total stake should be 10000
+        for (uint16 i = 0; i < committeeMembersFuzz.length; i++) {
+            assertEq(
+                bridgeCommittee.committeeMembers(committeeMembersFuzz[i]),
+                stakesFuzz[i]
+            ); // stakes should be assigned correctly
+        }
+    }
+
+    function isUnique(address[] memory arr) internal pure returns (bool) {
+        for (uint i = 0; i < arr.length; i++) {
+            for (uint j = i + 1; j < arr.length; j++) {
+                if (arr[i] == arr[j]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    function sum(uint16[] memory arr) internal pure returns (uint256) {
+        uint256 total = 0;
+        for (uint i = 0; i < arr.length; i++) {
+            total += arr[i];
+        }
+        return total;
+    }
+    */
+
     function testFuzz_verifyMessageSignatures(
         uint8 messageType,
-        bytes memory payload
-    ) public view {
-        messageType = uint8(bound(messageType, 0, 7));
+        bytes memory payload,
+        uint8 numSigners
+    ) public {
+        vm.assume(numSigners > 0 && numSigners <= 5);
+        messageType = uint8(bound(messageType, 0, 1));
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.TOKEN_TRANSFER,
+            messageType: messageType,
             version: 1,
             nonce: 1,
             chainID: 1,
@@ -68,33 +128,60 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         bytes memory messageBytes = BridgeMessage.encodeMessage(message);
         bytes32 messageHash = keccak256(messageBytes);
 
-        // Create signatures from A - E
-        bytes[] memory signatures = new bytes[](5);
-        signatures[0] = getSignature(messageHash, committeeMemeberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemeberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemeberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemeberPkD);
-        signatures[4] = getSignature(messageHash, committeeMemeberPkE);
+        bytes[] memory signatures = new bytes[](numSigners);
+        for (uint8 i = 0; i < numSigners; i++) {
+            signatures[i] = getSignature(messageHash, signers[i]);
+        }
 
-        // Call the function to test with the generated parameters
-        bridgeCommittee.verifyMessageSignatures(
-            signatures,
-            message,
-            BridgeMessage.TOKEN_TRANSFER
-        );
+        bool signaturesValid;
+        try
+            bridgeCommittee.verifyMessageSignatures(
+                signatures,
+                message,
+                messageType
+            )
+        {
+            // The call was successful
+            signaturesValid = true;
+        } catch Error(string memory) {
+            signaturesValid = false;
+        } catch (bytes memory) {
+            signaturesValid = false;
+        }
+
+        if (signaturesValid) {
+            bridgeCommittee.verifyMessageSignatures(
+                signatures,
+                message,
+                messageType
+            );
+        } else {
+            // Expect a revert
+            vm.expectRevert(
+                bytes("BridgeCommittee: Insufficient stake amount")
+            );
+            bridgeCommittee.verifyMessageSignatures(
+                signatures,
+                message,
+                messageType
+            );
+        }
     }
 
     function testFuzz_updateBlocklistWithSignatures(
-        uint8 isBlocklisted
+        uint8 isBlocklisted,
+        uint8 numSigners,
+        uint8 numBlocklistAddresses
     ) public {
+        vm.assume(numSigners > 0 && numSigners <= 5);
+        vm.assume(numBlocklistAddresses > 0 && numBlocklistAddresses <= 5);
+
         // Create a blocklist payload
         isBlocklisted = uint8(bound(isBlocklisted, 0, 1));
-        address[] memory _blocklist = new address[](5);
-        _blocklist[0] == committeeMemeberAddressA;
-        _blocklist[1] == committeeMemeberAddressB;
-        _blocklist[2] == committeeMemeberAddressC;
-        _blocklist[3] == committeeMemeberAddressD;
-        _blocklist[4] == committeeMemeberAddressE;
+        address[] memory _blocklist = new address[](numBlocklistAddresses);
+        for (uint8 i = 0; i < numBlocklistAddresses; i++) {
+            _blocklist[i] = _committeeMemebers[i];
+        }
 
         bytes memory payload = abi.encode(uint8(isBlocklisted), _blocklist);
 
@@ -110,108 +197,35 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         bytes memory messageBytes = BridgeMessage.encodeMessage(message);
         bytes32 messageHash = keccak256(messageBytes);
 
-        // Create signatures from A - E
-        bytes[] memory signatures = new bytes[](5);
-        signatures[0] = getSignature(messageHash, committeeMemeberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemeberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemeberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemeberPkD);
-        signatures[4] = getSignature(messageHash, committeeMemeberPkE);
+        bytes[] memory signatures = new bytes[](numSigners);
+        for (uint8 i = 0; i < numSigners; i++) {
+            signatures[i] = getSignature(messageHash, signers[i]);
+        }
 
-        // Call the function to test with the generated parameters
-        bridgeCommittee.updateBlocklistWithSignatures(signatures, message);
+        bool signaturesValid;
+        try
+            bridgeCommittee.verifyMessageSignatures(
+                signatures,
+                message,
+                BridgeMessage.BLOCKLIST
+            )
+        {
+            // The call was successful
+            signaturesValid = true;
+        } catch Error(string memory) {
+            signaturesValid = false;
+        } catch (bytes memory) {
+            signaturesValid = false;
+        }
+
+        if (signaturesValid) {
+            bridgeCommittee.updateBlocklistWithSignatures(signatures, message);
+        } else {
+            // Expect a revert
+            vm.expectRevert(
+                bytes("BridgeCommittee: Insufficient stake amount")
+            );
+            bridgeCommittee.updateBlocklistWithSignatures(signatures, message);
+        }
     }
-
-    // uint16 committeeMemeberStakeA,
-    // uint16 committeeMemeberStakeB,
-    // uint16 committeeMemeberStakeC,
-    // uint16 committeeMemeberStakeD,
-    // uint16 committeeMemeberStakeE
-
-    /**
-    function testFuzzCommittee(
-        address committeeMemeberAddressA,
-        address committeeMemeberAddressB,
-        address committeeMemeberAddressC,
-        address committeeMemeberAddressD,
-        address committeeMemeberAddressE
-    ) public {
-        vm.assume(
-            committeeMemeberAddressA != address(0) &&
-                committeeMemeberAddressB != address(0) &&
-                committeeMemeberAddressC != address(0) &&
-                committeeMemeberAddressD != address(0) &&
-                committeeMemeberAddressE != address(0)
-        );
-
-        vm.assume(
-            committeeMemeberAddressA != committeeMemeberAddressB &&
-                committeeMemeberAddressA != committeeMemeberAddressC &&
-                committeeMemeberAddressA != committeeMemeberAddressD &&
-                committeeMemeberAddressA != committeeMemeberAddressE &&
-                committeeMemeberAddressB != committeeMemeberAddressC &&
-                committeeMemeberAddressB != committeeMemeberAddressD &&
-                committeeMemeberAddressB != committeeMemeberAddressE &&
-                committeeMemeberAddressC != committeeMemeberAddressD &&
-                committeeMemeberAddressC != committeeMemeberAddressE &&
-                committeeMemeberAddressD != committeeMemeberAddressE
-        );
-
-        address[] memory _committeeMemebers = new address[](3);
-        // _committeeMemebers[0] = makeAddr("A");
-        // _committeeMemebers[1] = makeAddr("B");
-        // _committeeMemebers[2] = makeAddr("C");
-        // _committeeMemebers[3] = makeAddr("D");
-        // _committeeMemebers[4] = makeAddr("E");
-        _committeeMemebers[0] = committeeMemeberAddressA;
-        _committeeMemebers[1] = committeeMemeberAddressB;
-        _committeeMemebers[2] = committeeMemeberAddressC;
-        _committeeMemebers[3] = committeeMemeberAddressD;
-        _committeeMemebers[4] = committeeMemeberAddressE;
-
-        // committeeMemeberStakeA = uint16(bound(committeeMemeberStakeA, 100, 4000));
-        // committeeMemeberStakeB = uint16(bound(committeeMemeberStakeB, 100, 4000));
-        // committeeMemeberStakeC = uint16(bound(committeeMemeberStakeC, 100, 4000));
-        // committeeMemeberStakeD = uint16(bound(committeeMemeberStakeD, 100, 4000));
-        // committeeMemeberStakeE = uint16(bound(committeeMemeberStakeE, 100, 4000));
-
-        // vm.assume(
-        //     committeeMemeberStakeA >= 100 &&
-        //         committeeMemeberStakeA <= 5000 &&
-        //         committeeMemeberStakeB >= 100 &&
-        //         committeeMemeberStakeB <= 5000 &&
-        //         committeeMemeberStakeC >= 100 &&
-        //         committeeMemeberStakeC <= 5000 &&
-        //         committeeMemeberStakeD >= 100 &&
-        //         committeeMemeberStakeD <= 5000 &&
-        //         committeeMemeberStakeE >= 100 &&
-        //         committeeMemeberStakeE <= 5000
-        // );
-
-        uint16 committeeMemeberStakeA = 2000;
-        uint16 committeeMemeberStakeB = 2000;
-        uint16 committeeMemeberStakeC = 2000;
-        uint16 committeeMemeberStakeD = 2000;
-        uint16 committeeMemeberStakeE = 2000;
-
-        // vm.assume(
-        //     committeeMemeberStakeA +
-        //         committeeMemeberStakeB +
-        //         committeeMemeberStakeC +
-        //         committeeMemeberStakeD +
-        //         committeeMemeberStakeE ==
-        //         10000
-        // );
-
-        uint16[] memory _stake = new uint16[](3);
-        _stake[0] = committeeMemeberStakeA;
-        _stake[1] = committeeMemeberStakeB;
-        _stake[2] = committeeMemeberStakeC;
-        _stake[3] = committeeMemeberStakeD;
-        _stake[4] = committeeMemeberStakeE;
-
-        bridgeCommittee.initialize(_committeeMemebers, _stake);
-    }
-
-    */
 }

@@ -44,6 +44,7 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
     uint16 private committeeMemeberStakeE = 2000;
 
     uint8 public chainID = 99;
+    uint256[] signers = new uint256[](5);
 
     // This function is called before each unit test
     function setUp() public {
@@ -54,6 +55,12 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
         (committeeMemeberAddressC, committeeMemeberPkC) = makeAddrAndKey("C");
         (committeeMemeberAddressD, committeeMemeberPkD) = makeAddrAndKey("D");
         (committeeMemeberAddressE, committeeMemeberPkE) = makeAddrAndKey("E");
+
+        signers[0] = committeeMemeberPkA;
+        signers[1] = committeeMemeberPkB;
+        signers[2] = committeeMemeberPkC;
+        signers[3] = committeeMemeberPkD;
+        signers[4] = committeeMemeberPkE;
 
         address[] memory _committeeMemebers = new address[](5);
         _committeeMemebers[0] = committeeMemeberAddressA;
@@ -108,28 +115,55 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
     }
 
     function testFuzz_executeEmergencyOpWithSignatures(
-        uint8 isFreezing
+        uint8 numSigners
     ) public {
-        isFreezing = uint8(bound(isFreezing, 0, 1));
+        vm.assume(numSigners > 0 && numSigners <= 5);
+        // Get current paused state
+        bool isPaused = suiBridge.paused();
+
         // Create emergency op message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.EMERGENCY_OP,
             version: 1,
-            nonce: 0,
+            nonce: suiBridge.nonces(BridgeMessage.EMERGENCY_OP),
             chainID: 1,
-            payload: abi.encode(isFreezing)
+            payload: abi.encode(isPaused ? 1 : 0)
         });
 
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
         bytes32 messageHash = keccak256(encodedMessage);
 
-        bytes[] memory signatures = new bytes[](5);
-        signatures[0] = getSignature(messageHash, committeeMemeberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemeberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemeberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemeberPkD);
-        signatures[4] = getSignature(messageHash, committeeMemeberPkE);
+        bytes[] memory signatures = new bytes[](numSigners);
+        for (uint8 i = 0; i < numSigners; i++) {
+            signatures[i] = getSignature(messageHash, signers[i]);
+        }
 
-        // suiBridge.executeEmergencyOpWithSignatures(signatures, message);
+        bool signaturesValid;
+        try
+            bridgeCommittee.verifyMessageSignatures(
+                signatures,
+                message,
+                message.messageType
+            )
+        {
+            // The call was successful
+            signaturesValid = true;
+        } catch Error(string memory) {
+            signaturesValid = false;
+        } catch (bytes memory) {
+            signaturesValid = false;
+        }
+
+        if (signaturesValid) {
+            suiBridge.executeEmergencyOpWithSignatures(signatures, message);
+            assertEq(suiBridge.paused(), !isPaused);
+            assertEq(suiBridge.nonces(message.messageType), message.nonce + 1);
+        } else {
+            // Expect a revert
+            vm.expectRevert(
+                bytes("BridgeCommittee: Insufficient stake amount")
+            );
+            suiBridge.executeEmergencyOpWithSignatures(signatures, message);
+        }
     }
 }

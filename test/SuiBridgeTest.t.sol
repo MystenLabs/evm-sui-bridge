@@ -19,7 +19,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertEq(address(bridge.tokens()), address(tokens));
     }
 
-    function testTransferTokensWithSignaturesTokenDailyLimitExceeded() public {
+    function testTransferTokensWithSignaturesTokenDailyLimitExceeded() public view {
         // Create transfer message
         BridgeMessage.TokenTransferPayload memory payload = BridgeMessage.TokenTransferPayload({
             senderAddressLength: 32,
