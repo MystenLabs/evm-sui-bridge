@@ -65,6 +65,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         external
         nonReentrant
         verifySignaturesAndNonce(message, signatures, BridgeMessage.TOKEN_TRANSFER)
+        verifyDestinationChainID(message.chainID)
     {
         // verify that message has not been processed
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
