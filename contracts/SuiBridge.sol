@@ -120,8 +120,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         uint256 amount,
         bytes memory targetAddress,
         uint8 destinationChainID
-    ) external whenNotPaused nonReentrant {
-        // TODO: add checks for destination chain ID. Disallow invalid values
+    ) external whenNotPaused nonReentrant verifyDestinationChainID(destinationChainID) {
 
         // Check that the token address is supported (but not sui yet)
         require(
@@ -165,9 +164,8 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         payable
         whenNotPaused
         nonReentrant
+        verifyDestinationChainID(destinationChainID)
     {
-        // TODO: add checks for destination chain ID. Disallow invalid values
-
         uint256 amount = msg.value;
 
         // Wrap ETH

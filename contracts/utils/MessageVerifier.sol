@@ -31,4 +31,17 @@ abstract contract MessageVerifier is Initializable {
         }
         _;
     }
+
+    modifier verifyDestinationChainID(uint8 destinationChainID) {
+        // Check that destination chain ID is valid
+        require(
+            destinationChainID == BridgeMessage.SUI ||
+                destinationChainID == BridgeMessage.BTC ||
+                destinationChainID == BridgeMessage.ETH ||
+                destinationChainID == BridgeMessage.USDC ||
+                destinationChainID == BridgeMessage.USDT,
+            "MessageVerifier: Invalid destination chain ID"
+        );
+        _;
+    }
 }
