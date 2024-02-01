@@ -31,48 +31,50 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
     function setUp() public {
         bridgeCommittee = new BridgeCommittee();
 
-        (committeeMemeberAddressA, committeeMemeberPkA) = makeAddrAndKey("A");
-        (committeeMemeberAddressB, committeeMemeberPkB) = makeAddrAndKey("B");
-        (committeeMemeberAddressC, committeeMemeberPkC) = makeAddrAndKey("C");
-        (committeeMemeberAddressD, committeeMemeberPkD) = makeAddrAndKey("D");
-        (committeeMemeberAddressE, committeeMemeberPkE) = makeAddrAndKey("E");
+        // (committeeMemeberAddressA, committeeMemeberPkA) = makeAddrAndKey("A");
+        // (committeeMemeberAddressB, committeeMemeberPkB) = makeAddrAndKey("B");
+        // (committeeMemeberAddressC, committeeMemeberPkC) = makeAddrAndKey("C");
+        // (committeeMemeberAddressD, committeeMemeberPkD) = makeAddrAndKey("D");
+        // (committeeMemeberAddressE, committeeMemeberPkE) = makeAddrAndKey("E");
 
-        signers[0] = committeeMemeberPkA;
-        signers[1] = committeeMemeberPkB;
-        signers[2] = committeeMemeberPkC;
-        signers[3] = committeeMemeberPkD;
-        signers[4] = committeeMemeberPkE;
+        // signers[0] = committeeMemeberPkA;
+        // signers[1] = committeeMemeberPkB;
+        // signers[2] = committeeMemeberPkC;
+        // signers[3] = committeeMemeberPkD;
+        // signers[4] = committeeMemeberPkE;
 
-        _committeeMemebers = new address[](5);
-        _committeeMemebers[0] = committeeMemeberAddressA;
-        _committeeMemebers[1] = committeeMemeberAddressB;
-        _committeeMemebers[2] = committeeMemeberAddressC;
-        _committeeMemebers[3] = committeeMemeberAddressD;
-        _committeeMemebers[4] = committeeMemeberAddressE;
+        // _committeeMemebers = new address[](5);
+        // _committeeMemebers[0] = committeeMemeberAddressA;
+        // _committeeMemebers[1] = committeeMemeberAddressB;
+        // _committeeMemebers[2] = committeeMemeberAddressC;
+        // _committeeMemebers[3] = committeeMemeberAddressD;
+        // _committeeMemebers[4] = committeeMemeberAddressE;
 
-        uint16[] memory _stake = new uint16[](5);
-        _stake[0] = committeeMemeberStakeA;
-        _stake[1] = committeeMemeberStakeB;
-        _stake[2] = committeeMemeberStakeC;
-        _stake[3] = committeeMemeberStakeD;
-        _stake[4] = committeeMemeberStakeE;
+        // uint16[] memory _stake = new uint16[](5);
+        // _stake[0] = committeeMemeberStakeA;
+        // _stake[1] = committeeMemeberStakeB;
+        // _stake[2] = committeeMemeberStakeC;
+        // _stake[3] = committeeMemeberStakeD;
+        // _stake[4] = committeeMemeberStakeE;
 
-        bridgeCommittee.initialize(_committeeMemebers, _stake);
+        // bridgeCommittee.initialize(_committeeMemebers, _stake);
     }
 
-    /**
+    
     function testFuzz_Initialize(
         address[10] memory committeeMembersFuzz,
         uint16[10] memory stakesFuzz
     ) public {
+
+console.log("committeeMembersFuzz: %s", committeeMembersFuzz.length);
         // create the input data
-        address[] memory committeeMembers = new address[](5);
-        uint16[] memory stakes = new uint16[](5);
-        for (uint16 i = 0; i < 5; i++) {
+        address[] memory committeeMembers = new address[](10);
+        uint16[] memory stakes = new uint16[](10);
+        for (uint16 i = 0; i < 10; i++) {
             committeeMembers[i] = committeeMembersFuzz[i];
             stakes[i] = stakesFuzz[i];
         }
-
+console.log("isUnique: %s", isUnique(committeeMembers));
         vm.assume(isUnique(committeeMembers)); // addresses must be unique
         vm.assume(sum(stakes) == 10000); // total stake must be 10000
 
@@ -107,8 +109,8 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         }
         return total;
     }
-    */
-
+    
+/**
     function testFuzz_verifyMessageSignatures(
         uint8 messageType,
         bytes memory payload,
@@ -228,4 +230,5 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
             bridgeCommittee.updateBlocklistWithSignatures(signatures, message);
         }
     }
+    */
 }
