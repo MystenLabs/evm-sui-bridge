@@ -12,7 +12,9 @@ abstract contract MessageVerifier is Initializable {
     // messageType => nonce
     mapping(uint8 => uint64) public nonces;
 
-    function __MessageVerifier_init(address _committee) internal onlyInitializing {
+    function __MessageVerifier_init(
+        address _committee
+    ) internal onlyInitializing {
         committee = IBridgeCommittee(_committee);
     }
 
@@ -26,20 +28,42 @@ abstract contract MessageVerifier is Initializable {
 
         // increment message type nonce
         if (messageType != BridgeMessage.TOKEN_TRANSFER) {
-            require(message.nonce == nonces[message.messageType], "MessageVerifier: Invalid nonce");
+            require(
+                message.nonce == nonces[message.messageType],
+                "MessageVerifier: Invalid nonce"
+            );
             nonces[message.messageType]++;
         }
         _;
     }
 
-    modifier verifyDestinationChainID(uint8 destinationChainID) {
+    /**
+- Sui Mainnet ↔ Eth Mainnet
+- Sui Testnet ↔ Eth Sepolia
+- Sui Testnet ↔ Eth Local Test
+- Sui Testnet ↔ Eth Sepolia
+- Sui Testnet ↔ Eth Local Test
+- Sui LocalNet ↔ Eth Sepolia
+- Sui LocalNet ↔ Eth Local Test
+
+0: SUI MAINNET
+1:  SUI TESTNET
+2:  SUI DEVNET
+3: Sui Local Test
+10: ETH MAINNET
+11: ETH SEPOLIA
+12: ETH local test
+*/
+
+    modifier verifyRouteLegitimacy(uint8 sourceChainID, uint8 targetChainID) {
         // Check that destination chain ID is valid
         require(
-            destinationChainID == BridgeMessage.SUI ||
-                destinationChainID == BridgeMessage.BTC ||
-                destinationChainID == BridgeMessage.ETH ||
-                destinationChainID == BridgeMessage.USDC ||
-                destinationChainID == BridgeMessage.USDT,
+            (sourceChainID == BridgeMessage.SUI &&
+                targetChainID == BridgeMessage.ETH) ||
+                (sourceChainID == BridgeMessage.SUI &&
+                    targetChainID == BridgeMessage.ETH) ||
+                (sourceChainID == BridgeMessage.SUI &&
+                    targetChainID == BridgeMessage.ETH),
             "MessageVerifier: Invalid destination chain ID"
         );
         _;

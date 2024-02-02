@@ -65,7 +65,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         external
         nonReentrant
         verifySignaturesAndNonce(message, signatures, BridgeMessage.TOKEN_TRANSFER)
-        verifyDestinationChainID(message.chainID)
+        verifyRouteLegitimacy(chainID, message.chainID)
     {
         // verify that message has not been processed
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
@@ -121,7 +121,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         uint256 amount,
         bytes memory targetAddress,
         uint8 destinationChainID
-    ) external whenNotPaused nonReentrant verifyDestinationChainID(destinationChainID) {
+    ) external whenNotPaused nonReentrant verifyRouteLegitimacy(destinationChainID) {
 
         // Check that the token address is supported (but not sui yet)
         require(
@@ -165,7 +165,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         payable
         whenNotPaused
         nonReentrant
-        verifyDestinationChainID(destinationChainID)
+        verifyRouteLegitimacy(destinationChainID)
     {
         uint256 amount = msg.value;
 
