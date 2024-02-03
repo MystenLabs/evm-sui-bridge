@@ -11,18 +11,17 @@ contract BridgeCommitteeTest is BridgeBaseTest {
     }
 
     function testBridgeCommitteeInitialization() public {
-        assertEq(committee.committeeMembers(committeeMemberA), 1000);
-        assertEq(committee.committeeMembers(committeeMemberB), 1000);
-        assertEq(committee.committeeMembers(committeeMemberC), 1000);
-        assertEq(committee.committeeMembers(committeeMemberD), 2002);
-        assertEq(committee.committeeMembers(committeeMemberE), 4998);
+        assertEq(committee.committeeStake(committeeMemberA), 1000);
+        assertEq(committee.committeeStake(committeeMemberB), 1000);
+        assertEq(committee.committeeStake(committeeMemberC), 1000);
+        assertEq(committee.committeeStake(committeeMemberD), 2002);
+        assertEq(committee.committeeStake(committeeMemberE), 4998);
         // Assert that the total stake is 10,000
         assertEq(
-            committee.committeeMembers(committeeMemberA)
-                + committee.committeeMembers(committeeMemberB)
-                + committee.committeeMembers(committeeMemberC)
-                + committee.committeeMembers(committeeMemberD)
-                + committee.committeeMembers(committeeMemberE),
+            committee.committeeStake(committeeMemberA) + committee.committeeStake(committeeMemberB)
+                + committee.committeeStake(committeeMemberC)
+                + committee.committeeStake(committeeMemberD)
+                + committee.committeeStake(committeeMemberE),
             10000
         );
         // Check that the blocklist and nonces are initialized to zero
@@ -38,7 +37,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertEq(committee.nonces(4), 0);
     }
 
-    function testVerifyMessageSignaturesWithValidSignatures() public view {
+    function testVerifyMessageSignaturesWithValidSignatures() public {
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
@@ -112,7 +111,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[3] = getSignature(messageHash, committeeMemberPkC);
 
         // Call the verifyMessageSignatures function and expect it to revert
-        vm.expectRevert(bytes("BridgeCommittee: Duplicate signature, address already seen"));
+        vm.expectRevert(bytes("BridgeCommittee: Duplicate signature"));
         committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
     }
 
@@ -219,9 +218,6 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
 
-        // verify CommitteeMemberA's signature is still valid
-        committee.verifyMessageSignatures(signatures, message, BridgeMessage.BLOCKLIST);
-
         committee.updateBlocklistWithSignatures(signatures, message);
 
         assertTrue(committee.blocklist(committeeMemberA));
@@ -267,7 +263,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
         signatures[4] = getSignature(messageHash, committeeMemberPkF);
 
-        vm.expectRevert(bytes("BridgeCommittee: Not a committee member"));
+        vm.expectRevert(bytes("BridgeCommittee: Signer not a committee member"));
         committee.verifyMessageSignatures(signatures, message, message.messageType);
     }
 
@@ -303,7 +299,4 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         // verify CommitteeMemberA is no longer blocklisted
         assertFalse(committee.blocklist(committeeMemberA));
     }
-
-    // TODO
-    function testUpgradeCommitteeContract() public {}
 }

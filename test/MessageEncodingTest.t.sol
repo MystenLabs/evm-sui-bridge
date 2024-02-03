@@ -64,11 +64,12 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
     // Waiting for move generated payloads to be generated
 
     // TODO:
+    function testDecodeBlocklistPayload() public {}
+    // TODO:
+
     function testDecodeEmergencyOpPayload() public {}
     // TODO:
     function testDecodeUpgradePayload() public {}
-    // TODO:
-    function testDecodeBlocklistPayload() public {}
     // TODO:
     function testDecodeUpdateAssetPayload() public {}
     // TODO:
