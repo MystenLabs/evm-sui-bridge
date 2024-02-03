@@ -75,17 +75,17 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
 
             require(committeeStake[signer] > 0, "BridgeCommittee: Signer not a committee member");
 
+            // skip if signer is block listed
+            if (blocklist[signer]) {
+                continue;
+            }
+
             uint8 index = addressIndex[signer];
             uint256 mask = 1 << index;
             if (bitmap & mask == 0) {
                 bitmap |= mask;
             } else {
-                // Duplicate signature
-                revert("BridgeCommittee: Duplicate signature");
-            }
-
-            // If signer is block listed skip this signature
-            if (blocklist[signer]) {
+                // skip if duplicate signature
                 continue;
             }
 

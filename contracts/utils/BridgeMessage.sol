@@ -197,22 +197,6 @@ library BridgeMessage {
         pure
         returns (bool, address[] memory)
     {
-        // uint8 blocklistType = uint8(payload[0]);
-        // uint8 membersLength = uint8(payload[1]);
-        // address[] memory members = new address[](membersLength);
-        // uint8 offset;
-        // for (uint8 i = 0; i < membersLength; i++) {
-        //     address member;
-        //     assembly {
-        //         member := mload(add(payload, 0x20))
-        //     }
-        //     members[i] = member;
-        //     offset += 20;
-        // }
-
-        // // blocklistType: 0 = blocklist, 1 = unblocklist
-        // bool blocklisted = (blocklistType == 0) ? true : false;
-        // return (blocklisted, members);
         (uint8 blocklistType, address[] memory members) = abi.decode(payload, (uint8, address[]));
         return (blocklistType == 0 ? true : false, members);
     }

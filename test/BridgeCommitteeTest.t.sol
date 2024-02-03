@@ -111,7 +111,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[3] = getSignature(messageHash, committeeMemberPkC);
 
         // Call the verifyMessageSignatures function and expect it to revert
-        vm.expectRevert(bytes("BridgeCommittee: Duplicate signature"));
+        vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
         committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
     }
 
