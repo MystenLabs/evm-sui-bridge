@@ -252,7 +252,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
 
         bytes memory messageBytes = BridgeMessage.encodeMessage(message);
         bytes32 messageHash = keccak256(messageBytes);
-        bytes[] memory signatures = new bytes[](5);
+        bytes[] memory signatures = new bytes[](4);
 
         (, uint256 committeeMemberPkF) = makeAddrAndKey("f");
 
@@ -260,10 +260,9 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[0] = getSignature(messageHash, committeeMemberPkA);
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemberPkD);
-        signatures[4] = getSignature(messageHash, committeeMemberPkF);
+        signatures[3] = getSignature(messageHash, committeeMemberPkF);
 
-        vm.expectRevert(bytes("BridgeCommittee: Signer not a committee member"));
+        vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
         committee.verifyMessageSignatures(signatures, message, message.messageType);
     }
 

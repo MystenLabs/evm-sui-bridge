@@ -12,10 +12,10 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
 
     // member address => stake amount
     mapping(address => uint16) public committeeStake;
+    // member address => index of member address
+    mapping(address => uint8) public committeeIndex;
     // member address => is blocklisted
     mapping(address => bool) public blocklist;
-    // member address => index of member address
-    mapping(address => uint8) public addressIndex;
 
     /* ========== INITIALIZER ========== */
 
@@ -39,7 +39,7 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
                 "BridgeCommittee: Duplicate committee member"
             );
             committeeStake[_committeeMembers[i]] = stake[i];
-            addressIndex[_committeeMembers[i]] = uint8(i);
+            committeeIndex[_committeeMembers[i]] = uint8(i);
             total_stake += stake[i];
         }
 
@@ -61,11 +61,11 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
 
         uint32 requiredStake = BridgeMessage.getRequiredStake(message);
 
-        // Loop over the signatures and check if they are valid
         uint16 approvalStake;
         address signer;
         uint256 bitmap;
 
+        // Loop over the signatures and check if they are valid
         for (uint16 i = 0; i < signatures.length; i++) {
             bytes memory signature = signatures[i];
             // recover the signer from the signature
@@ -73,14 +73,10 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
 
             (signer,,) = ECDSA.tryRecover(BridgeMessage.computeHash(message), v, r, s);
 
-            require(committeeStake[signer] > 0, "BridgeCommittee: Signer not a committee member");
+            // skip if signer is block listed or has no stake
+            if (blocklist[signer] || committeeStake[signer] == 0) continue;
 
-            // skip if signer is block listed
-            if (blocklist[signer]) {
-                continue;
-            }
-
-            uint8 index = addressIndex[signer];
+            uint8 index = committeeIndex[signer];
             uint256 mask = 1 << index;
             if (bitmap & mask == 0) {
                 bitmap |= mask;
