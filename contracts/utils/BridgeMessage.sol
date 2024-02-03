@@ -192,14 +192,13 @@ library BridgeMessage {
         );
     }
 
-    function decodeUpgradePayload(bytes memory payload)
+    function decodeBlocklistPayload(bytes memory payload)
         internal
         pure
-        returns (address, address, bytes memory)
+        returns (bool, address[] memory)
     {
-        (address proxy, address implementation, bytes memory callData) =
-            abi.decode(payload, (address, address, bytes));
-        return (proxy, implementation, callData);
+        (uint8 blocklistType, address[] memory members) = abi.decode(payload, (uint8, address[]));
+        return (blocklistType == 0 ? true : false, members);
     }
 
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
@@ -208,15 +207,9 @@ library BridgeMessage {
         return emergencyOpCode == 0 ? true : false;
     }
 
-    function decodeBlocklistPayload(bytes memory payload)
-        internal
-        pure
-        returns (bool, address[] memory)
-    {
-        (uint8 blocklistType, address[] memory validators) = abi.decode(payload, (uint8, address[]));
-        // blocklistType: 0 = blocklist, 1 = unblocklist
-        bool blocklisted = (blocklistType == 0) ? true : false;
-        return (blocklisted, validators);
+    function decodeUpdateLimitPayload(bytes memory payload) internal pure returns (uint256) {
+        (uint256 newLimit) = abi.decode(payload, (uint256));
+        return newLimit;
     }
 
     function decodeUpdateAssetPayload(bytes memory payload)
@@ -228,8 +221,13 @@ library BridgeMessage {
         return (tokenId, price);
     }
 
-    function decodeUpdateLimitPayload(bytes memory payload) internal pure returns (uint256) {
-        (uint256 newLimit) = abi.decode(payload, (uint256));
-        return newLimit;
+    function decodeUpgradePayload(bytes memory payload)
+        internal
+        pure
+        returns (address, address, bytes memory)
+    {
+        (address proxy, address implementation, bytes memory callData) =
+            abi.decode(payload, (address, address, bytes));
+        return (proxy, implementation, callData);
     }
 }

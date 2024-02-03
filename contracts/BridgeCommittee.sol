@@ -11,7 +11,9 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
     // member address => stake amount
-    mapping(address => uint16) public committeeMembers;
+    mapping(address => uint16) public committeeStake;
+    // member address => index of member address
+    mapping(address => uint8) public committeeIndex;
     // member address => is blocklisted
     mapping(address => bool) public blocklist;
 
@@ -19,25 +21,26 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
 
     /// @notice Initializes the contract with the deployer as the admin.
     /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
-    function initialize(address[] memory _committeeMembers, uint16[] memory stakes)
+    function initialize(address[] memory _committeeMembers, uint16[] memory stake)
         external
         initializer
     {
         __CommitteeUpgradeable_init(address(this));
         __UUPSUpgradeable_init();
         require(
-            _committeeMembers.length == stakes.length,
+            _committeeMembers.length == stake.length,
             "BridgeCommittee: Committee and stake arrays must be of the same length"
         );
 
         uint16 total_stake = 0;
         for (uint16 i = 0; i < _committeeMembers.length; i++) {
             require(
-                committeeMembers[_committeeMembers[i]] == 0,
+                committeeStake[_committeeMembers[i]] == 0,
                 "BridgeCommittee: Duplicate committee member"
             );
-            committeeMembers[_committeeMembers[i]] = stakes[i];
-            total_stake += stakes[i];
+            committeeStake[_committeeMembers[i]] = stake[i];
+            committeeIndex[_committeeMembers[i]] = uint8(i);
+            total_stake += stake[i];
         }
 
         require(total_stake == 10000, "BridgeCommittee: Total stake must be 10000");
@@ -58,12 +61,11 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
 
         uint32 requiredStake = BridgeMessage.getRequiredStake(message);
 
-        // Loop over the signatures and check if they are valid
         uint16 approvalStake;
         address signer;
-        // Declare an array to store the recovered addresses
-        address[] memory seen = new address[](signatures.length);
-        uint256 seenIndex = 0;
+        uint256 bitmap;
+
+        // Loop over the signatures and check if they are valid
         for (uint16 i = 0; i < signatures.length; i++) {
             bytes memory signature = signatures[i];
             // recover the signer from the signature
@@ -71,27 +73,19 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
 
             (signer,,) = ECDSA.tryRecover(BridgeMessage.computeHash(message), v, r, s);
 
-            // TODO: explore alternative dup checking methods (this is O(n^2)
-            // Check if the address has already been seen
-            bool found = false;
-            for (uint256 j = 0; j < seen.length; j++) {
-                if (seen[j] == signer) {
-                    found = true;
-                    break;
-                }
+            // skip if signer is block listed or has no stake
+            if (blocklist[signer] || committeeStake[signer] == 0) continue;
+
+            uint8 index = committeeIndex[signer];
+            uint256 mask = 1 << index;
+            if (bitmap & mask == 0) {
+                bitmap |= mask;
+            } else {
+                // skip if duplicate signature
+                continue;
             }
-            require(!found, "BridgeCommittee: Duplicate signature, address already seen");
 
-            // Add the address to the array
-            seen[seenIndex++] = signer;
-
-            // Check if the signer is a committee member and not already approved
-            require(committeeMembers[signer] > 0, "BridgeCommittee: Not a committee member");
-
-            // If signer is block listed skip this signature
-            if (blocklist[signer]) continue;
-
-            approvalStake += committeeMembers[signer];
+            approvalStake += committeeStake[signer];
         }
 
         require(approvalStake >= requiredStake, "BridgeCommittee: Insufficient stake amount");
