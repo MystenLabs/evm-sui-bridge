@@ -8,6 +8,8 @@ import "./interfaces/IBridgeTokens.sol";
 import "./utils/CommitteeUpgradeable.sol";
 
 contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeable {
+    uint32 public constant MAX_HOURS_TO_GC_PER_CALL = 720;
+
     /* ========== STATE VARIABLES ========== */
 
     IBridgeTokens public tokens;
@@ -48,7 +50,12 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
     /// @param tokenId The ID of the token.
     /// @param amount The amount of the token.
     /// @return A boolean indicating whether the total amount will exceed the limit.
-    function willAmountExceedLimit(uint8 tokenId, uint256 amount) public view returns (bool) {
+    function willAmountExceedLimit(uint8 tokenId, uint256 amount)
+        public
+        view
+        override
+        returns (bool)
+    {
         uint256 windowAmount = calculateWindowAmount();
         uint256 USDAmount = calculateAmountInUSD(tokenId, amount);
         return windowAmount + USDAmount > totalLimit;
@@ -105,41 +112,13 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
 
         uint32 _currentHour = currentHour();
 
-        // garbage collect most recently expired hour if window is moving
-        if (oldestHourTimestamp < _currentHour - 24) {
-            garbageCollectHourlyTransferAmount(_currentHour - 25, _currentHour - 25);
+        // garbage collect most recently expired hour if possible
+        if (hourlyTransferAmount[_currentHour - 25] > 0) {
+            delete hourlyTransferAmount[_currentHour - 25];
         }
 
         // update hourly transfers
         hourlyTransferAmount[_currentHour] += usdAmount;
-    }
-
-    /// @dev Performs garbage collection of hourly transfer amounts within a specified time window.
-    /// @param startHour The starting hour (inclusive) of the time window.
-    /// @param endHour The ending hour (inclusive) of the time window.
-    /// Requirements:
-    /// - `startHour` must be in the past.
-    /// - `startHour` must be before the current window.
-    /// - `endHour` must be before the current window.
-    /// Effects:
-    /// - Deletes the hourly transfer amounts for each hour within the specified time window.
-    /// - Updates the oldest hour timestamp if the current oldest hour was garbage collected.
-    function garbageCollectHourlyTransferAmount(uint32 startHour, uint32 endHour) public {
-        uint32 windowStart = uint32(block.timestamp / 1 hours) - 24;
-        require(
-            startHour >= oldestHourTimestamp, "BridgeLimiter: hourTimestamp must be in the past"
-        );
-        require(startHour < windowStart, "BridgeLimiter: start must be before current window");
-        require(endHour < windowStart, "BridgeLimiter: end must be before current window");
-
-        for (uint32 i = startHour; i <= endHour; i++) {
-            if (hourlyTransferAmount[i] > 0) delete hourlyTransferAmount[i];
-        }
-
-        // update oldest hour if current oldest hour was garbage collected
-        if (startHour == oldestHourTimestamp) {
-            oldestHourTimestamp = endHour + 1;
-        }
     }
 
     /// @dev Updates the asset price with the provided signatures and message.
@@ -151,7 +130,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
     )
         external
         nonReentrant
-        verifySignatures(message, signatures, BridgeMessage.UPDATE_ASSET_PRICE)
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.UPDATE_ASSET_PRICE)
     {
         // decode the update asset payload
         (uint8 tokenId, uint256 price) = BridgeMessage.decodeUpdateAssetPayload(message.payload);
@@ -169,7 +148,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
     )
         external
         nonReentrant
-        verifySignatures(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
     {
         // decode the update limit payload
         (uint256 newLimit) = BridgeMessage.decodeUpdateLimitPayload(message.payload);

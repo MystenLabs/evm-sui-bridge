@@ -43,7 +43,8 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
         // b18f79fe671db47393315ffdb377da4ea1b7af96: target address 20 bytes
         // 02: token id 1 byte
         // 000000c70432b1dd: amount 8 bytes
-        bytes memory payload = hex"2080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af9602000000c70432b1dd";
+        bytes memory payload =
+            hex"2080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af9602000000c70432b1dd";
 
         BridgeMessage.TokenTransferPayload memory _payload =
             BridgeMessage.decodeTokenTransferPayload(payload);
@@ -60,12 +61,17 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
         assertEq(_payload.amount, uint64(854768923101));
     }
 
-    // TODO:
-    function testDecodeEmergencyOpPayload() public {}
-    // TODO:
-    function testDecodeBridgeUpgradePayload() public {}
+    // Waiting for move generated payloads to be generated
+
     // TODO:
     function testDecodeBlocklistPayload() public {}
     // TODO:
-    function testDecodeCommitteeUpgradePayload() public {}
+
+    function testDecodeEmergencyOpPayload() public {}
+    // TODO:
+    function testDecodeUpgradePayload() public {}
+    // TODO:
+    function testDecodeUpdateAssetPayload() public {}
+    // TODO:
+    function testDecodeUpdateLimitPayload() public {}
 }

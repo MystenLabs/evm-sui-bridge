@@ -27,16 +27,19 @@ abstract contract CommitteeUpgradeable is
     function upgradeWithSignatures(bytes[] memory signatures, BridgeMessage.Message memory message)
         external
         nonReentrant
-        verifySignatures(message, signatures, BridgeMessage.BRIDGE_UPGRADE)
+        verifySignaturesAndNonce(message, signatures, BridgeMessage.UPGRADE)
     {
         // decode the upgrade payload
-        (address implementationAddress, bytes memory callData) =
+        (address proxy, address implementation, bytes memory callData) =
             BridgeMessage.decodeUpgradePayload(message.payload);
+
+        // verify proxy address
+        require(proxy == address(this), "SuiBridge: Invalid proxy address");
 
         // authorize upgrade
         _upgradeAuthorized = true;
         // upgrade contract
-        upgradeToAndCall(implementationAddress, callData);
+        upgradeToAndCall(implementation, callData);
         // reset upgrade authorization
         _upgradeAuthorized = false;
     }

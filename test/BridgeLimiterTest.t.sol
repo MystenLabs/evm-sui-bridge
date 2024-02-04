@@ -97,31 +97,6 @@ contract BridgeLimiterTest is BridgeBaseTest {
         assertEq(deleteAmount, 0);
     }
 
-    function testGarbageCollectHourlyTransferAmount() public {
-        changePrank(address(bridge));
-        uint8 tokenId = 1;
-        uint256 amount = 100000000; // wBTC has 8 decimals
-        uint32 startingHour = uint32(block.timestamp / 1 hours);
-        // create many transfer updates across hours
-        for (uint256 i = 0; i < 20; i++) {
-            limiter.updateBridgeTransfers(tokenId, amount);
-            skip(1 hours);
-        }
-        skip(50 hours);
-        // garbage collect the first 10 hours
-        uint32 startHour = startingHour;
-        uint32 endHour = startingHour + 10;
-        assertEq(limiter.oldestHourTimestamp(), startingHour);
-        for (uint256 i = 0; i < 10; i++) {
-            assertEq(limiter.hourlyTransferAmount(uint32(startingHour + i)), BTC_PRICE);
-        }
-        limiter.garbageCollectHourlyTransferAmount(startHour, endHour);
-        assertEq(limiter.oldestHourTimestamp(), startingHour + 11);
-        for (uint256 i = 0; i < 10; i++) {
-            assertEq(limiter.hourlyTransferAmount(uint32(startingHour + i)), 0);
-        }
-    }
-
     function testUpdateAssetPriceWithSignatures() public {
         changePrank(address(bridge));
         bytes memory payload = abi.encode(uint8(1), uint256(100000000));

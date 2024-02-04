@@ -49,13 +49,13 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
         bridgeV2 = new MockSuiBridgeV2();
     }
 
-    function testUpgradeWithSignatures() public {
+    function testUpgradeWithSignaturesSuccess() public {
         bytes memory initializer = abi.encodeCall(MockSuiBridgeV2.initializeV2, ());
-        bytes memory payload = abi.encode(address(bridgeV2), initializer);
+        bytes memory payload = abi.encode(address(bridge), address(bridgeV2), initializer);
 
         // Create upgrade message
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.BRIDGE_UPGRADE,
+            messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
             chainID: 1,
@@ -76,14 +76,12 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
 
     function testUpgradeWithSignaturesInsufficientStakeAmount() public {
         // Create message
-        // deploy mockbridgev2
-        bridgeV2 = new MockSuiBridgeV2();
         bytes memory initializer = abi.encodeCall(MockSuiBridgeV2.initializeV2, ());
-        bytes memory payload = abi.encode(address(bridgeV2), initializer);
+        bytes memory payload = abi.encode(address(bridge), address(bridgeV2), initializer);
 
         // Create upgrade message
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.BRIDGE_UPGRADE,
+            messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
             chainID: 1,
@@ -119,7 +117,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
 
     function testUpgradeWithSignaturesInvalidNonce() public {
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.BRIDGE_UPGRADE,
+            messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 10,
             chainID: 1,
@@ -138,10 +136,10 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
 
     function testUpgradeWithSignaturesERC1967UpgradeNewImplementationIsNotUUPS() public {
         bytes memory initializer = abi.encodeCall(MockSuiBridgeV2.initializeV2, ());
-        bytes memory payload = abi.encode(address(this), initializer);
+        bytes memory payload = abi.encode(address(bridge), address(this), initializer);
 
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.BRIDGE_UPGRADE,
+            messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
             chainID: 1,
@@ -162,4 +160,28 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
         );
         bridge.upgradeWithSignatures(signatures, message);
     }
+
+    function testUpgradeWithSignaturesInvalidProxyAddress() public {
+        bytes memory initializer = abi.encodeCall(MockSuiBridgeV2.initializeV2, ());
+        bytes memory payload = abi.encode(address(this), address(bridgeV2), initializer);
+
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPGRADE,
+            version: 1,
+            nonce: 0,
+            chainID: 1,
+            payload: payload
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(encodedMessage);
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+        vm.expectRevert(bytes("SuiBridge: Invalid proxy address"));
+        bridge.upgradeWithSignatures(signatures, message);
+    }
+
+    // TODO: addMockUpgradeTest using OZ upgrades package to show upgrade safety checks
 }

@@ -16,7 +16,7 @@ abstract contract MessageVerifier is Initializable {
         committee = IBridgeCommittee(_committee);
     }
 
-    modifier verifySignatures(
+    modifier verifySignaturesAndNonce(
         BridgeMessage.Message memory message,
         bytes[] memory signatures,
         uint8 messageType
