@@ -37,7 +37,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertEq(committee.nonces(4), 0);
     }
 
-    function testVerifyMessageSignaturesWithValidSignatures() public {
+    function testVerifyMessageSignaturesWithValidSignatures() public view {
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
