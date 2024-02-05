@@ -31,7 +31,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
         // deploy bridge committee
         address _committee = Upgrades.deployUUPSProxy(
             "BridgeCommittee.sol",
-            abi.encodeCall(BridgeCommittee.initialize, (_committeeMembers, _stake))
+            abi.encodeCall(BridgeCommittee.initialize, (_committeeMembers, _stake, chainID))
         );
 
         committee = BridgeCommittee(_committee);
@@ -40,8 +40,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
         address _bridge = Upgrades.deployUUPSProxy(
             "SuiBridge.sol",
             abi.encodeCall(
-                SuiBridge.initialize,
-                (_committee, address(0), address(0), address(0), address(0), 99)
+                SuiBridge.initialize, (_committee, address(0), address(0), address(0), address(0))
             )
         );
 
@@ -58,7 +57,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -84,7 +83,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -101,7 +100,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: abi.encode(0)
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -120,7 +119,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 10,
-            chainID: 1,
+            chainID: chainID,
             payload: abi.encode(0)
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -142,7 +141,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -169,7 +168,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);

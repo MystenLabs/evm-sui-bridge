@@ -43,7 +43,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
 
@@ -75,7 +75,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: chainID,
             payload: abi.encode(payload)
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -103,7 +103,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.EMERGENCY_OP,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: chainID,
             payload: abi.encode(payload)
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -144,7 +144,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
 
@@ -196,7 +196,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
 
@@ -220,7 +220,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.EMERGENCY_OP,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: abi.encode(2)
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -239,7 +239,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.EMERGENCY_OP,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: chainID,
             payload: abi.encode(0)
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -258,7 +258,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: abi.encode(0)
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -277,7 +277,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.EMERGENCY_OP,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: abi.encode(1)
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -295,7 +295,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.EMERGENCY_OP,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: abi.encode(0)
         });
 
@@ -321,7 +321,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.EMERGENCY_OP,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: chainID,
             payload: abi.encode(1)
         });
 
@@ -339,14 +339,14 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertFalse(bridge.paused());
     }
 
-    function testBridgeToSuiUnsupportedToken() public {
+    function testBridgeERC20UnsupportedToken() public {
         vm.expectRevert(bytes("SuiBridge: Unsupported token"));
-        bridge.bridgeToSui(255, 1 ether, abi.encode("suiAddress"), 0);
+        bridge.bridgeERC20(255, 1 ether, abi.encode("suiAddress"), 0);
     }
 
-    function testBridgeToSuiInsufficientAllowance() public {
+    function testBridgeERC20InsufficientAllowance() public {
         vm.expectRevert(bytes("SuiBridge: Insufficient allowance"));
-        bridge.bridgeToSui(BridgeMessage.ETH, type(uint256).max, abi.encode("suiAddress"), 0);
+        bridge.bridgeERC20(BridgeMessage.ETH, type(uint256).max, abi.encode("suiAddress"), 0);
     }
 
     function testBridgeWETHToSui() public {
@@ -368,7 +368,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             abi.encode("suiAddress")
         );
 
-        bridge.bridgeToSui(BridgeMessage.ETH, 1 ether, abi.encode("suiAddress"), 0);
+        bridge.bridgeERC20(BridgeMessage.ETH, 1 ether, abi.encode("suiAddress"), 0);
         assertEq(IERC20(wETH).balanceOf(address(vault)), 1 ether);
         assertEq(IERC20(wETH).balanceOf(deployer), balance - 1 ether);
         assertEq(bridge.nonces(BridgeMessage.TOKEN_TRANSFER), 1);
@@ -385,7 +385,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             abi.encode("suiAddress")
         );
         // 2_000_000_011_000_000_888 is rounded to 2.00000001 eth
-        bridge.bridgeToSui(
+        bridge.bridgeERC20(
             BridgeMessage.ETH, 2_000_000_011_000_000_888, abi.encode("suiAddress"), 0
         );
         assertEq(IERC20(wETH).balanceOf(address(vault)), 3_000_000_011_000_000_888);
@@ -422,7 +422,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             abi.encode("suiAddress")
         );
 
-        bridge.bridgeETHToSui{value: 1 ether}(abi.encode("suiAddress"), 0);
+        bridge.bridgeETH{value: 1 ether}(abi.encode("suiAddress"), 0);
         assertEq(IERC20(wETH).balanceOf(address(vault)), 1 ether);
         assertEq(deployer.balance, balance - 1 ether);
         assertEq(bridge.nonces(BridgeMessage.TOKEN_TRANSFER), 1);
@@ -441,7 +441,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         _stake[2] = 2500;
         _stake[3] = 2500;
         committee = new BridgeCommittee();
-        committee.initialize(_committee, _stake);
+        committee.initialize(_committee, _stake, 1);
         vault = new BridgeVault(wETH);
         uint256[] memory assetPrices = new uint256[](4);
         assetPrices[0] = 10000; // SUI PRICE
@@ -454,9 +454,8 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
-        uint8 _chainId = chainID;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH, _chainId
+            address(committee), address(tokens), address(vault), address(limiter), wETH
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
@@ -491,7 +490,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             hex"8ba9ec92c2d5a44ecc123182f689b901a93921fd35f581354fea20b25a0ded6d055b96a64bdda77dd5a62b93d29abe93640aa3c1a136348093cd7a2418c6bfa301";
 
         uint256 aBalance = targetAddress.balance;
-        committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
+        committee.verifySignatures(signatures, message);
 
         bridge.transferTokensWithSignatures(signatures, message);
         assertEq(targetAddress.balance, aBalance + 0.001 ether);
