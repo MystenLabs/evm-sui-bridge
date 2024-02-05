@@ -37,7 +37,6 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         assertEq(expected, actual);
     }
 
-    // FAILS
     function testFuzz_updateBridgeTransfers(
         uint8 tokenId,
         uint256 amount
@@ -45,10 +44,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         tokenId = uint8(bound(tokenId, 1, 3));
         amount = uint8(bound(amount, 100_000_000, 100_000_000_000_000_000));
 
-        bool expected = amount > 0 &&
-            !bridgeLimiter.willUSDAmountExceedLimit(
-                bridgeLimiter.calculateAmountInUSD(tokenId, amount)
-            );
+        bool expected = bridgeLimiter.willUSDAmountExceedLimit(bridgeLimiter.calculateAmountInUSD(tokenId, amount));
 
         bool actual;
         try bridgeLimiter.updateBridgeTransfers(tokenId, amount) {
@@ -60,7 +56,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
             actual = false;
         }
 
-        // assertEq(expected, actual);
+        assertEq(expected, actual);
     }
 
     function testFuzz_updateAssetPriceWithSignatures(
@@ -119,7 +115,8 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         }
     }
 
-    function testFuzz_updateLimitWithSignatures(uint256 totalLimit) public {
+    function testFuzz_updateLimitWithSignatures(uint8 numSigners, uint256 totalLimit) public {
+        vm.assume(numSigners > 0 && numSigners <= N);
         vm.assume(totalLimit >= 100000000);
         bytes memory payload = abi.encode(uint256(totalLimit));
         // Create a sample BridgeMessage
@@ -134,16 +131,37 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         bytes memory messageBytes = BridgeMessage.encodeMessage(message);
         bytes32 messageHash = keccak256(messageBytes);
 
-        bytes[] memory signatures = new bytes[](5);
-        signatures[0] = getSignature(messageHash, committeeMemeberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemeberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemeberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemeberPkD);
-        signatures[4] = getSignature(messageHash, committeeMemeberPkE);
+        bytes[] memory signatures = new bytes[](numSigners);
+        for (uint8 i = 0; i < numSigners; i++) {
+            signatures[i] = getSignature(messageHash, signers[i]);
+        }
 
-        // Call the updateLimitWithSignatures function
-        bridgeLimiter.updateLimitWithSignatures(signatures, message);
+        bool signaturesValid;
+        try
+            bridgeCommittee.verifyMessageSignatures(
+                signatures,
+                message,
+                BridgeMessage.UPDATE_BRIDGE_LIMIT
+            )
+        {
+            // The call was successful
+            signaturesValid = true;
+        } catch Error(string memory) {
+            signaturesValid = false;
+        } catch (bytes memory) {
+            signaturesValid = false;
+        }
 
-        assertEq(bridgeLimiter.totalLimit(), totalLimit);
+        if (signaturesValid) {
+            // Call the updateLimitWithSignatures function
+            bridgeLimiter.updateLimitWithSignatures(signatures, message);
+            assertEq(bridgeLimiter.totalLimit(), totalLimit);
+        } else {
+            // Expect a revert
+            vm.expectRevert(
+                bytes("BridgeCommittee: Insufficient stake amount")
+            );
+            bridgeLimiter.updateLimitWithSignatures(signatures, message);
+        }
     }
 }

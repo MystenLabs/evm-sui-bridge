@@ -8,57 +8,6 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         setUpBridgeFuzzTest();
     }
 
-    /**
-    function testFuzz_Initialize(
-        address[10] memory committeeMembersFuzz,
-        uint16[10] memory stakesFuzz
-    ) public {
-
-console.log("committeeMembersFuzz: %s", committeeMembersFuzz.length);
-        // create the input data
-        address[] memory committeeMembers = new address[](10);
-        uint16[] memory stakes = new uint16[](10);
-        for (uint16 i = 0; i < 10; i++) {
-            committeeMembers[i] = committeeMembersFuzz[i];
-            stakes[i] = stakesFuzz[i];
-        }
-console.log("isUnique: %s", isUnique(committeeMembers));
-        vm.assume(isUnique(committeeMembers)); // addresses must be unique
-        vm.assume(sum(stakes) == 10000); // total stake must be 10000
-
-        // call the function to be tested
-        bridgeCommittee.initialize(committeeMembers, stakes);
-
-        // check the postconditions
-        // assertEq(bridgeCommittee.totalStake(), 10000); // total stake should be 10000
-        for (uint16 i = 0; i < committeeMembersFuzz.length; i++) {
-            assertEq(
-                bridgeCommittee.committeeMembers(committeeMembersFuzz[i]),
-                stakesFuzz[i]
-            ); // stakes should be assigned correctly
-        }
-    }
-
-    function isUnique(address[] memory arr) internal pure returns (bool) {
-        for (uint i = 0; i < arr.length; i++) {
-            for (uint j = i + 1; j < arr.length; j++) {
-                if (arr[i] == arr[j]) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    function sum(uint16[] memory arr) internal pure returns (uint256) {
-        uint256 total = 0;
-        for (uint i = 0; i < arr.length; i++) {
-            total += arr[i];
-        }
-        return total;
-    }
-    */
-
     function testFuzz_verifyMessageSignatures(
         uint8 messageType,
         bytes memory payload,

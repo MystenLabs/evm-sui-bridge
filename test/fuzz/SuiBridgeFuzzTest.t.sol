@@ -61,7 +61,9 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
         }
     }
 
-    function testFuzz_transferTokensWithSignatures(uint8 numSigners) public {
+    function testFuzz_transferTokensWithSignatures(
+        uint8 numSigners
+    ) public {
         vm.assume(numSigners > 0 && numSigners <= N);
         skip(2 days);
 
@@ -120,3 +122,11 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
         }
     }
 }
+
+        // uint8 senderAddressLength,
+        // bytes senderAddress,
+        // uint8 targetChain,
+        // uint8 targetAddressLength,
+        // address targetAddress,
+        // uint8 tokenId,
+        // uint64 amount
