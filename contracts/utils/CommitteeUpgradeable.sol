@@ -33,7 +33,8 @@ abstract contract CommitteeUpgradeable is
         (address proxy, address implementation, bytes memory callData) =
             BridgeMessage.decodeUpgradePayload(message.payload);
 
-        // TODO: check the proxy address is valid
+        // verify proxy address
+        require(proxy == address(this), "SuiBridge: Invalid proxy address");
 
         // authorize upgrade
         _upgradeAuthorized = true;
