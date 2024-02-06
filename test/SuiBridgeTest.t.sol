@@ -349,7 +349,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         bridge.bridgeERC20(BridgeMessage.ETH, type(uint256).max, abi.encode("suiAddress"), 0);
     }
 
-    function testBridgeWETHToSui() public {
+    function testBridgeWETH() public {
         changePrank(deployer);
         IWETH9(wETH).deposit{value: 10 ether}();
         IERC20(wETH).approve(address(bridge), 10 ether);
@@ -358,7 +358,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
 
         // assert emitted event
         vm.expectEmit(true, true, true, false);
-        emit TokensBridgedToSui(
+        emit TokensBridged(
             chainID,
             0, // nonce
             0, // destination chain id
@@ -375,7 +375,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
 
         // Now test rounding. For ETH, the last 10 digits are rounded
         vm.expectEmit(true, true, true, false);
-        emit TokensBridgedToSui(
+        emit TokensBridged(
             chainID,
             1, // nonce
             0, // destination chain id
@@ -393,26 +393,26 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertEq(bridge.nonces(BridgeMessage.TOKEN_TRANSFER), 2);
     }
 
-    function testBridgeUSDCToSui() public {
+    function testBridgeUSDC() public {
         // TODO test and make sure adjusted amount in event is correct
     }
 
-    function testBridgeUSDTToSui() public {
+    function testBridgeUSDT() public {
         // TODO test and make sure adjusted amount in event is correct
     }
 
-    function testBridgeBTCToSui() public {
+    function testBridgeBTC() public {
         // TODO test and make sure adjusted amount in event is correct
     }
 
-    function testBridgeEthToSui() public {
+    function testBridgeEth() public {
         changePrank(deployer);
         assertEq(IERC20(wETH).balanceOf(address(vault)), 0);
         uint256 balance = deployer.balance;
 
         // assert emitted event
         vm.expectEmit(true, true, true, false);
-        emit ISuiBridge.TokensBridgedToSui(
+        emit ISuiBridge.TokensBridged(
             chainID,
             0, // nonce
             0, // destination chain id

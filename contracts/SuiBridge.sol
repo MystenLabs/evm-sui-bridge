@@ -139,7 +139,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         // Adjust the amount to log.
         uint64 suiAdjustedAmount =
             adjustDecimalsForSuiToken(tokenId, amount, IERC20Metadata(tokenAddress).decimals());
-        emit TokensBridgedToSui(
+        emit TokensBridged(
             committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
@@ -174,7 +174,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
         // Adjust the amount to log.
         uint64 suiAdjustedAmount = adjustDecimalsForSuiToken(BridgeMessage.ETH, amount, 18);
-        emit TokensBridgedToSui(
+        emit TokensBridged(
             committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
