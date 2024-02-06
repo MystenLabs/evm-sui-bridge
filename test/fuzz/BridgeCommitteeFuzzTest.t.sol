@@ -14,7 +14,7 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         uint8 numSigners
     ) public {
         vm.assume(numSigners > 0 && numSigners <= N);
-        messageType = uint8(bound(messageType, 0, 1));
+        messageType = uint8(bound(messageType, BridgeMessage.TOKEN_TRANSFER, BridgeMessage.BLOCKLIST));
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: messageType,

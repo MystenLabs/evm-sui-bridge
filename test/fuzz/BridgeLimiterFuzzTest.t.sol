@@ -25,7 +25,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         uint8 tokenId,
         uint256 amount
     ) public {
-        tokenId = uint8(bound(tokenId, 1, 3));
+        tokenId = uint8(bound(tokenId, BridgeMessage.BTC, BridgeMessage.USDT));
         amount = uint8(bound(amount, 100_000_000, 100_000_000_000_000_000));
 
         bool expected = bridgeLimiter.calculateWindowAmount() +
@@ -41,7 +41,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         uint8 tokenId,
         uint256 amount
     ) public {
-        tokenId = uint8(bound(tokenId, 1, 3));
+        tokenId = uint8(bound(tokenId, BridgeMessage.BTC, BridgeMessage.USDT));
         amount = uint8(bound(amount, 100_000_000, 100_000_000_000_000_000));
 
         bool expected = bridgeLimiter.willUSDAmountExceedLimit(bridgeLimiter.calculateAmountInUSD(tokenId, amount));
@@ -66,7 +66,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
     ) public {
         vm.assume(numSigners > 0 && numSigners <= N);
         vm.assume(price >= 100000000);
-        tokenId = uint8(bound(tokenId, 1, 3));
+        tokenId = uint8(bound(tokenId, BridgeMessage.BTC, BridgeMessage.USDT));
 
         bytes memory payload = abi.encode(uint8(tokenId), uint256(price));
         // Create a sample BridgeMessage
