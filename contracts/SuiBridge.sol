@@ -65,8 +65,14 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         // verify that message has not been processed
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
 
+        // TODO:
+        // require(supportedChainIDs[message.chainID]);
+
         BridgeMessage.TokenTransferPayload memory tokenTransferPayload =
             BridgeMessage.decodeTokenTransferPayload(message.payload);
+
+        // TODO:
+        // require(tokenTransferPayload.targetChain == committee.chainID());
 
         address tokenAddress = tokens.getAddress(tokenTransferPayload.tokenId);
         uint8 erc20Decimal = IERC20Metadata(tokenAddress).decimals();
@@ -117,7 +123,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         bytes memory targetAddress,
         uint8 destinationChainID
     ) external whenNotPaused nonReentrant {
-        // TODO: add checks for destination chain ID. Disallow invalid values
+        // TODO: require(supportedChainIDs[destinationChainID]);
 
         // Check that the token address is supported (but not sui yet)
         require(
@@ -162,7 +168,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         whenNotPaused
         nonReentrant
     {
-        // TODO: add checks for destination chain ID. Disallow invalid values
+        // TODO: require(supportedChainIDs[destinationChainID]);
 
         uint256 amount = msg.value;
 

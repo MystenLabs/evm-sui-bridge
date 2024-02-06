@@ -76,7 +76,7 @@ contract DeployBridge is Script {
                     bridgeCommittee,
                     address(bridgeTokens),
                     config.assetPrices,
-                    config.totalBridgeLimitInDollars
+                    uint64(config.totalBridgeLimitInDollars)
                 )
             )
         );

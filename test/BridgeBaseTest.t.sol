@@ -40,7 +40,7 @@ contract BridgeBaseTest is Test {
     uint256 USDC_PRICE = 10000;
 
     uint8 public chainID = 99;
-    uint256 totalLimit = 10000000000;
+    uint64 totalLimit = 10000000000;
 
     BridgeCommittee public committee;
     SuiBridge public bridge;

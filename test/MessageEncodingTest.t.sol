@@ -61,17 +61,37 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
         assertEq(_payload.amount, uint64(854768923101));
     }
 
-    // Waiting for move generated payloads to be generated
+    function testDecodeBlocklistPayload() public {
+        bytes memory payload =
+            hex"010268b43fd906c0b8f024a18c56e06744f7c6157c65acaef39832cb995c4e049437a3e2ec6a7bad1ab5";
+        (bool blocklisting, address[] memory members) =
+            BridgeMessage.decodeBlocklistPayload(payload);
 
-    // TODO:
-    function testDecodeBlocklistPayload() public {}
-    // TODO:
+        assertEq(members.length, 2);
+        assertEq(members[0], 0x68B43fD906C0B8F024a18C56e06744F7c6157c65);
+        assertEq(members[1], 0xaCAEf39832CB995c4E049437A3E2eC6a7bad1Ab5);
+        assertFalse(blocklisting);
+    }
 
-    function testDecodeEmergencyOpPayload() public {}
-    // TODO:
+    function testDecodeUpdateLimitPayload() public {
+        bytes memory payload = hex"0c00000002540be400";
+        (uint8 sourceChainID, uint64 newLimit) = BridgeMessage.decodeUpdateLimitPayload(payload);
+        assertEq(sourceChainID, 12);
+        assertEq(newLimit, 1_000_000_0000);
+    }
+
+    function testDecodeUpdateAssetPayload() public {
+        bytes memory payload = hex"01000000003b9aca00";
+        (uint8 assetID, uint64 newPrice) = BridgeMessage.decodeUpdateAssetPayload(payload);
+        assertEq(assetID, 1);
+        assertEq(newPrice, 100_000_0000);
+    }
+
+    function testDecodeEmergencyOpPayload() public {
+        bytes memory payload = hex"01";
+        bool pausing = BridgeMessage.decodeEmergencyOpPayload(payload);
+        assertFalse(pausing);
+    }
+
     function testDecodeUpgradePayload() public {}
-    // TODO:
-    function testDecodeUpdateAssetPayload() public {}
-    // TODO:
-    function testDecodeUpdateLimitPayload() public {}
 }

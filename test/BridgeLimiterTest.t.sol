@@ -99,7 +99,7 @@ contract BridgeLimiterTest is BridgeBaseTest {
 
     function testUpdateAssetPriceWithSignatures() public {
         changePrank(address(bridge));
-        bytes memory payload = abi.encode(uint8(1), uint256(100000000));
+        bytes memory payload = abi.encodePacked(uint8(1), uint64(100000000));
         // Create a sample BridgeMessage
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.UPDATE_ASSET_PRICE,
@@ -127,7 +127,9 @@ contract BridgeLimiterTest is BridgeBaseTest {
 
     function testUpdateLimitWithSignatures() public {
         changePrank(address(bridge));
-        bytes memory payload = abi.encode(uint256(100000000));
+        uint8 sourceChainID = 1;
+        uint64 newLimit = 1000000000;
+        bytes memory payload = abi.encodePacked(sourceChainID, newLimit);
         // Create a sample BridgeMessage
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.UPDATE_BRIDGE_LIMIT,
@@ -149,6 +151,140 @@ contract BridgeLimiterTest is BridgeBaseTest {
         // Call the updateLimitWithSignatures function
         limiter.updateLimitWithSignatures(signatures, message);
 
-        assertEq(limiter.totalLimit(), 100000000);
+        assertEq(limiter.totalLimit(), 1000000000);
+    }
+
+    // An e2e update limit regression test covering message ser/de and signature verification
+    function testUpdateLimitRegressionTest() public {
+        address[] memory _committee = new address[](4);
+        uint16[] memory _stake = new uint16[](4);
+        _committee[0] = 0x68B43fD906C0B8F024a18C56e06744F7c6157c65;
+        _committee[1] = 0xaCAEf39832CB995c4E049437A3E2eC6a7bad1Ab5;
+        _committee[2] = 0x8061f127910e8eF56F16a2C411220BaD25D61444;
+        _committee[3] = 0x508F3F1ff45F4ca3D8e86CDCC91445F00aCC59fC;
+        _stake[0] = 2500;
+        _stake[1] = 2500;
+        _stake[2] = 2500;
+        _stake[3] = 2500;
+        committee = new BridgeCommittee();
+        committee.initialize(_committee, _stake, 1);
+        vault = new BridgeVault(wETH);
+        uint256[] memory assetPrices = new uint256[](4);
+        assetPrices[0] = 10000; // SUI PRICE
+        assetPrices[1] = 10000; // BTC PRICE
+        assetPrices[2] = 10000; // ETH PRICE
+        assetPrices[3] = 10000; // USDC PRICE
+        uint64 totalLimit = 1000000;
+
+        skip(2 days);
+        limiter = new BridgeLimiter();
+        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
+        bridge = new SuiBridge();
+        bridge.initialize(
+            address(committee), address(tokens), address(vault), address(limiter), wETH
+        );
+        vault.transferOwnership(address(bridge));
+        limiter.transferOwnership(address(bridge));
+
+        // Fill vault with WETH
+        changePrank(deployer);
+        IWETH9(wETH).deposit{value: 10 ether}();
+        IERC20(wETH).transfer(address(vault), 10 ether);
+
+        bytes memory payload = hex"0c00000002540be400";
+
+        // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPDATE_BRIDGE_LIMIT,
+            version: 1,
+            nonce: 15,
+            chainID: 3,
+            payload: payload
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes memory expectedEncodedMessage =
+            hex"5355495f4252494447455f4d4553534147450301000000000000000f030c00000002540be400";
+
+        assertEq(encodedMessage, expectedEncodedMessage);
+
+        bytes[] memory signatures = new bytes[](2);
+
+        // TODO: generate signatures
+        // signatures[0] =
+        //     hex"e1cf11b380855ff1d4a451ebc2fd68477cf701b7d4ec88da3082709fe95201a5061b4b60cf13815a80ba9dfead23e220506aa74c4a863ba045d95715b4cc6b6e00";
+        // signatures[1] =
+        //     hex"8ba9ec92c2d5a44ecc123182f689b901a93921fd35f581354fea20b25a0ded6d055b96a64bdda77dd5a62b93d29abe93640aa3c1a136348093cd7a2418c6bfa301";
+
+        // committee.verifySignatures(signatures, message);
+
+        // limiter.updateLimitWithSignatures(signatures, message);
+        // assertEq(limiter.totalLimit(), 1_000_000_0000);
+    }
+
+    // An e2e update asset price regression test covering message ser/de and signature verification
+    function testUpdateAssetPriceRegressionTest() public {
+        address[] memory _committee = new address[](4);
+        uint16[] memory _stake = new uint16[](4);
+        _committee[0] = 0x68B43fD906C0B8F024a18C56e06744F7c6157c65;
+        _committee[1] = 0xaCAEf39832CB995c4E049437A3E2eC6a7bad1Ab5;
+        _committee[2] = 0x8061f127910e8eF56F16a2C411220BaD25D61444;
+        _committee[3] = 0x508F3F1ff45F4ca3D8e86CDCC91445F00aCC59fC;
+        _stake[0] = 2500;
+        _stake[1] = 2500;
+        _stake[2] = 2500;
+        _stake[3] = 2500;
+        committee = new BridgeCommittee();
+        committee.initialize(_committee, _stake, 1);
+        vault = new BridgeVault(wETH);
+        uint256[] memory assetPrices = new uint256[](4);
+        assetPrices[0] = 10000; // SUI PRICE
+        assetPrices[1] = 10000; // BTC PRICE
+        assetPrices[2] = 10000; // ETH PRICE
+        assetPrices[3] = 10000; // USDC PRICE
+        uint64 totalLimit = 1000000;
+
+        skip(2 days);
+        limiter = new BridgeLimiter();
+        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
+        bridge = new SuiBridge();
+        bridge.initialize(
+            address(committee), address(tokens), address(vault), address(limiter), wETH
+        );
+        vault.transferOwnership(address(bridge));
+        limiter.transferOwnership(address(bridge));
+
+        // Fill vault with WETH
+        changePrank(deployer);
+        IWETH9(wETH).deposit{value: 10 ether}();
+        IERC20(wETH).transfer(address(vault), 10 ether);
+
+        bytes memory payload = hex"01000000003b9aca00";
+
+        // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPDATE_ASSET_PRICE,
+            version: 1,
+            nonce: 266,
+            chainID: 3,
+            payload: payload
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes memory expectedEncodedMessage =
+            hex"5355495f4252494447455f4d4553534147450401000000000000010a0301000000003b9aca00";
+
+        assertEq(encodedMessage, expectedEncodedMessage);
+
+        bytes[] memory signatures = new bytes[](2);
+
+        // TODO: generate signatures
+        // signatures[0] =
+        //     hex"e1cf11b380855ff1d4a451ebc2fd68477cf701b7d4ec88da3082709fe95201a5061b4b60cf13815a80ba9dfead23e220506aa74c4a863ba045d95715b4cc6b6e00";
+        // signatures[1] =
+        //     hex"8ba9ec92c2d5a44ecc123182f689b901a93921fd35f581354fea20b25a0ded6d055b96a64bdda77dd5a62b93d29abe93640aa3c1a136348093cd7a2418c6bfa301";
+
+        // committee.verifySignatures(signatures, message);
+
+        // limiter.updateAssetPriceWithSignatures(signatures, message);
+        // assertEq(limiter.assetPrices(BridgeMessage.BTC), 100_000_0000);
     }
 }
