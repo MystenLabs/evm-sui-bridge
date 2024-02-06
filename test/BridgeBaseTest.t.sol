@@ -100,7 +100,7 @@ contract BridgeBaseTest is Test {
         vm.expectRevert(
             bytes("BridgeCommittee: Committee and stake arrays must be of the same length")
         );
-        committee.initialize(_committeeNotSameLength, _stakeNotSameLength);
+        committee.initialize(_committeeNotSameLength, _stakeNotSameLength, chainID);
 
         // Test fail initialize: Committee Duplicate Committee Member
         address[] memory _committeeDuplicateCommitteeMember = new address[](5);
@@ -118,7 +118,9 @@ contract BridgeBaseTest is Test {
         _stakeDuplicateCommitteeMember[4] = 1000;
 
         vm.expectRevert(bytes("BridgeCommittee: Duplicate committee member"));
-        committee.initialize(_committeeDuplicateCommitteeMember, _stakeDuplicateCommitteeMember);
+        committee.initialize(
+            _committeeDuplicateCommitteeMember, _stakeDuplicateCommitteeMember, chainID
+        );
 
         // Test fail initialize: Total Stake Must Be 10000
         address[] memory _committeeTotalStakeMustBe10000 = new address[](4);
@@ -134,9 +136,9 @@ contract BridgeBaseTest is Test {
         _stakeTotalStakeMustBe10000[3] = 2000;
 
         vm.expectRevert(bytes("BridgeCommittee: Total stake must be 10000"));
-        committee.initialize(_committeeTotalStakeMustBe10000, _stakeTotalStakeMustBe10000);
+        committee.initialize(_committeeTotalStakeMustBe10000, _stakeTotalStakeMustBe10000, chainID);
 
-        committee.initialize(_committee, _stake);
+        committee.initialize(_committee, _stake, chainID);
         vault = new BridgeVault(wETH);
         address[] memory _supportedTokens = new address[](4);
         _supportedTokens[0] = wBTC;
@@ -153,7 +155,7 @@ contract BridgeBaseTest is Test {
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH, chainID
+            address(committee), address(tokens), address(vault), address(limiter), wETH
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));

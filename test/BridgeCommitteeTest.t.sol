@@ -37,13 +37,13 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         assertEq(committee.nonces(4), 0);
     }
 
-    function testVerifyMessageSignaturesWithValidSignatures() public {
+    function testVerifySignaturesWithValidSignatures() public {
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: chainID,
             payload: "0x0"
         });
 
@@ -59,17 +59,17 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
 
-        // Call the verifyMessageSignatures function and it would not revert
-        committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
+        // Call the verifySignatures function and it would not revert
+        committee.verifySignatures(signatures, message);
     }
 
-    function testVerifyMessageSignaturesWithInvalidSignatures() public {
+    function testVerifySignaturesWithInvalidSignatures() public {
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: chainID,
             payload: "0x0"
         });
 
@@ -84,18 +84,18 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
 
-        // Call the verifyMessageSignatures function and expect it to revert
+        // Call the verifySignatures function and expect it to revert
         vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
-        committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
+        committee.verifySignatures(signatures, message);
     }
 
-    function testVerifyMessageSignaturesDuplicateSignature() public {
+    function testVerifySignaturesDuplicateSignature() public {
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: chainID,
             payload: "0x0"
         });
 
@@ -110,9 +110,9 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[2] = getSignature(messageHash, committeeMemberPkB);
         signatures[3] = getSignature(messageHash, committeeMemberPkC);
 
-        // Call the verifyMessageSignatures function and expect it to revert
+        // Call the verifySignatures function and expect it to revert
         vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
-        committee.verifyMessageSignatures(signatures, message, BridgeMessage.TOKEN_TRANSFER);
+        committee.verifySignatures(signatures, message);
     }
 
     function testFailUpdateBlocklistWithSignaturesInvalidNonce() public {
@@ -126,7 +126,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
             messageType: BridgeMessage.BLOCKLIST,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
         bytes memory messageBytes = BridgeMessage.encodeMessage(messageWrongNonce);
@@ -153,7 +153,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
         bytes memory messageBytes = BridgeMessage.encodeMessage(messageWrongMessageType);
@@ -180,7 +180,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
             messageType: BridgeMessage.BLOCKLIST,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
         bytes memory messageBytes = BridgeMessage.encodeMessage(message);
@@ -204,7 +204,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
             messageType: BridgeMessage.BLOCKLIST,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
 
@@ -234,7 +234,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
         // re-verify signatures
-        committee.verifyMessageSignatures(signatures, message, BridgeMessage.BLOCKLIST);
+        committee.verifySignatures(signatures, message);
     }
 
     function testSignerNotCommitteeMember() public {
@@ -246,7 +246,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
             messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
 
@@ -263,7 +263,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         signatures[3] = getSignature(messageHash, committeeMemberPkF);
 
         vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
-        committee.verifyMessageSignatures(signatures, message, message.messageType);
+        committee.verifySignatures(signatures, message);
     }
 
     function testRemoveFromBlocklist() public {
@@ -279,7 +279,7 @@ contract BridgeCommitteeTest is BridgeBaseTest {
             messageType: BridgeMessage.BLOCKLIST,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
 

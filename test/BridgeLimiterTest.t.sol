@@ -105,7 +105,7 @@ contract BridgeLimiterTest is BridgeBaseTest {
             messageType: BridgeMessage.UPDATE_ASSET_PRICE,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
 
@@ -133,7 +133,7 @@ contract BridgeLimiterTest is BridgeBaseTest {
             messageType: BridgeMessage.UPDATE_BRIDGE_LIMIT,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
 
