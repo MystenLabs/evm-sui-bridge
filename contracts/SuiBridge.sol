@@ -26,6 +26,15 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     // message nonce => processed
     mapping(uint64 => bool) public messageProcessed;
     uint8 public chainID;
+    mapping(uint8 chainId => bool isSupported) public supportedDestinationChains;
+
+    modifier isTargetChainSupported(uint8 targetChainID) {
+        require(
+            supportedDestinationChains[targetChainID],
+            "MessageVerifier: Target chain not supported"
+        );
+        _;
+    }
 
     /* ========== INITIALIZER ========== */
 
@@ -42,7 +51,8 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         address _vault,
         address _limiter,
         address _weth9,
-        uint8 _chainID
+        uint8 _chainID,
+        uint8[] memory _supportedDestinationChains
     ) external initializer {
         __CommitteeUpgradeable_init(_committee);
         __Pausable_init();
@@ -51,6 +61,15 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         limiter = IBridgeLimiter(_limiter);
         weth9 = IWETH9(_weth9);
         chainID = _chainID;
+        for (uint8 i = 0; i < _supportedDestinationChains.length; i++) {
+            require(_supportedDestinationChains[i] != _chainID, "SuiBridge: Cannot support self");
+            require(_supportedDestinationChains[i] == BridgeMessage.SUI || 
+                    _supportedDestinationChains[i] == BridgeMessage.BTC || 
+                    _supportedDestinationChains[i] == BridgeMessage.USDC || 
+                    _supportedDestinationChains[i] == BridgeMessage.USDT, 
+                    "SuiBridge: Cannot support chain");
+            supportedDestinationChains[_supportedDestinationChains[i]] = true;
+        }
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
@@ -121,7 +140,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         uint256 amount,
         bytes memory targetAddress,
         uint8 destinationChainID
-    ) external whenNotPaused nonReentrant verifyRouteLegitimacy(destinationChainID) {
+    ) external whenNotPaused nonReentrant /**verifyRouteLegitimacy(destinationChainID)*/ {
 
         // Check that the token address is supported (but not sui yet)
         require(
@@ -165,7 +184,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         payable
         whenNotPaused
         nonReentrant
-        verifyRouteLegitimacy(destinationChainID)
+        // verifyRouteLegitimacy(destinationChainID)
     {
         uint256 amount = msg.value;
 
