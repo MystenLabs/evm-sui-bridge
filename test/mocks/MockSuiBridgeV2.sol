@@ -10,8 +10,12 @@ contract MockSuiBridgeV2 is SuiBridge {
         _pause();
     }
 
-    function newMockFunction(bool _pause) external {
-        _unpause();
+    function newMockFunction(bool _pausing) external {
+        if (_pausing) {
+            _pause();
+        } else {
+            _unpause();
+        }
     }
 
     function newerMockFunction(bool _pausing, uint8 _mock) external {
