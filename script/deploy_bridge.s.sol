@@ -81,13 +81,17 @@ contract DeployBridge is Script {
             )
         );
 
+        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        _supportedDestinationChains[0] = 0;
+        _supportedDestinationChains[1] = 1;
+
         // deploy Sui Bridge
 
         address suiBridge = Upgrades.deployUUPSProxy(
             "SuiBridge.sol",
             abi.encodeCall(
                 SuiBridge.initialize,
-                (bridgeCommittee, address(bridgeTokens), address(vault), limiter, config.WETH)
+                (bridgeCommittee, address(bridgeTokens), address(vault), limiter, config.WETH, _supportedDestinationChains)
             )
         );
 

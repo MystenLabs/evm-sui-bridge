@@ -527,8 +527,11 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
+        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        _supportedDestinationChains[0] = 0;
+        _supportedDestinationChains[1] = 1;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH
+            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
@@ -595,8 +598,11 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
+        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        _supportedDestinationChains[0] = 0;
+        _supportedDestinationChains[1] = 1;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH
+            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
@@ -659,8 +665,11 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
+        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        _supportedDestinationChains[0] = 0;
+        _supportedDestinationChains[1] = 1;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH
+            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
