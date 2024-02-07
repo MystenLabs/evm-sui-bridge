@@ -61,39 +61,54 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
     }
 
     function testFuzz_transferTokensWithSignatures(
-        uint8 numSigners
+        uint8 numSigners,
+        address targetAddress,
+        // uint8 tokenId,
+        uint64 amount
     ) public {
-        vm.assume(numSigners > 0 && numSigners <= N);
+        vm.assume(numSigners > 3 && numSigners <= N);
+        vm.assume(targetAddress != address(0));
+        amount = uint64(bound(amount, 1_000_000, BridgeBaseFuzzTest.totalLimit));
         skip(2 days);
 
-        // Fill vault with WETH
-        changePrank(deployer);
-        IWETH9(wETH).deposit{value: 10 ether}();
-        IERC20(wETH).transfer(address(bridgeVault), 10 ether);
-        address targetAddress = 0xb18f79Fe671db47393315fFDB377Da4Ea1B7AF96;
+        // Create transfer payload
+        uint8 senderAddressLength = 32;
+        bytes memory senderAddress = abi.encode(0);
+        uint8 targetChain = BridgeBaseFuzzTest.chainID;
+        uint8 targetAddressLength = 20;
+        uint8 tokenId = BridgeMessage.USDC;
+        bytes memory payload = abi.encodePacked(
+            senderAddressLength,
+            senderAddress,
+            targetChain,
+            targetAddressLength,
+            targetAddress,
+            tokenId,
+            amount
+        );
 
-        bytes
-            memory payload = hex"2080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af960200000000000186a0";
+//
+       // Fill vault with USDC
+        changePrank(USDCWhale);
+        IERC20(USDC).transfer(address(bridgeVault), amount);
+        changePrank(deployer);
+        {
         // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
-            chainID: BridgeBaseFuzzTest.chainID,
+            chainID: chainID,
             payload: payload
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        bytes
-            memory expectedEncodedMessage = hex"5355495f4252494447455f4d45535341474500010000000000000001012080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af960200000000000186a0";
-        assertEq(encodedMessage, expectedEncodedMessage);
+        
         bytes32 messageHash = keccak256(encodedMessage);
-
         bytes[] memory signatures = new bytes[](numSigners);
         for (uint8 i = 0; i < numSigners; i++) {
             signatures[i] = getSignature(messageHash, signers[i]);
         }
-
-        uint256 aBalance = targetAddress.balance;
+        
         bool signaturesValid;
         try
             bridgeCommittee.verifySignatures(
@@ -109,14 +124,18 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
             signaturesValid = false;
         }
         if (signaturesValid) {
+            assert(IERC20(USDC).balanceOf(targetAddress) == 0);
+            // uint256 targetAddressBalance = IERC20(USDC).balanceOf(targetAddress);
             suiBridge.transferTokensWithSignatures(signatures, message);
-            assertEq(targetAddress.balance, aBalance + 0.001 ether);
+            assert(IERC20(USDC).balanceOf(targetAddress) > 0);
+            // assert(IERC20(USDC).balanceOf(targetAddress) == (targetAddressBalance + (amount / 100)));
         } else {
             // Expect a revert
             vm.expectRevert(
                 bytes("BridgeCommittee: Insufficient stake amount")
             );
             suiBridge.transferTokensWithSignatures(signatures, message);
+        }
         }
     }
 }

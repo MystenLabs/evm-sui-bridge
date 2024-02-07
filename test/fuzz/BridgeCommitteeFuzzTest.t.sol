@@ -9,12 +9,12 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
     }
 
     function testFuzz_verifyMessageSignatures(
-        uint8 messageType,
-        bytes memory payload,
-        uint8 numSigners
+        uint8 numSigners,
+        uint8 messageType
     ) public {
         vm.assume(numSigners > 0 && numSigners <= N);
         messageType = uint8(bound(messageType, BridgeMessage.TOKEN_TRANSFER, BridgeMessage.BLOCKLIST));
+        bytes memory payload = "0x";
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: messageType,
@@ -65,8 +65,8 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
     }
 
     function testFuzz_updateBlocklistWithSignatures(
-        uint8 isBlocklisted,
         uint8 numSigners,
+        uint8 isBlocklisted,
         uint8 numBlocklistAddresses
     ) public {
         vm.assume(numSigners > 0 && numSigners <= N);

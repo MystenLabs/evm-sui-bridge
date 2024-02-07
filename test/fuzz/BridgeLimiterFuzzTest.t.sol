@@ -60,9 +60,9 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
     }
 
     function testFuzz_updateAssetPriceWithSignatures(
+        uint8 numSigners,
         uint8 tokenId,
-        uint256 price,
-        uint8 numSigners
+        uint256 price
     ) public {
         vm.assume(numSigners > 0 && numSigners <= N);
         vm.assume(price >= 100000000);
