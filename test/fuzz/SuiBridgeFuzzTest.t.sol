@@ -68,6 +68,7 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
     ) public {
         vm.assume(numSigners > 3 && numSigners <= N);
         vm.assume(targetAddress != address(0));
+        // tokenId = uint8(bound(tokenId, BridgeMessage.BTC, BridgeMessage.USDT));
         amount = uint64(bound(amount, 1_000_000, BridgeBaseFuzzTest.totalLimit));
         skip(2 days);
 
@@ -87,11 +88,13 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
             amount
         );
 
-//
-       // Fill vault with USDC
+       // Fill the vault
         changePrank(USDCWhale);
         IERC20(USDC).transfer(address(bridgeVault), amount);
         changePrank(deployer);
+        IWETH9(wETH).deposit{value: 10 ether}();
+        IERC20(wETH).transfer(address(bridgeVault), 10 ether);
+
         {
         // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
