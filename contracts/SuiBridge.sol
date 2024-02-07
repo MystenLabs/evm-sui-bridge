@@ -25,7 +25,6 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     IWETH9 public weth9;
     // message nonce => processed
     mapping(uint64 => bool) public messageProcessed;
-    uint8 public chainID;
 
     /* ========== INITIALIZER ========== */
 
@@ -35,14 +34,12 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /// @param _vault The address of the bridge vault contract.
     /// @param _limiter The address of the bridge limiter contract.
     /// @param _weth9 The address of the WETH9 contract.
-    /// @param _chainID The chain ID of the network.
     function initialize(
         address _committee,
         address _tokens,
         address _vault,
         address _limiter,
-        address _weth9,
-        uint8 _chainID
+        address _weth9
     ) external initializer {
         __CommitteeUpgradeable_init(_committee);
         __Pausable_init();
@@ -50,7 +47,6 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         vault = IBridgeVault(_vault);
         limiter = IBridgeLimiter(_limiter);
         weth9 = IWETH9(_weth9);
-        chainID = _chainID;
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
@@ -64,7 +60,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     )
         external
         nonReentrant
-        verifySignaturesAndNonce(message, signatures, BridgeMessage.TOKEN_TRANSFER)
+        verifyMessageAndSignatures(message, signatures, BridgeMessage.TOKEN_TRANSFER)
     {
         // verify that message has not been processed
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
@@ -101,7 +97,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     )
         external
         nonReentrant
-        verifySignaturesAndNonce(message, signatures, BridgeMessage.EMERGENCY_OP)
+        verifyMessageAndSignatures(message, signatures, BridgeMessage.EMERGENCY_OP)
     {
         // decode the emergency op message
         bool isFreezing = BridgeMessage.decodeEmergencyOpPayload(message.payload);
@@ -115,7 +111,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /// @param amount The amount of tokens to be bridged.
     /// @param targetAddress The address on the Sui chain where the tokens will be sent.
     /// @param destinationChainID The ID of the destination chain.
-    function bridgeToSui(
+    function bridgeERC20(
         uint8 tokenId,
         uint256 amount,
         bytes memory targetAddress,
@@ -143,8 +139,8 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         // Adjust the amount to log.
         uint64 suiAdjustedAmount =
             adjustDecimalsForSuiToken(tokenId, amount, IERC20Metadata(tokenAddress).decimals());
-        emit TokensBridgedToSui(
-            chainID,
+        emit TokensBridged(
+            committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
             tokenId,
@@ -160,7 +156,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /// @dev Bridges ETH to SUI tokens on a specified destination chain.
     /// @param targetAddress The address on the destination chain where the SUI tokens will be sent.
     /// @param destinationChainID The ID of the destination chain.
-    function bridgeETHToSui(bytes memory targetAddress, uint8 destinationChainID)
+    function bridgeETH(bytes memory targetAddress, uint8 destinationChainID)
         external
         payable
         whenNotPaused
@@ -178,8 +174,8 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
         // Adjust the amount to log.
         uint64 suiAdjustedAmount = adjustDecimalsForSuiToken(BridgeMessage.ETH, amount, 18);
-        emit TokensBridgedToSui(
-            chainID,
+        emit TokensBridged(
+            committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
             BridgeMessage.ETH,

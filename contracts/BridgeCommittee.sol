@@ -10,6 +10,7 @@ import "./utils/CommitteeUpgradeable.sol";
 contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
+    uint8 public chainID;
     // member address => stake amount
     mapping(address => uint16) public committeeStake;
     // member address => index of member address
@@ -21,7 +22,7 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
 
     /// @notice Initializes the contract with the deployer as the admin.
     /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
-    function initialize(address[] memory _committeeMembers, uint16[] memory stake)
+    function initialize(address[] memory _committeeMembers, uint16[] memory stake, uint8 _chainID)
         external
         initializer
     {
@@ -44,6 +45,7 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
         }
 
         require(total_stake == 10000, "BridgeCommittee: Total stake must be 10000");
+        chainID = _chainID;
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
@@ -51,14 +53,11 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
     /// @dev Verifies the signatures of the given messages.
     /// @param signatures The array of signatures to be verified.
     /// @param message The message to be verified.
-    /// @param messageType The type of the message.
-    function verifyMessageSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message,
-        uint8 messageType
-    ) public view override {
-        require(message.messageType == messageType, "BridgeCommittee: message does not match type");
-
+    function verifySignatures(bytes[] memory signatures, BridgeMessage.Message memory message)
+        public
+        view
+        override
+    {
         uint32 requiredStake = BridgeMessage.getRequiredStake(message);
 
         uint16 approvalStake;
@@ -100,7 +99,7 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
     )
         external
         nonReentrant
-        verifySignaturesAndNonce(message, signatures, BridgeMessage.BLOCKLIST)
+        verifyMessageAndSignatures(message, signatures, BridgeMessage.BLOCKLIST)
     {
         // decode the blocklist payload
         (bool isBlocklisted, address[] memory _blocklist) =

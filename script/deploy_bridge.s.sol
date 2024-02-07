@@ -53,7 +53,8 @@ contract DeployBridge is Script {
         address bridgeCommittee = Upgrades.deployUUPSProxy(
             "BridgeCommittee.sol",
             abi.encodeCall(
-                BridgeCommittee.initialize, (config.committeeMembers, committeeMemberStake)
+                BridgeCommittee.initialize,
+                (config.committeeMembers, committeeMemberStake, uint8(config.sourceChainId))
             )
         );
 
@@ -86,14 +87,7 @@ contract DeployBridge is Script {
             "SuiBridge.sol",
             abi.encodeCall(
                 SuiBridge.initialize,
-                (
-                    bridgeCommittee,
-                    address(bridgeTokens),
-                    address(vault),
-                    limiter,
-                    config.WETH,
-                    uint8(block.chainid)
-                )
+                (bridgeCommittee, address(bridgeTokens), address(vault), limiter, config.WETH)
             )
         );
 
