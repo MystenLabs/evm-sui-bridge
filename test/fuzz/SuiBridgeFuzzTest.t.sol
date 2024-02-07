@@ -66,7 +66,7 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
         // uint8 tokenId,
         uint64 amount
     ) public {
-        vm.assume(numSigners > 3 && numSigners <= N);
+        vm.assume(numSigners > 0 && numSigners <= N);
         vm.assume(targetAddress != address(0));
         // tokenId = uint8(bound(tokenId, BridgeMessage.BTC, BridgeMessage.USDT));
         amount = uint64(bound(amount, 1_000_000, BridgeBaseFuzzTest.totalLimit));
