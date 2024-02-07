@@ -108,7 +108,7 @@ contract BridgeBaseFuzzTest is Test {
         signers[4] = committeeMemeberPkE;
 
         bridgeCommittee = new BridgeCommittee();
-        bridgeCommittee.initialize(_committeeMemebers, _stake);
+        bridgeCommittee.initialize(_committeeMemebers, _stake, chainID);
 
         bridgeVault = new BridgeVault(wETH);
         address[] memory _supportedTokens = new address[](4);
@@ -138,8 +138,7 @@ contract BridgeBaseFuzzTest is Test {
             address(bridgeTokens),
             address(bridgeVault),
             address(bridgeLimiter),
-            wETH,
-            chainID
+            wETH
         );
 
         bridgeVault.transferOwnership(address(suiBridge));

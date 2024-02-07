@@ -20,7 +20,7 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
             messageType: BridgeMessage.EMERGENCY_OP,
             version: 1,
             nonce: suiBridge.nonces(BridgeMessage.EMERGENCY_OP),
-            chainID: 1,
+            chainID: BridgeBaseFuzzTest.chainID,
             payload: abi.encode(isPaused ? 1 : 0)
         });
 
@@ -34,10 +34,9 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
 
         bool signaturesValid;
         try
-            bridgeCommittee.verifyMessageSignatures(
+            bridgeCommittee.verifySignatures(
                 signatures,
-                message,
-                message.messageType
+                message
             )
         {
             // The call was successful
@@ -80,7 +79,7 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: BridgeBaseFuzzTest.chainID,
             payload: payload
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -97,10 +96,9 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
         uint256 aBalance = targetAddress.balance;
         bool signaturesValid;
         try
-            bridgeCommittee.verifyMessageSignatures(
+            bridgeCommittee.verifySignatures(
                 signatures,
-                message,
-                message.messageType
+                message
             )
         {
             // The call was successful

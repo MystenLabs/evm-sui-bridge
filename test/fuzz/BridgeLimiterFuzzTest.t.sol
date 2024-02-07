@@ -74,7 +74,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
             messageType: BridgeMessage.UPDATE_ASSET_PRICE,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: BridgeBaseFuzzTest.chainID,
             payload: payload
         });
 
@@ -88,10 +88,9 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
 
         bool signaturesValid;
         try
-            bridgeCommittee.verifyMessageSignatures(
+            bridgeCommittee.verifySignatures(
                 signatures,
-                message,
-                BridgeMessage.UPDATE_ASSET_PRICE
+                message
             )
         {
             // The call was successful
@@ -124,7 +123,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
             messageType: BridgeMessage.UPDATE_BRIDGE_LIMIT,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: BridgeBaseFuzzTest.chainID,
             payload: payload
         });
 
@@ -138,10 +137,9 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
 
         bool signaturesValid;
         try
-            bridgeCommittee.verifyMessageSignatures(
+            bridgeCommittee.verifySignatures(
                 signatures,
-                message,
-                BridgeMessage.UPDATE_BRIDGE_LIMIT
+                message
             )
         {
             // The call was successful

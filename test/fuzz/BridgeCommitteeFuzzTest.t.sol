@@ -20,7 +20,7 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
             messageType: messageType,
             version: 1,
             nonce: 1,
-            chainID: 1,
+            chainID: BridgeBaseFuzzTest.chainID,
             payload: payload
         });
 
@@ -34,10 +34,9 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
 
         bool signaturesValid;
         try
-            bridgeCommittee.verifyMessageSignatures(
+            bridgeCommittee.verifySignatures(
                 signatures,
-                message,
-                messageType
+                message
             )
         {
             // The call was successful
@@ -49,20 +48,18 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         }
 
         if (signaturesValid) {
-            bridgeCommittee.verifyMessageSignatures(
+            bridgeCommittee.verifySignatures(
                 signatures,
-                message,
-                messageType
+                message
             );
         } else {
             // Expect a revert
             vm.expectRevert(
                 bytes("BridgeCommittee: Insufficient stake amount")
             );
-            bridgeCommittee.verifyMessageSignatures(
+            bridgeCommittee.verifySignatures(
                 signatures,
-                message,
-                messageType
+                message
             );
         }
     }
@@ -89,7 +86,7 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
             messageType: BridgeMessage.BLOCKLIST,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: BridgeBaseFuzzTest.chainID,
             payload: payload
         });
 
@@ -103,10 +100,9 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
 
         bool signaturesValid;
         try
-            bridgeCommittee.verifyMessageSignatures(
+            bridgeCommittee.verifySignatures(
                 signatures,
-                message,
-                BridgeMessage.BLOCKLIST
+                message
             )
         {
             // The call was successful
