@@ -11,10 +11,9 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
     uint8 public chainID;
-    // member address => stake amount
+
     mapping(address committeeMemberAddress => uint16 committeeMemberStakeAmount) public committeeStake;
     mapping(address committeeMemberAddress => uint8 committeeMemberIndex) public committeeIndex;
-    // member address => is blocklisted
     mapping(address blocklistAddress => bool isBlocklisted) public blocklist;
 
     /* ========== INITIALIZER ========== */

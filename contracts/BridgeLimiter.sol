@@ -7,17 +7,20 @@ import "./interfaces/IBridgeLimiter.sol";
 import "./interfaces/IBridgeTokens.sol";
 import "./utils/CommitteeUpgradeable.sol";
 
+/// @title BridgeLimiter
+/// @notice A contract limits the amount of tokens that can be bridged per hour
+/// @dev The BridgeLimiter contract is used to limit the amount of tokens that can be bridged per hour.
 contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeable {
     uint32 public constant MAX_HOURS_TO_GC_PER_CALL = 720;
 
     /* ========== STATE VARIABLES ========== */
 
     IBridgeTokens public tokens;
-    // hour timestamp => total amount bridged (on a given hour)
+
     mapping(uint32 hourTimestamp => uint256 totalAmountBridged) public hourlyTransferAmount;
-    // token id => token price in USD (4 decimal precision) (e.g. 1 ETH = 2000 USD => 20000000)
+    // tokenPriceInUSD: The price of the token in USD (4 decimal precision), (e.g. 1 ETH = 2000 USD => 20000000)
     mapping(uint8 tokenId => uint256 tokenPriceInUSD) public assetPrices;
-    // total limit in USD (4 decimal precision) (e.g. 10000000 => 1000 USD)
+    // totalLimit in USD (4 decimal precision) (e.g. 10000000 => 1000 USD)
     uint256 public totalLimit;
     uint32 public oldestHourTimestamp;
 

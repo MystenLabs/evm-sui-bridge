@@ -23,7 +23,6 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     IBridgeLimiter public limiter;
     IBridgeTokens public tokens;
     IWETH9 public weth9;
-    // message nonce => processed
     mapping(uint64 nonce => bool hasBeenProcessed) public messageProcessed;
 
     /* ========== INITIALIZER ========== */
