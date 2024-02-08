@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IWETH9.sol";
@@ -13,7 +13,7 @@ contract BridgeVault is Ownable, IBridgeVault {
 
     /// @dev Constructor function for the BridgeVault contract.
     /// @param _wETH The address of the Wrapped Ether (WETH) contract.
-    constructor(address _wETH) Ownable() {
+    constructor(address _wETH) Ownable(msg.sender) {
         // Set the WETH address
         wETH = IWETH9(_wETH);
     }
@@ -48,7 +48,6 @@ contract BridgeVault is Ownable, IBridgeVault {
         // Unwrap the WETH
         wETH.withdraw(amount);
 
-        // TODO: check transfer success
         // Transfer the unwrapped ETH to the target address
         // Send ether and specify a custom gas amount
         (bool success, ) = targetAddress.call{value: amount/**, gas: 5000*/}("");

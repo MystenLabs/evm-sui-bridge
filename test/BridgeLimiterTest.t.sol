@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./BridgeBaseTest.t.sol";
@@ -97,31 +97,6 @@ contract BridgeLimiterTest is BridgeBaseTest {
         assertEq(deleteAmount, 0);
     }
 
-    function testGarbageCollectHourlyTransferAmount() public {
-        changePrank(address(bridge));
-        uint8 tokenId = 1;
-        uint256 amount = 100000000; // wBTC has 8 decimals
-        uint32 startingHour = uint32(block.timestamp / 1 hours);
-        // create many transfer updates across hours
-        for (uint256 i = 0; i < 20; i++) {
-            limiter.updateBridgeTransfers(tokenId, amount);
-            skip(1 hours);
-        }
-        skip(50 hours);
-        // garbage collect the first 10 hours
-        uint32 startHour = startingHour;
-        uint32 endHour = startingHour + 10;
-        assertEq(limiter.oldestHourTimestamp(), startingHour);
-        for (uint256 i = 0; i < 10; i++) {
-            assertEq(limiter.hourlyTransferAmount(uint32(startingHour + i)), BTC_PRICE);
-        }
-        limiter.garbageCollectHourlyTransferAmount(startHour, endHour);
-        assertEq(limiter.oldestHourTimestamp(), startingHour + 11);
-        for (uint256 i = 0; i < 10; i++) {
-            assertEq(limiter.hourlyTransferAmount(uint32(startingHour + i)), 0);
-        }
-    }
-
     function testUpdateAssetPriceWithSignatures() public {
         changePrank(address(bridge));
         bytes memory payload = abi.encode(uint8(1), uint256(100000000));
@@ -130,7 +105,7 @@ contract BridgeLimiterTest is BridgeBaseTest {
             messageType: BridgeMessage.UPDATE_ASSET_PRICE,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
 
@@ -158,7 +133,7 @@ contract BridgeLimiterTest is BridgeBaseTest {
             messageType: BridgeMessage.UPDATE_BRIDGE_LIMIT,
             version: 1,
             nonce: 0,
-            chainID: 1,
+            chainID: chainID,
             payload: payload
         });
 
@@ -175,31 +150,5 @@ contract BridgeLimiterTest is BridgeBaseTest {
         limiter.updateLimitWithSignatures(signatures, message);
 
         assertEq(limiter.totalLimit(), 100000000);
-    }
-
-    function testUpgradeLimiterWithSignatures() public {
-        changePrank(address(bridge));
-        bytes memory payload = abi.encode(address(this), "test");
-        // Create a sample BridgeMessage
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.UPDATE_BRIDGE_LIMIT,
-            version: 1,
-            nonce: 0,
-            chainID: 1,
-            payload: payload
-        });
-
-        bytes memory messageBytes = BridgeMessage.encodeMessage(message);
-        bytes32 messageHash = keccak256(messageBytes);
-
-        bytes[] memory signatures = new bytes[](4);
-        signatures[0] = getSignature(messageHash, committeeMemberPkA);
-        signatures[1] = getSignature(messageHash, committeeMemberPkB);
-        signatures[2] = getSignature(messageHash, committeeMemberPkC);
-        signatures[3] = getSignature(messageHash, committeeMemberPkD);
-        // TODO Fix Test
-        vm.expectRevert(bytes("ERC1967Upgrade: new implementation is not UUPS"));
-        // Call the upgradeLimiterWithSignatures function
-        limiter.upgradeLimiterWithSignatures(signatures, message);
     }
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "../contracts/BridgeCommittee.sol";
@@ -47,65 +47,6 @@ contract BridgeBaseTest is Test {
     BridgeVault public vault;
     BridgeLimiter public limiter;
     BridgeTokens public tokens;
-
-/**
-    // TODO: It does not run if it is outside of setUpBridgeTest
-    function testFailInitializeCommitteeAndStakeArraysMustBeOfTheSameLength() public {
-        address[] memory _committee = new address[](5);
-        _committee[0] = committeeMemberA;
-        _committee[1] = committeeMemberB;
-        _committee[2] = committeeMemberC;
-        _committee[3] = committeeMemberD;
-        _committee[4] = committeeMemberE;
-
-        uint16[] memory _stake = new uint16[](4);
-        _stake[0] = 1000;
-        _stake[1] = 1000;
-        _stake[2] = 1000;
-        _stake[3] = 2002;
-
-        vm.expectRevert(bytes("BridgeCommittee: Committee and stake arrays must be of the same length"));
-        committee.initialize(_committee, _stake);
-    }
-
-    // TODO: It does not run if it is outside of setUpBridgeTest
-    function testFailInitializeCommitteeDuplicateCommitteeMember() public {
-        address[] memory _committee = new address[](5);
-        _committee[0] = committeeMemberA;
-        _committee[1] = committeeMemberB;
-        _committee[2] = committeeMemberC;
-        _committee[3] = committeeMemberD;
-        _committee[4] = committeeMemberA;
-
-        uint16[] memory _stake = new uint16[](5);
-        _stake[0] = 1000;
-        _stake[1] = 1000;
-        _stake[2] = 1000;
-        _stake[3] = 2002;
-        _stake[4] = 1000;
-
-        vm.expectRevert(bytes("BridgeCommittee: Duplicate committee member"));
-        committee.initialize(_committee, _stake);
-    }
-
-    // TODO: It does not run if it is outside of setUpBridgeTest
-    function testFailInitializeTotalStakeMustBe10000() public {
-        address[] memory _committee = new address[](4);
-        _committee[0] = committeeMemberA;
-        _committee[1] = committeeMemberB;
-        _committee[2] = committeeMemberC;
-        _committee[3] = committeeMemberD;
-
-        uint16[] memory _stake = new uint16[](4);
-        _stake[0] = 1000;
-        _stake[1] = 1000;
-        _stake[2] = 1000;
-        _stake[3] = 2000;
-
-        vm.expectRevert(bytes("BridgeCommittee: Total stake must be 10000"));
-        committee.initialize(_committee, _stake);
-    }
-*/
 
     function setUpBridgeTest() public {
         vm.createSelectFork(
@@ -156,8 +97,10 @@ contract BridgeBaseTest is Test {
         _stakeNotSameLength[2] = 1000;
         _stakeNotSameLength[3] = 2002;
 
-        vm.expectRevert(bytes("BridgeCommittee: Committee and stake arrays must be of the same length"));
-        committee.initialize(_committeeNotSameLength, _stakeNotSameLength);
+        vm.expectRevert(
+            bytes("BridgeCommittee: Committee and stake arrays must be of the same length")
+        );
+        committee.initialize(_committeeNotSameLength, _stakeNotSameLength, chainID);
 
         // Test fail initialize: Committee Duplicate Committee Member
         address[] memory _committeeDuplicateCommitteeMember = new address[](5);
@@ -175,7 +118,9 @@ contract BridgeBaseTest is Test {
         _stakeDuplicateCommitteeMember[4] = 1000;
 
         vm.expectRevert(bytes("BridgeCommittee: Duplicate committee member"));
-        committee.initialize(_committeeDuplicateCommitteeMember, _stakeDuplicateCommitteeMember);
+        committee.initialize(
+            _committeeDuplicateCommitteeMember, _stakeDuplicateCommitteeMember, chainID
+        );
 
         // Test fail initialize: Total Stake Must Be 10000
         address[] memory _committeeTotalStakeMustBe10000 = new address[](4);
@@ -191,9 +136,9 @@ contract BridgeBaseTest is Test {
         _stakeTotalStakeMustBe10000[3] = 2000;
 
         vm.expectRevert(bytes("BridgeCommittee: Total stake must be 10000"));
-        committee.initialize(_committeeTotalStakeMustBe10000, _stakeTotalStakeMustBe10000);
+        committee.initialize(_committeeTotalStakeMustBe10000, _stakeTotalStakeMustBe10000, chainID);
 
-        committee.initialize(_committee, _stake);
+        committee.initialize(_committee, _stake, chainID);
         vault = new BridgeVault(wETH);
         address[] memory _supportedTokens = new address[](4);
         _supportedTokens[0] = wBTC;
@@ -210,7 +155,7 @@ contract BridgeBaseTest is Test {
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH, chainID
+            address(committee), address(tokens), address(vault), address(limiter), wETH
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));

@@ -1,9 +1,0 @@
-{
-  "committeeMembers": ["0x80bF6fb931C8eB99Ab32aeD543ACCFd168fd2a47"],
-  "committeeMemberStake": [10000],
-  "supportedTokens": [],
-  "wETHAddress": "",
-  "sourceChainId": 0,
-  "totalBridgeLimitInDollars": 1000000,
-  "assetPrices": [1.28, 43251.89, 2596.96, 1]
-}

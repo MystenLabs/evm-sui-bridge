@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "../utils/BridgeMessage.sol";
 
 interface IBridgeCommittee {
-
     /// @dev Verifies the signatures of the given messages.
     /// @param signatures The array of signatures to be verified.
     /// @param message The message to be verified.
-    /// @param messageType The type of the message.
-    function verifyMessageSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message,
-        uint8 messageType
-    ) external;
+    function verifySignatures(bytes[] memory signatures, BridgeMessage.Message memory message)
+        external
+        view;
+
+    function chainID() external view returns (uint8);
 
     /* ========== EVENTS ========== */
 

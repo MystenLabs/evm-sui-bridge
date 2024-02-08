@@ -1,20 +1,18 @@
 # 🏄‍♂️ Quick Start
 
-This project uses [Foundry](https://github.com/foundry-rs/foundry) for the development framework and [Hardhat](https://github.com/NomicFoundation/hardhat) for the deployment framework.
+This project leverages [Foundry](https://github.com/foundry-rs/foundry) to manage dependencies, contract compilation, testing, deployment, and on chain interactions via Solidity scripting.
+
+#### Environment configuration
+
+Duplicate rename the `.env.example` file to `.env`. You'll need accounts and api keys for **Infura** and **Etherscan** as well as the necessary RPC URLs. Be sure to add the required values in your newly created `.env` file.
+
+> **Note**
+> The OZ foundry upgrades library uses node to verify upgrade safety. Make sure you have node version 18.17 or higher as well as npm version 10.4 or higher installed.
 
 #### Dependencies
 
-1. Install **node** dependencies
-
 ```bash
-yarn install
-```
-
-2. Next, duplicate the `.env.example` file and rename it to `.env`. Register for an **Infura** account and add your api key to the `.env` file along with the other example values:
-
-```bash
-INFURA_API_KEY=<YOUR_API_KEY>
-ETHERSCAN_API_KEY=<YOUR_API_KEY>
+forge install
 ```
 
 #### Compilation
@@ -22,36 +20,43 @@ ETHERSCAN_API_KEY=<YOUR_API_KEY>
 To compile your contracts, run:
 
 ```bash
-yarn compile
+forge compile
 ```
 
 #### Testing
 
 ```bash
-yarn test
+forge clean
+forge test --ffi
 ```
 
 #### Coverage
 
 ```bash
-yarn coverage
+forge coverage
 ```
 
 #### Deployment
 
-```bash
-yarn deploy --network <network>
-```
-
 > **Note**
-> Make sure the deployment config file for the target network is created in the `deploy_configs` folder.
-> The file should be named `<network>.json` and should have the same fields as the `example.json`.
-
-#### Contract Verification
-
-> **Note**
-> This does not work with `hardhat` network.
+> Make sure the deployment config file for the target chain is created in the `deploy_configs` folder.
+> The file should be named `<chainID>.json` and should have the same fields and in the same order (alphabetical) as the `example.json`.
 
 ```bash
-yarn verify --network <network> <contract_address> <constructor_arguments (if any)>
+forge clean
+forge script script/deploy_bridge.s.sol --rpc-url <<alias>> --broadcast --verify --ffi
 ```
+
+**Local deployment**
+
+```bash
+forge clean
+forge script script/deploy_bridge.s.sol --fork-url anvil --broadcast --ffi
+```
+
+All deployments are saved in the `broadcast` directory.
+
+#### External Resources
+
+- [Writing OpenZeppelin Upgrades with Foundry](https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades?tab=readme-ov-file)
+- [OpenZeppelin Upgrade Requirements](https://docs.openzeppelin.com/upgrades-plugins/1.x/api-core#define-reference-contracts)

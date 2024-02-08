@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "./utils/CommitteeOwned.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./utils/CommitteeUpgradeable.sol";
 import "./interfaces/IWETH9.sol";
 import "./interfaces/IBridgeVault.sol";
 import "./interfaces/IBridgeLimiter.sol";
@@ -13,14 +12,11 @@ import "./interfaces/ISuiBridge.sol";
 import "./interfaces/IBridgeTokens.sol";
 
 /// @title SuiBridge
-/// @dev This contract implements a bridge between Ethereum and another blockchain. It allows users to transfer tokens and ETH between the two blockchains. The bridge supports multiple tokens and implements various security measures such as message verification, stake requirements, and upgradeability.
-contract SuiBridge is
-    ISuiBridge,
-    CommitteeOwned,
-    PausableUpgradeable,
-    ReentrancyGuardUpgradeable,
-    UUPSUpgradeable
-{
+/// @dev This contract implements a bridge between Ethereum and another blockchain.
+/// It allows users to transfer tokens and ETH between the two blockchains. The bridge supports
+/// multiple tokens and implements various security measures such as message verification,
+/// stake requirements, and upgradeability.
+contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
     IBridgeVault public vault;
@@ -29,7 +25,6 @@ contract SuiBridge is
     IWETH9 public weth9;
     // message nonce => processed
     mapping(uint64 nonce => bool hasBeenProcessed) public messageProcessed;
-    uint8 public chainID;
 
     /* ========== INITIALIZER ========== */
 
@@ -39,24 +34,19 @@ contract SuiBridge is
     /// @param _vault The address of the bridge vault contract.
     /// @param _limiter The address of the bridge limiter contract.
     /// @param _weth9 The address of the WETH9 contract.
-    /// @param _chainID The chain ID of the network.
     function initialize(
         address _committee,
         address _tokens,
         address _vault,
         address _limiter,
-        address _weth9,
-        uint8 _chainID
+        address _weth9
     ) external initializer {
-        __ReentrancyGuard_init();
+        __CommitteeUpgradeable_init(_committee);
         __Pausable_init();
-        __UUPSUpgradeable_init();
-        __CommitteeOwned_init(_committee);
         tokens = IBridgeTokens(_tokens);
         vault = IBridgeVault(_vault);
         limiter = IBridgeLimiter(_limiter);
         weth9 = IWETH9(_weth9);
-        chainID = _chainID;
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
@@ -67,7 +57,11 @@ contract SuiBridge is
     function transferTokensWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
-    ) external nonReentrant validateMessage(message, signatures, BridgeMessage.TOKEN_TRANSFER) {
+    )
+        external
+        nonReentrant
+        verifyMessageAndSignatures(message, signatures, BridgeMessage.TOKEN_TRANSFER)
+    {
         // verify that message has not been processed
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
 
@@ -79,6 +73,7 @@ contract SuiBridge is
         uint256 erc20AdjustedAmount = adjustDecimalsForErc20(
             tokenTransferPayload.tokenId, tokenTransferPayload.amount, erc20Decimal
         );
+
         _transferTokensFromVault(
             tokenTransferPayload.tokenId, tokenTransferPayload.targetAddress, erc20AdjustedAmount
         );
@@ -102,8 +97,7 @@ contract SuiBridge is
     )
         external
         nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.EMERGENCY_OP)
+        verifyMessageAndSignatures(message, signatures, BridgeMessage.EMERGENCY_OP)
     {
         // decode the emergency op message
         bool isFreezing = BridgeMessage.decodeEmergencyOpPayload(message.payload);
@@ -112,39 +106,12 @@ contract SuiBridge is
         else _unpause();
     }
 
-    /// @dev Upgrades the bridge contract with the provided signatures and message.
-    /// @param signatures The array of signatures to verify.
-    /// @param message The BridgeMessage containing the upgrade details.
-    /// Requirements:
-    /// - The message nonce must match the nonce for the message type.
-    /// - The message type must be BRIDGE_UPGRADE.
-    /// - The signatures must be valid.
-    /// - The upgrade payload must be decoded successfully.
-    /// - The bridge upgrade must be performed successfully.
-    /// - The message type nonce must be incremented.
-    function upgradeBridgeWithSignatures(
-        bytes[] memory signatures,
-        BridgeMessage.Message memory message
-    )
-        external
-        nonReentrant
-        nonceInOrder(message)
-        validateMessage(message, signatures, BridgeMessage.BRIDGE_UPGRADE)
-    {
-        // decode the upgrade payload
-        (address implementationAddress, bytes memory callData) =
-            BridgeMessage.decodeUpgradePayload(message.payload);
-
-        // update the upgrade
-        _upgradeBridge(implementationAddress, callData);
-    }
-
     /// @dev Bridges tokens from the current chain to the Sui chain.
     /// @param tokenId The ID of the token to be bridged.
     /// @param amount The amount of tokens to be bridged.
     /// @param targetAddress The address on the Sui chain where the tokens will be sent.
     /// @param destinationChainID The ID of the destination chain.
-    function bridgeToSui(
+    function bridgeERC20(
         uint8 tokenId,
         uint256 amount,
         bytes memory targetAddress,
@@ -172,15 +139,15 @@ contract SuiBridge is
         // Adjust the amount to log.
         uint64 suiAdjustedAmount =
             adjustDecimalsForSuiToken(tokenId, amount, IERC20Metadata(tokenAddress).decimals());
-        emit TokensBridgedToSui(
-            chainID,
+        emit TokensBridged(
+            committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
             tokenId,
             suiAdjustedAmount,
             msg.sender,
             targetAddress
-            );
+        );
 
         // increment token transfer nonce
         nonces[BridgeMessage.TOKEN_TRANSFER]++;
@@ -189,7 +156,7 @@ contract SuiBridge is
     /// @dev Bridges ETH to SUI tokens on a specified destination chain.
     /// @param targetAddress The address on the destination chain where the SUI tokens will be sent.
     /// @param destinationChainID The ID of the destination chain.
-    function bridgeETHToSui(bytes memory targetAddress, uint8 destinationChainID)
+    function bridgeETH(bytes memory targetAddress, uint8 destinationChainID)
         external
         payable
         whenNotPaused
@@ -207,21 +174,19 @@ contract SuiBridge is
 
         // Adjust the amount to log.
         uint64 suiAdjustedAmount = adjustDecimalsForSuiToken(BridgeMessage.ETH, amount, 18);
-        emit TokensBridgedToSui(
-            chainID,
+        emit TokensBridged(
+            committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
             BridgeMessage.ETH,
             suiAdjustedAmount,
             msg.sender,
             targetAddress
-            );
+        );
 
         // increment token transfer nonce
         nonces[BridgeMessage.TOKEN_TRANSFER]++;
     }
-
-    // TODO: garbage collect messageProcessed with design from notion (add watermark concept)
 
     /* ========== VIEW FUNCTIONS ========== */
 
@@ -311,6 +276,7 @@ contract SuiBridge is
     function _transferTokensFromVault(uint8 tokenId, address targetAddress, uint256 amount)
         private
         whenNotPaused
+        limitNotExceeded(tokenId, amount)
     {
         address tokenAddress = tokens.getAddress(tokenId);
 
@@ -329,17 +295,16 @@ contract SuiBridge is
         limiter.updateBridgeTransfers(tokenId, amount);
     }
 
-    /// @dev Upgrades the bridge contract to a new implementation.
-    /// @param newImplementation The address of the new implementation contract.
-    /// @param data The data to be passed to the new implementation contract's upgrade function.
-    function _upgradeBridge(address newImplementation, bytes memory data) private {
-        if (data.length > 0) _upgradeToAndCallUUPS(newImplementation, data, true);
-        else _upgradeTo(newImplementation);
-    }
+    /* ========== MODIFIERS ========== */
 
-    /// @dev Internal function to authorize an upgrade.
-    /// @param _address The address to authorize the upgrade for.
-    function _authorizeUpgrade(address _address) internal view override {
-        require(_msgSender() == address(this), "SuiBridge: not authorized");
+    /// @dev Checks that the amount being transferred does not exceed the limit.
+    /// @param tokenId The ID of the token being transferred.
+    /// @param amount The amount of tokens being transferred.
+    modifier limitNotExceeded(uint8 tokenId, uint256 amount) {
+        require(
+            !limiter.willAmountExceedLimit(tokenId, amount),
+            "SuiBridge: Amount exceeds bridge limit"
+        );
+        _;
     }
 }

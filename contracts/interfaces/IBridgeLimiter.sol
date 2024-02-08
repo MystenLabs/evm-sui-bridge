@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 /// @title IBridgeLimiter
 /// @dev Interface for a bridge limiter contract that imposes limits on token bridging operations.
@@ -8,4 +8,6 @@ interface IBridgeLimiter {
     /// @param tokenId The ID of the token being bridged.
     /// @param amount The amount of tokens being bridged.
     function updateBridgeTransfers(uint8 tokenId, uint256 amount) external;
+
+    function willAmountExceedLimit(uint8 tokenId, uint256 amount) external view returns (bool);
 }
