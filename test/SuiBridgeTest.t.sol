@@ -604,13 +604,6 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         bridge.initialize(
             address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
         );
-        vault.transferOwnership(address(bridge));
-        limiter.transferOwnership(address(bridge));
-
-        // Fill vault with WETH
-        changePrank(deployer);
-        IWETH9(wETH).deposit{value: 10 ether}();
-        IERC20(wETH).transfer(address(vault), 10 ether);
 
         bytes memory payload = hex"00";
         // Create transfer message

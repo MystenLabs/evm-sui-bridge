@@ -11,6 +11,7 @@ import "forge-std/Test.sol";
 
 contract CommitteeUpgradeableTest is BridgeBaseTest {
     MockSuiBridgeV2 bridgeV2;
+    uint8 _chainID = 12;
 
     // This function is called before each unit test
     function setUp() public {
@@ -31,7 +32,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
         // deploy bridge committee
         address _committee = Upgrades.deployUUPSProxy(
             "BridgeCommittee.sol",
-            abi.encodeCall(BridgeCommittee.initialize, (_committeeMembers, _stake, chainID))
+            abi.encodeCall(BridgeCommittee.initialize, (_committeeMembers, _stake, _chainID))
         );
 
         uint8[] memory _supportedDestinationChains = new uint8[](2);
@@ -61,7 +62,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
-            chainID: chainID,
+            chainID: _chainID,
             payload: payload
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -87,7 +88,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
-            chainID: chainID,
+            chainID: _chainID,
             payload: payload
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -104,7 +105,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 0,
-            chainID: chainID,
+            chainID: _chainID,
             payload: abi.encode(0)
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -123,7 +124,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 10,
-            chainID: chainID,
+            chainID: _chainID,
             payload: abi.encode(0)
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -145,7 +146,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
-            chainID: chainID,
+            chainID: _chainID,
             payload: payload
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -172,7 +173,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             messageType: BridgeMessage.UPGRADE,
             version: 1,
             nonce: 0,
-            chainID: chainID,
+            chainID: _chainID,
             payload: payload
         });
         bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
@@ -184,6 +185,150 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
         vm.expectRevert(bytes("SuiBridge: Invalid proxy address"));
         bridge.upgradeWithSignatures(signatures, message);
+    }
+
+    // An e2e upgrade regression test covering message ser/de and signature verification
+    function testUpgradeRegressionTestWithV2Initializer() public {
+        bytes memory messagePrefix = hex"5355495f4252494447455f4d455353414745050100000000000000000c";
+
+        bytes memory initV2CallData =
+            hex"000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000045cd8a76b00000000000000000000000000000000000000000000000000000000";
+
+        bytes memory payload = abi.encodePacked(
+            abi.encode(address(bridge)), abi.encode(address(bridgeV2)), initV2CallData
+        );
+
+        bytes memory encodedMessage = abi.encodePacked(messagePrefix, payload);
+
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        // // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPGRADE,
+            version: 1,
+            nonce: 0,
+            chainID: _chainID,
+            payload: payload
+        });
+
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        bridge.upgradeWithSignatures(signatures, message);
+
+        assertTrue(bridge.paused());
+        assertEq(Upgrades.getImplementationAddress(address(bridge)), address(bridgeV2));
+    }
+
+    function testUpgradeRegressionTestWith1CalldataArg() public {
+        bytes memory messagePrefix = hex"5355495f4252494447455f4d455353414745050100000000000000000c";
+
+        bytes memory newMockFunc1CallData =
+            hex"00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000024417795ef000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000";
+
+        bytes memory payload = abi.encodePacked(
+            abi.encode(address(bridge)), abi.encode(address(bridgeV2)), newMockFunc1CallData
+        );
+
+        bytes memory encodedMessage = abi.encodePacked(messagePrefix, payload);
+
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        // // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPGRADE,
+            version: 1,
+            nonce: 0,
+            chainID: _chainID,
+            payload: payload
+        });
+
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        bridge.upgradeWithSignatures(signatures, message);
+
+        MockSuiBridgeV2 newBridgeV2 = MockSuiBridgeV2(address(bridge));
+        assertTrue(newBridgeV2.isPausing());
+        assertEq(Upgrades.getImplementationAddress(address(bridge)), address(bridgeV2));
+    }
+
+    function testUpgradeRegressionTestWith2CalldataArg() public {
+        bytes memory messagePrefix = hex"5355495f4252494447455f4d455353414745050100000000000000000c";
+
+        bytes memory newMockFunc2CallData =
+            hex"00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000044be8fc25d0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002a00000000000000000000000000000000000000000000000000000000";
+
+        bytes memory payload = abi.encodePacked(
+            abi.encode(address(bridge)), abi.encode(address(bridgeV2)), newMockFunc2CallData
+        );
+
+        bytes memory encodedMessage = abi.encodePacked(messagePrefix, payload);
+
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        // // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPGRADE,
+            version: 1,
+            nonce: 0,
+            chainID: _chainID,
+            payload: payload
+        });
+
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        bridge.upgradeWithSignatures(signatures, message);
+
+        MockSuiBridgeV2 newBridgeV2 = MockSuiBridgeV2(address(bridge));
+        assertTrue(newBridgeV2.isPausing());
+        assertEq(newBridgeV2.mock(), 42);
+        assertEq(Upgrades.getImplementationAddress(address(bridge)), address(bridgeV2));
+    }
+
+    function testUpgradeRegressionTestWithNoCalldata() public {
+        bytes memory messagePrefix = hex"5355495f4252494447455f4d455353414745050100000000000000000c";
+
+        bytes memory emptyCallData =
+            hex"00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000";
+
+        bytes memory payload = abi.encodePacked(
+            abi.encode(address(bridge)), abi.encode(address(bridgeV2)), emptyCallData
+        );
+
+        bytes memory encodedMessage = abi.encodePacked(messagePrefix, payload);
+
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        // // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPGRADE,
+            version: 1,
+            nonce: 0,
+            chainID: _chainID,
+            payload: payload
+        });
+
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+
+        bridge.upgradeWithSignatures(signatures, message);
+
+        MockSuiBridgeV2 newBridgeV2 = MockSuiBridgeV2(address(bridge));
+        assertEq(Upgrades.getImplementationAddress(address(bridge)), address(bridgeV2));
     }
 
     // TODO: addMockUpgradeTest using OZ upgrades package to show upgrade safety checks
