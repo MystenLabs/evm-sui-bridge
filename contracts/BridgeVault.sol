@@ -50,8 +50,7 @@ contract BridgeVault is Ownable, IBridgeVault {
 
         // Transfer the unwrapped ETH to the target address
         // Send ether and specify a custom gas amount
-        (bool success, ) = targetAddress.call{value: amount/**, gas: 5000*/}("");
-        require(success, "BridgeVault: Transfer failed");
+        targetAddress.call{value: amount/**, gas: 5000*/}("");
     }
 
     // These are needed to receive ETH when unwrapping WETH
