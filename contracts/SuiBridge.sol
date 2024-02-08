@@ -60,11 +60,6 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
         for (uint8 i = 0; i < _supportedChainIDs.length; i++) {
             // require(_supportedChainIDs[i] != BridgeCommittee.chainID, "SuiBridge: Cannot support self");
-            require(_supportedChainIDs[i] == BridgeMessage.SUI || 
-                    _supportedChainIDs[i] == BridgeMessage.BTC || 
-                    _supportedChainIDs[i] == BridgeMessage.USDC || 
-                    _supportedChainIDs[i] == BridgeMessage.USDT, 
-                    "SuiBridge: Cannot support chain");
             supportedChainIDs[_supportedChainIDs[i]] = true;
         }
     }
