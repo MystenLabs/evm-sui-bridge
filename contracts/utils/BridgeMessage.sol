@@ -198,7 +198,7 @@ library BridgeMessage {
         returns (bool, address[] memory)
     {
         (uint8 blocklistType, address[] memory members) = abi.decode(payload, (uint8, address[]));
-        return (blocklistType == 0 ? true : false, members);
+        return (blocklistType == 0, members);
     }
 
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {

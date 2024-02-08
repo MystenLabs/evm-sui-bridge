@@ -178,7 +178,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
-        vm.expectRevert(bytes("SuiBridge: Invalid proxy address"));
+        vm.expectRevert(bytes("CommitteeUpgradeable: Invalid proxy address"));
         bridge.upgradeWithSignatures(signatures, message);
     }
 

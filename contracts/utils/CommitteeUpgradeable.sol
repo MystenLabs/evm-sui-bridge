@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "../interfaces/IBridgeCommittee.sol";
 import "./MessageVerifier.sol";
 
 abstract contract CommitteeUpgradeable is
@@ -21,7 +20,7 @@ abstract contract CommitteeUpgradeable is
     }
 
     function _authorizeUpgrade(address) internal view override {
-        require(_upgradeAuthorized, "SuiBridge: Unauthorized upgrade");
+        require(_upgradeAuthorized, "CommitteeUpgradeable: Unauthorized upgrade");
     }
 
     function upgradeWithSignatures(bytes[] memory signatures, BridgeMessage.Message memory message)
@@ -34,7 +33,7 @@ abstract contract CommitteeUpgradeable is
             BridgeMessage.decodeUpgradePayload(message.payload);
 
         // verify proxy address
-        require(proxy == address(this), "SuiBridge: Invalid proxy address");
+        require(proxy == address(this), "CommitteeUpgradeable: Invalid proxy address");
 
         // authorize upgrade
         _upgradeAuthorized = true;
