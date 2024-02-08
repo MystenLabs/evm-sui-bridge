@@ -49,7 +49,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         address _vault,
         address _limiter,
         address _weth9,
-        uint8[] memory _supportedDestinationChains
+        uint8[] memory _supportedChainIDs
     ) external initializer {
         __CommitteeUpgradeable_init(_committee);
         __Pausable_init();
@@ -58,14 +58,14 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         limiter = IBridgeLimiter(_limiter);
         weth9 = IWETH9(_weth9);
 
-        for (uint8 i = 0; i < _supportedDestinationChains.length; i++) {
-            // require(_supportedDestinationChains[i] != BridgeCommittee.chainID, "SuiBridge: Cannot support self");
-            require(_supportedDestinationChains[i] == BridgeMessage.SUI || 
-                    _supportedDestinationChains[i] == BridgeMessage.BTC || 
-                    _supportedDestinationChains[i] == BridgeMessage.USDC || 
-                    _supportedDestinationChains[i] == BridgeMessage.USDT, 
+        for (uint8 i = 0; i < _supportedChainIDs.length; i++) {
+            // require(_supportedChainIDs[i] != BridgeCommittee.chainID, "SuiBridge: Cannot support self");
+            require(_supportedChainIDs[i] == BridgeMessage.SUI || 
+                    _supportedChainIDs[i] == BridgeMessage.BTC || 
+                    _supportedChainIDs[i] == BridgeMessage.USDC || 
+                    _supportedChainIDs[i] == BridgeMessage.USDT, 
                     "SuiBridge: Cannot support chain");
-            supportedChainIDs[_supportedDestinationChains[i]] = true;
+            supportedChainIDs[_supportedChainIDs[i]] = true;
         }
     }
 
