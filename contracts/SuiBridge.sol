@@ -26,11 +26,11 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     IWETH9 public weth9;
     // message nonce => processed
     mapping(uint64 => bool) public messageProcessed;
-    mapping(uint8 chainId => bool isSupported) public supportedChainIDs;
+    mapping(uint8 chainId => bool isSupported) public isChainSupported;
     
     modifier isTargetChainSupported(uint8 targetChainID) {
         require(
-            supportedChainIDs[targetChainID],
+            isChainSupported[targetChainID],
             "SuiBridge: Target chain not supported"
         );
         _;
@@ -60,7 +60,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
         for (uint8 i = 0; i < _supportedChainIDs.length; i++) {
             // require(_supportedChainIDs[i] != BridgeCommittee.chainID, "SuiBridge: Cannot support self");
-            supportedChainIDs[_supportedChainIDs[i]] = true;
+            isChainSupported[_supportedChainIDs[i]] = true;
         }
     }
 
