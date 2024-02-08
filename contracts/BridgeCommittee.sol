@@ -27,8 +27,9 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
     {
         __CommitteeUpgradeable_init(address(this));
         __UUPSUpgradeable_init();
+        uint256 _committeeMembersArrayLength = _committeeMembers.length;
         require(
-            _committeeMembers.length == stake.length,
+            _committeeMembersArrayLength == stake.length,
             "BridgeCommittee: Committee and stake arrays must be of the same length"
         );
 
@@ -53,10 +54,11 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
     /// @param signatures The array of signatures to be verified.
     /// @param message The message to be verified.
     function verifySignatures(bytes[] memory signatures, BridgeMessage.Message memory message)
-        public
+        external
         view
         override
     {
+        uint256 signaturesArrayLength = signatures.length;
         uint32 requiredStake = BridgeMessage.getRequiredStake(message);
 
         uint16 approvalStake;
@@ -64,7 +66,7 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
         uint256 bitmap;
 
         // Loop over the signatures and check if they are valid
-        for (uint16 i = 0; i < signatures.length; i++) {
+        for (uint16 i = 0; i < signaturesArrayLength; i++) {
             bytes memory signature = signatures[i];
             // recover the signer from the signature
             (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
