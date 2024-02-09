@@ -201,6 +201,7 @@ library BridgeMessage {
         uint8 membersLength = uint8(payload[1]);
         address[] memory members = new address[](membersLength);
         uint8 offset = 2;
+        require((payload.length - offset) % 20 == 0, "BridgeMessage: Invalid payload length");
         for (uint8 i = 0; i < membersLength; i++) {
             // Calculate the starting index for each address
             offset += i * 20;
