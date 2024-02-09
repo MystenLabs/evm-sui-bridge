@@ -35,13 +35,17 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
             abi.encodeCall(BridgeCommittee.initialize, (_committeeMembers, _stake, _chainID))
         );
 
+        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        _supportedDestinationChains[0] = 0;
+        _supportedDestinationChains[1] = 1;
+
         committee = BridgeCommittee(_committee);
 
         // deploy sui bridge
         address _bridge = Upgrades.deployUUPSProxy(
             "SuiBridge.sol",
             abi.encodeCall(
-                SuiBridge.initialize, (_committee, address(0), address(0), address(0), address(0))
+                SuiBridge.initialize, (_committee, address(0), address(0), address(0), address(0), _supportedDestinationChains)
             )
         );
 

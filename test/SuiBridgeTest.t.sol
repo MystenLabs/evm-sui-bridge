@@ -527,8 +527,11 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
+        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        _supportedDestinationChains[0] = 0;
+        _supportedDestinationChains[1] = 1;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH
+            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
@@ -595,8 +598,11 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
+        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        _supportedDestinationChains[0] = 0;
+        _supportedDestinationChains[1] = 1;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH
+            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
         );
 
         bytes memory payload = hex"00";
@@ -624,5 +630,74 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
 
         // bridge.executeEmergencyOpWithSignatures(signatures, message);
         // assertTrue(bridge.paused());
+    }
+
+    // An e2e upgrade regression test covering message ser/de and signature verification
+    function testUpgradeRegressionTest() public {
+        address[] memory _committee = new address[](4);
+        uint16[] memory _stake = new uint16[](4);
+        _committee[0] = 0x68B43fD906C0B8F024a18C56e06744F7c6157c65;
+        _committee[1] = 0xaCAEf39832CB995c4E049437A3E2eC6a7bad1Ab5;
+        _committee[2] = 0x8061f127910e8eF56F16a2C411220BaD25D61444;
+        _committee[3] = 0x508F3F1ff45F4ca3D8e86CDCC91445F00aCC59fC;
+        _stake[0] = 2500;
+        _stake[1] = 2500;
+        _stake[2] = 2500;
+        _stake[3] = 2500;
+        committee = new BridgeCommittee();
+        committee.initialize(_committee, _stake, 1);
+        vault = new BridgeVault(wETH);
+        uint256[] memory assetPrices = new uint256[](4);
+        assetPrices[0] = 10000; // SUI PRICE
+        assetPrices[1] = 10000; // BTC PRICE
+        assetPrices[2] = 10000; // ETH PRICE
+        assetPrices[3] = 10000; // USDC PRICE
+        uint64 totalLimit = 1000000;
+
+        skip(2 days);
+        limiter = new BridgeLimiter();
+        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
+        bridge = new SuiBridge();
+        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        _supportedDestinationChains[0] = 0;
+        _supportedDestinationChains[1] = 1;
+        bridge.initialize(
+            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
+        );
+        vault.transferOwnership(address(bridge));
+        limiter.transferOwnership(address(bridge));
+
+        // Fill vault with WETH
+        changePrank(deployer);
+        IWETH9(wETH).deposit{value: 10 ether}();
+        IERC20(wETH).transfer(address(vault), 10 ether);
+
+        bytes memory payload =
+            hex"00000000000000000000000006060606060606060606060606060606060606060000000000000000000000000909090909090909090909090909090909090909000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000045cd8a76b00000000000000000000000000000000000000000000000000000000";
+        // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPGRADE,
+            version: 1,
+            nonce: 123,
+            chainID: 12,
+            payload: payload
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes memory expectedEncodedMessage =
+            hex"5355495f4252494447455f4d4553534147450501000000000000007b0c00000000000000000000000006060606060606060606060606060606060606060000000000000000000000000909090909090909090909090909090909090909000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000045cd8a76b00000000000000000000000000000000000000000000000000000000";
+
+        assertEq(encodedMessage, expectedEncodedMessage);
+
+        (address proxy, address newImp, bytes memory _calldata) =
+            BridgeMessage.decodeUpgradePayload(payload);
+
+        assertEq(proxy, address(0x0606060606060606060606060606060606060606));
+        assertEq(newImp, address(0x0909090909090909090909090909090909090909));
+        assertEq(_calldata, hex"5cd8a76b");
+
+        // bytes[] memory signatures = new bytes[](2);
+
+        // TODO: wont be able to execute upgrade as proxy does not match provided address
+        // TODO: look into forcing the proxy to be the same as the provided address
     }
 }
