@@ -61,17 +61,164 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
         assertEq(_payload.amount, uint64(854768923101));
     }
 
-    // Waiting for move generated payloads to be generated
+    function testDecodeBlocklistPayload() public {
+        bytes memory payload =
+            hex"010268b43fd906c0b8f024a18c56e06744f7c6157c65acaef39832cb995c4e049437a3e2ec6a7bad1ab5";
+        (bool blocklisting, address[] memory members) =
+            BridgeMessage.decodeBlocklistPayload(payload);
 
-    // TODO:
-    function testDecodeBlocklistPayload() public {}
-    // TODO:
+        assertEq(members.length, 2);
+        assertEq(members[0], 0x68B43fD906C0B8F024a18C56e06744F7c6157c65);
+        assertEq(members[1], 0xaCAEf39832CB995c4E049437A3E2eC6a7bad1Ab5);
+        assertFalse(blocklisting);
+    }
 
-    function testDecodeEmergencyOpPayload() public {}
-    // TODO:
-    function testDecodeUpgradePayload() public {}
-    // TODO:
-    function testDecodeUpdateAssetPayload() public {}
-    // TODO:
-    function testDecodeUpdateLimitPayload() public {}
+    function testDecodeUpdateLimitPayload() public {
+        bytes memory payload = hex"0c00000002540be400";
+        (uint8 sourceChainID, uint64 newLimit) = BridgeMessage.decodeUpdateLimitPayload(payload);
+        assertEq(sourceChainID, 12);
+        assertEq(newLimit, 1_000_000_0000);
+    }
+
+    function testDecodeUpdateAssetPayload() public {
+        bytes memory payload = hex"01000000003b9aca00";
+        (uint8 assetID, uint64 newPrice) = BridgeMessage.decodeUpdateAssetPayload(payload);
+        assertEq(assetID, 1);
+        assertEq(newPrice, 100_000_0000);
+    }
+
+    function testDecodeEmergencyOpPayload() public {
+        bytes memory payload = hex"01";
+        bool pausing = BridgeMessage.decodeEmergencyOpPayload(payload);
+        assertFalse(pausing);
+    }
+
+    function testDecodeUpgradePayload() public {
+        bytes memory payload = abi.encode(
+            address(100),
+            address(200),
+            hex"5355495f4252494447455f4d455353414745050100000000000000000c"
+        );
+
+        (address proxy, address newImp, bytes memory _calldata) =
+            BridgeMessage.decodeUpgradePayload(payload);
+
+        assertEq(proxy, address(100));
+        assertEq(newImp, address(200));
+        assertEq(_calldata, hex"5355495f4252494447455f4d455353414745050100000000000000000c");
+    }
+
+    function testDecodeUpgradePayloadWithNoArgsRegressionTest() public {
+        bytes memory initV2Message =
+            hex"5355495f4252494447455f4d4553534147450501000000000000007b0c00000000000000000000000006060606060606060606060606060606060606060000000000000000000000000909090909090909090909090909090909090909000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000045cd8a76b00000000000000000000000000000000000000000000000000000000";
+
+        bytes memory initV2Payload =
+            hex"00000000000000000000000006060606060606060606060606060606060606060000000000000000000000000909090909090909090909090909090909090909000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000045cd8a76b00000000000000000000000000000000000000000000000000000000";
+
+        bytes4 initV2CallData = bytes4(keccak256(bytes("initializeV2()")));
+
+        // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPGRADE,
+            version: 1,
+            nonce: 123,
+            chainID: 12,
+            payload: initV2Payload
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
+        assertEq(encodedMessage, initV2Message);
+
+        (address proxy, address newImp, bytes memory _calldata) =
+            BridgeMessage.decodeUpgradePayload(initV2Payload);
+
+        assertEq(proxy, address(0x0606060606060606060606060606060606060606));
+        assertEq(newImp, address(0x0909090909090909090909090909090909090909));
+        assertEq(bytes4(_calldata), initV2CallData);
+    }
+
+    function testDecodeUpgradePayloadWith1ArgRegressionTest() public {
+        bytes memory newMockFunc1Message =
+            hex"5355495f4252494447455f4d4553534147450501000000000000007b0c0000000000000000000000000606060606060606060606060606060606060606000000000000000000000000090909090909090909090909090909090909090900000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000024417795ef000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000";
+
+        bytes memory newMockFunc1Payload =
+            hex"0000000000000000000000000606060606060606060606060606060606060606000000000000000000000000090909090909090909090909090909090909090900000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000024417795ef000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000";
+
+        bytes4 newMockFunc1CallData = bytes4(keccak256(bytes("newMockFunction(bool)")));
+
+        // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPGRADE,
+            version: 1,
+            nonce: 123,
+            chainID: 12,
+            payload: newMockFunc1Payload
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
+        assertEq(encodedMessage, newMockFunc1Message);
+
+        (address proxy, address newImp, bytes memory _calldata) =
+            BridgeMessage.decodeUpgradePayload(newMockFunc1Payload);
+
+        assertEq(proxy, address(0x0606060606060606060606060606060606060606));
+        assertEq(newImp, address(0x0909090909090909090909090909090909090909));
+        assertEq(bytes4(_calldata), newMockFunc1CallData);
+    }
+
+    function testDecodeUpgradePayloadWith2ArgsRegressionTest() public {
+        bytes memory newMockFunc2Message =
+            hex"5355495f4252494447455f4d4553534147450501000000000000007b0c0000000000000000000000000606060606060606060606060606060606060606000000000000000000000000090909090909090909090909090909090909090900000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000044be8fc25d0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002a00000000000000000000000000000000000000000000000000000000";
+
+        bytes memory newMockFunc2Payload =
+            hex"0000000000000000000000000606060606060606060606060606060606060606000000000000000000000000090909090909090909090909090909090909090900000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000044be8fc25d0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002a00000000000000000000000000000000000000000000000000000000";
+
+        bytes4 newMockFunc2CallData = bytes4(keccak256(bytes("newMockFunction(bool,uint8)")));
+
+        // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPGRADE,
+            version: 1,
+            nonce: 123,
+            chainID: 12,
+            payload: newMockFunc2Payload
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
+        assertEq(encodedMessage, newMockFunc2Message);
+
+        (address proxy, address newImp, bytes memory _calldata) =
+            BridgeMessage.decodeUpgradePayload(newMockFunc2Payload);
+
+        assertEq(proxy, address(0x0606060606060606060606060606060606060606));
+        assertEq(newImp, address(0x0909090909090909090909090909090909090909));
+        assertEq(bytes4(_calldata), newMockFunc2CallData);
+    }
+
+    function testDecodeUpgradePayloadWithNoCalldataRegressionTest() public {
+        bytes memory emptyCalldataMessage =
+            hex"5355495f4252494447455f4d4553534147450501000000000000007b0c0000000000000000000000000606060606060606060606060606060606060606000000000000000000000000090909090909090909090909090909090909090900000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000";
+
+        bytes memory emptyCalldataPayload =
+            hex"0000000000000000000000000606060606060606060606060606060606060606000000000000000000000000090909090909090909090909090909090909090900000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000";
+
+        // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.UPGRADE,
+            version: 1,
+            nonce: 123,
+            chainID: 12,
+            payload: emptyCalldataPayload
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
+        assertEq(encodedMessage, emptyCalldataMessage);
+
+        (address proxy, address newImp, bytes memory _calldata) =
+            BridgeMessage.decodeUpgradePayload(emptyCalldataPayload);
+
+        assertEq(proxy, address(0x0606060606060606060606060606060606060606));
+        assertEq(newImp, address(0x0909090909090909090909090909090909090909));
+        assertEq(_calldata, bytes(hex""));
+    }
 }

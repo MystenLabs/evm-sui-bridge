@@ -10,6 +10,7 @@ import "./interfaces/IBridgeVault.sol";
 import "./interfaces/IBridgeLimiter.sol";
 import "./interfaces/ISuiBridge.sol";
 import "./interfaces/IBridgeTokens.sol";
+import "./BridgeCommittee.sol";
 
 /// @title SuiBridge
 /// @dev This contract implements a bridge between Ethereum and another blockchain.
@@ -25,6 +26,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     IWETH9 public weth9;
     // message nonce => processed
     mapping(uint64 => bool) public messageProcessed;
+    mapping(uint8 chainId => bool isSupported) public isChainSupported;
 
     /* ========== INITIALIZER ========== */
 
@@ -39,7 +41,8 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         address _tokens,
         address _vault,
         address _limiter,
-        address _weth9
+        address _weth9,
+        uint8[] memory _supportedChainIDs
     ) external initializer {
         __CommitteeUpgradeable_init(_committee);
         __Pausable_init();
@@ -47,6 +50,11 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         vault = IBridgeVault(_vault);
         limiter = IBridgeLimiter(_limiter);
         weth9 = IWETH9(_weth9);
+
+        for (uint8 i = 0; i < _supportedChainIDs.length; i++) {
+            // require(_supportedChainIDs[i] != BridgeCommittee.chainID, "SuiBridge: Cannot support self");
+            isChainSupported[_supportedChainIDs[i]] = true;
+        }
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
@@ -61,12 +69,22 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         external
         nonReentrant
         verifyMessageAndSignatures(message, signatures, BridgeMessage.TOKEN_TRANSFER)
+        onlySupportedChain(message.chainID)
     {
         // verify that message has not been processed
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
 
         BridgeMessage.TokenTransferPayload memory tokenTransferPayload =
             BridgeMessage.decodeTokenTransferPayload(message.payload);
+
+        // verify target chain ID is this chain ID
+        require(
+            tokenTransferPayload.targetChain == committee.chainID(),
+            "SuiBridge: Invalid target chain"
+        );
+
+        // verify chain ID (sending chain) is not this chain ID
+        require(message.chainID != committee.chainID(), "SuiBridge: Invalid sending chain");
 
         address tokenAddress = tokens.getAddress(tokenTransferPayload.tokenId);
         uint8 erc20Decimal = IERC20Metadata(tokenAddress).decimals();
@@ -116,9 +134,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         uint256 amount,
         bytes memory targetAddress,
         uint8 destinationChainID
-    ) external whenNotPaused nonReentrant {
-        // TODO: add checks for destination chain ID. Disallow invalid values
-
+    ) external whenNotPaused nonReentrant onlySupportedChain(destinationChainID) {
         // Check that the token address is supported (but not sui yet)
         require(
             tokenId > BridgeMessage.SUI && tokenId <= BridgeMessage.USDT,
@@ -161,9 +177,8 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         payable
         whenNotPaused
         nonReentrant
+        onlySupportedChain(destinationChainID)
     {
-        // TODO: add checks for destination chain ID. Disallow invalid values
-
         uint256 amount = msg.value;
 
         // Wrap ETH
@@ -305,6 +320,11 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
             !limiter.willAmountExceedLimit(tokenId, amount),
             "SuiBridge: Amount exceeds bridge limit"
         );
+        _;
+    }
+
+    modifier onlySupportedChain(uint8 targetChainID) {
+        require(isChainSupported[targetChainID], "SuiBridge: Target chain not supported");
         _;
     }
 }

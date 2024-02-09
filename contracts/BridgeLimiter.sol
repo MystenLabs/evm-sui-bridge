@@ -18,7 +18,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
     // token id => token price in USD (4 decimal precision) (e.g. 1 ETH = 2000 USD => 20000000)
     mapping(uint8 => uint256) public assetPrices;
     // total limit in USD (4 decimal precision) (e.g. 10000000 => 1000 USD)
-    uint256 public totalLimit;
+    uint64 public totalLimit;
     uint32 public oldestHourTimestamp;
 
     /* ========== INITIALIZER ========== */
@@ -32,7 +32,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
         address _committee,
         address _tokens,
         uint256[] memory _assetPrices,
-        uint256 _totalLimit
+        uint64 _totalLimit
     ) external initializer {
         __CommitteeUpgradeable_init(_committee);
         __Ownable_init(msg.sender);
@@ -133,7 +133,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
         verifyMessageAndSignatures(message, signatures, BridgeMessage.UPDATE_ASSET_PRICE)
     {
         // decode the update asset payload
-        (uint8 tokenId, uint256 price) = BridgeMessage.decodeUpdateAssetPayload(message.payload);
+        (uint8 tokenId, uint64 price) = BridgeMessage.decodeUpdateAssetPayload(message.payload);
 
         // update the asset price
         assetPrices[tokenId] = price;
@@ -151,7 +151,8 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
         verifyMessageAndSignatures(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
     {
         // decode the update limit payload
-        (uint256 newLimit) = BridgeMessage.decodeUpdateLimitPayload(message.payload);
+        (uint8 sourceChainID, uint64 newLimit) =
+            BridgeMessage.decodeUpdateLimitPayload(message.payload);
 
         // update the limit
         totalLimit = newLimit;

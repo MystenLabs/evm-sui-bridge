@@ -197,7 +197,8 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         // create payload
         address[] memory _blocklist = new address[](1);
         _blocklist[0] = committeeMemberA;
-        bytes memory payload = abi.encode(uint8(0), _blocklist);
+        bytes memory payload = hex"0001";
+        payload = abi.encodePacked(payload, committeeMemberA);
 
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
@@ -272,7 +273,8 @@ contract BridgeCommitteeTest is BridgeBaseTest {
         // create payload
         address[] memory _blocklist = new address[](1);
         _blocklist[0] = committeeMemberA;
-        bytes memory payload = abi.encode(uint8(1), _blocklist);
+        bytes memory payload = hex"0101";
+        payload = abi.encodePacked(payload, committeeMemberA);
 
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
@@ -297,5 +299,51 @@ contract BridgeCommitteeTest is BridgeBaseTest {
 
         // verify CommitteeMemberA is no longer blocklisted
         assertFalse(committee.blocklist(committeeMemberA));
+    }
+
+    // An e2e update committee blocklist regression test covering message ser/de and signature verification
+    function testUpdateCommitteeBlocklistRegressionTest() public {
+        address[] memory _committee = new address[](4);
+        uint16[] memory _stake = new uint16[](4);
+        _committee[0] = 0x68B43fD906C0B8F024a18C56e06744F7c6157c65;
+        _committee[1] = 0xaCAEf39832CB995c4E049437A3E2eC6a7bad1Ab5;
+        _committee[2] = 0x8061f127910e8eF56F16a2C411220BaD25D61444;
+        _committee[3] = 0x508F3F1ff45F4ca3D8e86CDCC91445F00aCC59fC;
+        _stake[0] = 2500;
+        _stake[1] = 2500;
+        _stake[2] = 2500;
+        _stake[3] = 2500;
+        committee = new BridgeCommittee();
+        committee.initialize(_committee, _stake, 1);
+
+        bytes memory payload =
+            hex"010268b43fd906c0b8f024a18c56e06744f7c6157c65acaef39832cb995c4e049437a3e2ec6a7bad1ab5";
+        // Create transfer message
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.BLOCKLIST,
+            version: 1,
+            nonce: 68,
+            chainID: 2,
+            payload: payload
+        });
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes memory expectedEncodedMessage =
+            hex"5355495f4252494447455f4d4553534147450101000000000000004402010268b43fd906c0b8f024a18c56e06744f7c6157c65acaef39832cb995c4e049437a3e2ec6a7bad1ab5";
+
+        assertEq(encodedMessage, expectedEncodedMessage);
+
+        bytes[] memory signatures = new bytes[](2);
+
+        // TODO: generate signatures
+        // signatures[0] =
+        //     hex"e1cf11b380855ff1d4a451ebc2fd68477cf701b7d4ec88da3082709fe95201a5061b4b60cf13815a80ba9dfead23e220506aa74c4a863ba045d95715b4cc6b6e00";
+        // signatures[1] =
+        //     hex"8ba9ec92c2d5a44ecc123182f689b901a93921fd35f581354fea20b25a0ded6d055b96a64bdda77dd5a62b93d29abe93640aa3c1a136348093cd7a2418c6bfa301";
+
+        // committee.verifySignatures(signatures, message);
+
+        // committee.updateBlocklistWithSignatures(signatures, message);
+
+        // assertEq(committee.blocklist(0x68B43fD906C0B8F024a18C56e06744F7c6157c65), true);
     }
 }

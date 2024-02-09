@@ -39,8 +39,8 @@ contract BridgeBaseTest is Test {
     uint256 ETH_PRICE = 25969600;
     uint256 USDC_PRICE = 10000;
 
-    uint8 public chainID = 99;
-    uint256 totalLimit = 10000000000;
+    uint8 public chainID = 1;
+    uint64 totalLimit = 10000000000;
 
     BridgeCommittee public committee;
     SuiBridge public bridge;
@@ -154,8 +154,11 @@ contract BridgeBaseTest is Test {
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
+        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        _supportedDestinationChains[0] = 0;
+        _supportedDestinationChains[1] = 1;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH
+            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));

@@ -76,10 +76,14 @@ contract DeployBridge is Script {
                     bridgeCommittee,
                     address(bridgeTokens),
                     config.assetPrices,
-                    config.totalBridgeLimitInDollars
+                    uint64(config.totalBridgeLimitInDollars)
                 )
             )
         );
+
+        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        _supportedDestinationChains[0] = 0;
+        _supportedDestinationChains[1] = 1;
 
         // deploy Sui Bridge
 
@@ -87,7 +91,7 @@ contract DeployBridge is Script {
             "SuiBridge.sol",
             abi.encodeCall(
                 SuiBridge.initialize,
-                (bridgeCommittee, address(bridgeTokens), address(vault), limiter, config.WETH)
+                (bridgeCommittee, address(bridgeTokens), address(vault), limiter, config.WETH, _supportedDestinationChains)
             )
         );
 
