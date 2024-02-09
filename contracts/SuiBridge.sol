@@ -27,14 +27,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     // message nonce => processed
     mapping(uint64 => bool) public messageProcessed;
     mapping(uint8 chainId => bool isSupported) public isChainSupported;
-    
-    modifier isTargetChainSupported(uint8 targetChainID) {
-        require(
-            isChainSupported[targetChainID],
-            "SuiBridge: Target chain not supported"
-        );
-        _;
-    }
+
     /* ========== INITIALIZER ========== */
 
     /// @dev Initializes the SuiBridge contract with the provided parameters.
@@ -76,7 +69,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         external
         nonReentrant
         verifyMessageAndSignatures(message, signatures, BridgeMessage.TOKEN_TRANSFER)
-        isTargetChainSupported(message.chainID)
+        onlySupportedChain(message.chainID)
     {
         // verify that message has not been processed
         require(!messageProcessed[message.nonce], "SuiBridge: Message already processed");
@@ -84,7 +77,14 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         BridgeMessage.TokenTransferPayload memory tokenTransferPayload =
             BridgeMessage.decodeTokenTransferPayload(message.payload);
 
-        // require(tokenTransferPayload.targetChain == BridgeCommittee.chainID());
+        // verify target chain ID is this chain ID
+        require(
+            tokenTransferPayload.targetChain == committee.chainID(),
+            "SuiBridge: Invalid target chain"
+        );
+
+        // verify chain ID (sending chain) is not this chain ID
+        require(message.chainID != committee.chainID(), "SuiBridge: Invalid sending chain");
 
         address tokenAddress = tokens.getAddress(tokenTransferPayload.tokenId);
         uint8 erc20Decimal = IERC20Metadata(tokenAddress).decimals();
@@ -134,8 +134,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         uint256 amount,
         bytes memory targetAddress,
         uint8 destinationChainID
-    ) external whenNotPaused nonReentrant isTargetChainSupported(destinationChainID) {
-
+    ) external whenNotPaused nonReentrant onlySupportedChain(destinationChainID) {
         // Check that the token address is supported (but not sui yet)
         require(
             tokenId > BridgeMessage.SUI && tokenId <= BridgeMessage.USDT,
@@ -178,7 +177,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         payable
         whenNotPaused
         nonReentrant
-        isTargetChainSupported(destinationChainID)
+        onlySupportedChain(destinationChainID)
     {
         uint256 amount = msg.value;
 
@@ -321,6 +320,11 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
             !limiter.willAmountExceedLimit(tokenId, amount),
             "SuiBridge: Amount exceeds bridge limit"
         );
+        _;
+    }
+
+    modifier onlySupportedChain(uint8 targetChainID) {
+        require(isChainSupported[targetChainID], "SuiBridge: Target chain not supported");
         _;
     }
 }

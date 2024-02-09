@@ -20,15 +20,51 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
     }
 
     function testTransferTokensWithSignaturesTokenDailyLimitExceeded() public {
-        // Create transfer message
-
         uint8 senderAddressLength = 32;
         bytes memory senderAddress = abi.encode(0);
-        uint8 targetChain = 1;
+        uint8 targetChain = chainID;
         uint8 targetAddressLength = 20;
         address targetAddress = bridgerA;
         uint8 tokenId = BridgeMessage.ETH;
         uint64 amount = 100000000000000;
+        bytes memory payload = abi.encodePacked(
+            senderAddressLength,
+            senderAddress,
+            targetChain,
+            targetAddressLength,
+            targetAddress,
+            tokenId,
+            amount
+        );
+
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.TOKEN_TRANSFER,
+            version: 1,
+            nonce: 1,
+            chainID: 0,
+            payload: payload
+        });
+
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+        vm.expectRevert(bytes("SuiBridge: Amount exceeds bridge limit"));
+        bridge.transferTokensWithSignatures(signatures, message);
+    }
+
+    function testTransferTokensWithSignaturesInvalidSenderChain() public {
+        uint8 senderAddressLength = 32;
+        bytes memory senderAddress = abi.encode(0);
+        uint8 targetChain = chainID;
+        uint8 targetAddressLength = 20;
+        address targetAddress = bridgerA;
+        uint8 tokenId = BridgeMessage.ETH;
+        uint64 amount = 10000;
         bytes memory payload = abi.encodePacked(
             senderAddressLength,
             senderAddress,
@@ -55,7 +91,45 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         signatures[1] = getSignature(messageHash, committeeMemberPkB);
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
-        vm.expectRevert(bytes("SuiBridge: Amount exceeds bridge limit"));
+        vm.expectRevert(bytes("SuiBridge: Invalid sending chain"));
+        bridge.transferTokensWithSignatures(signatures, message);
+    }
+
+    function testTransferTokensWithSignaturesInvalidTargetChain() public {
+        uint8 senderAddressLength = 32;
+        bytes memory senderAddress = abi.encode(0);
+        uint8 targetChain = 0;
+        uint8 targetAddressLength = 20;
+        address targetAddress = bridgerA;
+        uint8 tokenId = BridgeMessage.ETH;
+        uint64 amount = 10000;
+        bytes memory payload = abi.encodePacked(
+            senderAddressLength,
+            senderAddress,
+            targetChain,
+            targetAddressLength,
+            targetAddress,
+            tokenId,
+            amount
+        );
+
+        BridgeMessage.Message memory message = BridgeMessage.Message({
+            messageType: BridgeMessage.TOKEN_TRANSFER,
+            version: 1,
+            nonce: 1,
+            chainID: 1,
+            payload: payload
+        });
+
+        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+        bytes32 messageHash = keccak256(encodedMessage);
+
+        bytes[] memory signatures = new bytes[](4);
+        signatures[0] = getSignature(messageHash, committeeMemberPkA);
+        signatures[1] = getSignature(messageHash, committeeMemberPkB);
+        signatures[2] = getSignature(messageHash, committeeMemberPkC);
+        signatures[3] = getSignature(messageHash, committeeMemberPkD);
+        vm.expectRevert(bytes("SuiBridge: Invalid target chain"));
         bridge.transferTokensWithSignatures(signatures, message);
     }
 
@@ -124,7 +198,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         // Create transfer payload
         uint8 senderAddressLength = 32;
         bytes memory senderAddress = abi.encode(0);
-        uint8 targetChain = 1;
+        uint8 targetChain = chainID;
         uint8 targetAddressLength = 20;
         address targetAddress = bridgerA;
         uint8 tokenId = BridgeMessage.ETH;
@@ -144,7 +218,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
-            chainID: chainID,
+            chainID: 0,
             payload: payload
         });
 
@@ -176,7 +250,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         // Create transfer payload
         uint8 senderAddressLength = 32;
         bytes memory senderAddress = abi.encode(0);
-        uint8 targetChain = 1;
+        uint8 targetChain = chainID;
         uint8 targetAddressLength = 20;
         address targetAddress = bridgerA;
         uint8 tokenId = BridgeMessage.USDC;
@@ -196,7 +270,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             messageType: BridgeMessage.TOKEN_TRANSFER,
             version: 1,
             nonce: 1,
-            chainID: chainID,
+            chainID: 0,
             payload: payload
         });
 
@@ -514,7 +588,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         _stake[2] = 2500;
         _stake[3] = 2500;
         committee = new BridgeCommittee();
-        committee.initialize(_committee, _stake, 1);
+        committee.initialize(_committee, _stake, 11);
         vault = new BridgeVault(wETH);
         uint256[] memory assetPrices = new uint256[](4);
         assetPrices[0] = 10000; // SUI PRICE
@@ -531,7 +605,12 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         _supportedDestinationChains[0] = 0;
         _supportedDestinationChains[1] = 1;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
+            address(committee),
+            address(tokens),
+            address(vault),
+            address(limiter),
+            wETH,
+            _supportedDestinationChains
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
@@ -602,7 +681,12 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         _supportedDestinationChains[0] = 0;
         _supportedDestinationChains[1] = 1;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
+            address(committee),
+            address(tokens),
+            address(vault),
+            address(limiter),
+            wETH,
+            _supportedDestinationChains
         );
 
         bytes memory payload = hex"00";
@@ -662,7 +746,12 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         _supportedDestinationChains[0] = 0;
         _supportedDestinationChains[1] = 1;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
+            address(committee),
+            address(tokens),
+            address(vault),
+            address(limiter),
+            wETH,
+            _supportedDestinationChains
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
@@ -694,10 +783,5 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         assertEq(proxy, address(0x0606060606060606060606060606060606060606));
         assertEq(newImp, address(0x0909090909090909090909090909090909090909));
         assertEq(_calldata, hex"5cd8a76b");
-
-        // bytes[] memory signatures = new bytes[](2);
-
-        // TODO: wont be able to execute upgrade as proxy does not match provided address
-        // TODO: look into forcing the proxy to be the same as the provided address
     }
 }
