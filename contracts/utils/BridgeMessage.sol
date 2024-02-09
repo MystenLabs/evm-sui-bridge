@@ -213,7 +213,7 @@ library BridgeMessage {
             members[i] = member;
         }
         // blocklistType: 0 = blocklist, 1 = unblocklist
-        bool blocklisted = (blocklistType == 0) ? true : false;
+        bool blocklisted = (blocklistType == 0);
         return (blocklisted, members);
     }
 
@@ -221,7 +221,7 @@ library BridgeMessage {
         require(payload.length == 1, "BridgeMessage: Invalid payload length");
         uint8 emergencyOpCode = uint8(payload[0]);
         require(emergencyOpCode <= 1, "BridgeMessage: Invalid op code");
-        return emergencyOpCode == 0 ? true : false;
+        return emergencyOpCode == 0;
     }
 
     function decodeUpdateLimitPayload(bytes memory payload)
@@ -229,7 +229,7 @@ library BridgeMessage {
         pure
         returns (uint8 senderChainID, uint64 newLimit)
     {
-        require(payload.length >= 9, "BridgeMessage: Invalid payload length");
+        require(payload.length == 9, "BridgeMessage: Invalid payload length");
         senderChainID = uint8(payload[0]);
 
         // Extracts the uint64 value by loading 32 bytes starting just after the first byte.
@@ -244,7 +244,7 @@ library BridgeMessage {
         pure
         returns (uint8 tokenID, uint64 assetPrice)
     {
-        require(payload.length >= 9, "BridgeMessage: Invalid payload length");
+        require(payload.length == 9, "BridgeMessage: Invalid payload length");
         tokenID = uint8(payload[0]);
 
         // Extracts the uint64 value by loading 32 bytes starting just after the first byte.

@@ -148,6 +148,8 @@ contract BridgeLimiterTest is BridgeBaseTest {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
 
+        assertEq(limiter.totalLimit(), totalLimit);
+
         // Call the updateLimitWithSignatures function
         limiter.updateLimitWithSignatures(signatures, message);
 

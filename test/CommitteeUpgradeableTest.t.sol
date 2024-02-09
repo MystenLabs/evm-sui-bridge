@@ -198,7 +198,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
 
         bytes32 messageHash = keccak256(encodedMessage);
 
-        // // Create transfer message
+        // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.UPGRADE,
             version: 1,
@@ -233,7 +233,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
 
         bytes32 messageHash = keccak256(encodedMessage);
 
-        // // Create transfer message
+        // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.UPGRADE,
             version: 1,
@@ -269,7 +269,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
 
         bytes32 messageHash = keccak256(encodedMessage);
 
-        // // Create transfer message
+        // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.UPGRADE,
             version: 1,
@@ -306,7 +306,7 @@ contract CommitteeUpgradeableTest is BridgeBaseTest {
 
         bytes32 messageHash = keccak256(encodedMessage);
 
-        // // Create transfer message
+        // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.UPGRADE,
             version: 1,
