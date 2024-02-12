@@ -13,20 +13,6 @@ library BridgeMessage {
     uint8 public constant UPDATE_ASSET_PRICE = 4;
     uint8 public constant UPGRADE = 5;
 
-    // token Ids
-    uint8 public constant SUI = 0;
-    uint8 public constant BTC = 1;
-    uint8 public constant ETH = 2;
-    uint8 public constant USDC = 3;
-    uint8 public constant USDT = 4;
-
-    // Sui token decimals
-    uint8 public constant SUI_DECIMAL_ON_SUI = 9;
-    uint8 public constant BTC_DECIMAL_ON_SUI = 8;
-    uint8 public constant ETH_DECIMAL_ON_SUI = 8;
-    uint8 public constant USDC_DECIMAL_ON_SUI = 6;
-    uint8 public constant USDT_DECIMAL_ON_SUI = 6;
-
     // Message type stake requirements
     uint32 public constant TRANSFER_STAKE_REQUIRED = 3334;
     uint32 public constant FREEZING_STAKE_REQUIRED = 450;
@@ -34,6 +20,13 @@ library BridgeMessage {
     uint32 public constant UPGRADE_STAKE_REQUIRED = 5001;
     uint16 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
     uint32 public constant ASSET_LIMIT_STAKE_REQUIRED = 5001;
+
+    // token Ids
+    uint8 public constant SUI = 0;
+    uint8 public constant BTC = 1;
+    uint8 public constant ETH = 2;
+    uint8 public constant USDC = 3;
+    uint8 public constant USDT = 4;
 
     string public constant MESSAGE_PREFIX = "SUI_BRIDGE_MESSAGE";
 

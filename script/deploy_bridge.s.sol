@@ -36,10 +36,17 @@ contract DeployBridge is Script {
             MockUSDC USDC = new MockUSDC();
 
             // update config with mock addresses
-            config.supportedTokens = new address[](3);
-            config.supportedTokens[0] = address(wBTC);
-            config.supportedTokens[1] = config.WETH;
-            config.supportedTokens[2] = address(USDC);
+            config.supportedTokens = new address[](4);
+            config.supportedTokens[0] = address(0);
+            config.supportedTokens[1] = address(wBTC);
+            config.supportedTokens[2] = config.WETH;
+            config.supportedTokens[3] = address(USDC);
+
+            config.tokenSuiDecimals = new uint8[](4);
+            config.tokenSuiDecimals[0] = 9;
+            config.tokenSuiDecimals[1] = 8;
+            config.tokenSuiDecimals[2] = 8;
+            config.tokenSuiDecimals[3] = 6;
         }
 
         // deploy Bridge Committee
@@ -64,7 +71,8 @@ contract DeployBridge is Script {
 
         // deploy bridge tokens
 
-        BridgeTokens bridgeTokens = new BridgeTokens(config.supportedTokens);
+        BridgeTokens bridgeTokens =
+            new BridgeTokens(config.supportedTokens, config.tokenSuiDecimals);
 
         // deploy limiter
 
@@ -91,7 +99,14 @@ contract DeployBridge is Script {
             "SuiBridge.sol",
             abi.encodeCall(
                 SuiBridge.initialize,
-                (bridgeCommittee, address(bridgeTokens), address(vault), limiter, config.WETH, _supportedDestinationChains)
+                (
+                    bridgeCommittee,
+                    address(bridgeTokens),
+                    address(vault),
+                    limiter,
+                    config.WETH,
+                    _supportedDestinationChains
+                )
             )
         );
 
@@ -104,6 +119,8 @@ contract DeployBridge is Script {
         bridgeTokens.transferOwnership(suiBridge);
         vm.stopBroadcast();
     }
+
+    function test() public {}
 }
 
 // TODO: add gotchas and references to foundry docs (ex. struct fields must be in alphabetical order)
@@ -113,6 +130,7 @@ struct DeployConfig {
     address[] committeeMembers;
     uint256 sourceChainId;
     address[] supportedTokens;
+    uint8[] tokenSuiDecimals;
     uint256 totalBridgeLimitInDollars;
     address WETH;
 }

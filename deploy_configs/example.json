@@ -3,7 +3,8 @@
   "committeeMemberStake": [0],
   "committeeMembers": ["0x000"],
   "sourceChainId": 0,
-  "supportedTokens": ["Tokens listed here should be listed in the same order as the tokens in the token list"],
+  "supportedTokens": ["0x000", "0x000", "0x000", "0x000"],
+  "tokenSuiDecimals": [0,0,0,0],
   "totalBridgeLimitInDollars": 1000000,
   "wETHAddress": "0x000"
 }

@@ -3,9 +3,8 @@ pragma solidity ^0.8.20;
 
 import "./BridgeBaseTest.t.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "../contracts/interfaces/ISuiBridge.sol";
 
-contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
+contract BridgeMessageTest is BridgeBaseTest {
     function testEncodeMessage() public {
         bytes memory moveEncodedMessage = abi.encodePacked(
             hex"5355495f4252494447455f4d45535341474500010000000000000000012080ab1ee086210a3a37355300ca24672e81062fcdb5ced6618dab203f6a3b291c0b14b18f79fe671db47393315ffdb377da4ea1b7af96010084d71700000000"
@@ -220,5 +219,11 @@ contract MessageEncodingTest is BridgeBaseTest, ISuiBridge {
         assertEq(proxy, address(0x0606060606060606060606060606060606060606));
         assertEq(newImp, address(0x0909090909090909090909090909090909090909));
         assertEq(_calldata, bytes(hex""));
+    }
+
+    function testGetRequiredStakeInvalidType() public {
+        uint8 invalidType = 100;
+        vm.expectRevert("BridgeMessage: Invalid message type");
+        BridgeMessage.getRequiredStake(BridgeMessage.Message(invalidType, 0, 0, 1, bytes(hex"00")));
     }
 }
