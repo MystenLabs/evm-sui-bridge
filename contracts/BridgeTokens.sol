@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IBridgeTokens.sol";
+import "./utils/Utils.sol";
 
 /// @title BridgeTokens
 /// @dev This contract manages the supported tokens on the bridge.
@@ -51,15 +52,7 @@ contract BridgeTokens is Ownable, IBridgeTokens {
             return uint64(amount);
         }
 
-        if (ethDecimal > suiDecimal) {
-            // Difference in decimal places
-            uint256 factor = 10 ** (ethDecimal - suiDecimal);
-            amount = amount / factor;
-        } else {
-            // Difference in decimal places
-            uint256 factor = 10 ** (suiDecimal - ethDecimal);
-            amount = amount * factor;
-        }
+        amount = Utils.calculateConvertedAmount(ethDecimal, suiDecimal, amount);
 
         // Ensure the converted amount fits within uint64
         require(amount <= type(uint64).max, "BridgeTokens: Amount too large for uint64");
@@ -81,16 +74,7 @@ contract BridgeTokens is Ownable, IBridgeTokens {
             return uint256(amount);
         }
 
-        uint256 convertedAmount;
-        if (ethDecimal > suiDecimal) {
-            // Difference in decimal places
-            uint256 factor = 10 ** (ethDecimal - suiDecimal);
-            convertedAmount = amount * factor;
-        } else {
-            // Difference in decimal places
-            uint256 factor = 10 ** (suiDecimal - ethDecimal);
-            convertedAmount = amount / factor;
-        }
+        uint256 convertedAmount = Utils.calculateConvertedAmount(ethDecimal, suiDecimal, amount);
 
         return convertedAmount;
     }
