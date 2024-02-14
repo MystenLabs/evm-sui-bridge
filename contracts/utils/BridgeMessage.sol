@@ -2,33 +2,12 @@
 pragma solidity ^0.8.20;
 
 /// @title BridgeMessage
-/// @notice This library defines the message format and constants for the Sui native bridge.
-/// @dev The message prefix and the token decimals are fixed for the Sui bridge.
+/// @notice This library defines the message format and constants for the Sui native bridge. It also
+/// provides functions to encode and decode bridge messages and their payloads.
+/// @dev This library only utilizes internal functions to enable upgradeability via the OpenZeppelin
+/// UUPS proxy pattern (external libraries are not supported).
 library BridgeMessage {
-    // message Ids
-    uint8 public constant TOKEN_TRANSFER = 0;
-    uint8 public constant BLOCKLIST = 1;
-    uint8 public constant EMERGENCY_OP = 2;
-    uint8 public constant UPDATE_BRIDGE_LIMIT = 3;
-    uint8 public constant UPDATE_ASSET_PRICE = 4;
-    uint8 public constant UPGRADE = 5;
-
-    // Message type stake requirements
-    uint32 public constant TRANSFER_STAKE_REQUIRED = 3334;
-    uint32 public constant FREEZING_STAKE_REQUIRED = 450;
-    uint32 public constant UNFREEZING_STAKE_REQUIRED = 5001;
-    uint32 public constant UPGRADE_STAKE_REQUIRED = 5001;
-    uint16 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
-    uint32 public constant ASSET_LIMIT_STAKE_REQUIRED = 5001;
-
-    // token Ids
-    uint8 public constant SUI = 0;
-    uint8 public constant BTC = 1;
-    uint8 public constant ETH = 2;
-    uint8 public constant USDC = 3;
-    uint8 public constant USDT = 4;
-
-    string public constant MESSAGE_PREFIX = "SUI_BRIDGE_MESSAGE";
+    /* ========== STRUCTS ========== */
 
     /// @dev A struct that represents a bridge message
     /// @param messageType The type of the message, such as token transfer, blocklist, etc.
@@ -50,7 +29,7 @@ library BridgeMessage {
     /// @param targetChain The chain ID of the target chain
     /// @param targetAddressLength The length of the target address in bytes
     /// @param targetAddress The address of the recipient on the target chain
-    /// @param tokenId The ID of the token to be transferred
+    /// @param tokenID The ID of the token to be transferred
     /// @param amount The amount of the token to be transferred
     struct TokenTransferPayload {
         uint8 senderAddressLength;
@@ -58,11 +37,40 @@ library BridgeMessage {
         uint8 targetChain;
         uint8 targetAddressLength;
         address targetAddress;
-        uint8 tokenId;
+        uint8 tokenID;
         uint64 amount;
     }
 
-    /// @dev Encodes a bridge message into bytes, using abi.encodePacked to concatenate the message fields
+    /* ========== CONSTANTS ========== */
+
+    // message Ids
+    uint8 public constant TOKEN_TRANSFER = 0;
+    uint8 public constant BLOCKLIST = 1;
+    uint8 public constant EMERGENCY_OP = 2;
+    uint8 public constant UPDATE_BRIDGE_LIMIT = 3;
+    uint8 public constant UPDATE_TOKEN_PRICE = 4;
+    uint8 public constant UPGRADE = 5;
+
+    // Message type stake requirements
+    uint32 public constant TRANSFER_STAKE_REQUIRED = 3334;
+    uint32 public constant FREEZING_STAKE_REQUIRED = 450;
+    uint32 public constant UNFREEZING_STAKE_REQUIRED = 5001;
+    uint32 public constant UPGRADE_STAKE_REQUIRED = 5001;
+    uint16 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
+    uint32 public constant TOKEN_LIMIT_STAKE_REQUIRED = 5001;
+
+    // token Ids
+    uint8 public constant SUI = 0;
+    uint8 public constant BTC = 1;
+    uint8 public constant ETH = 2;
+    uint8 public constant USDC = 3;
+    uint8 public constant USDT = 4;
+
+    string public constant MESSAGE_PREFIX = "SUI_BRIDGE_MESSAGE";
+
+    /* ========== INTERNAL FUNCTIONS ========== */
+
+    /// @notice Encodes a bridge message into bytes, using abi.encodePacked to concatenate the message fields.
     /// @param message The bridge message to be encoded.
     /// @return The encoded message as bytes.
     function encodeMessage(Message memory message) internal pure returns (bytes memory) {
@@ -73,11 +81,18 @@ library BridgeMessage {
         return bytes.concat(prefixTypeAndVersion, nonce, chainID, message.payload);
     }
 
+    /// @notice Computes the hash of a bridge message using keccak256.
+    /// @param message The bridge message to be hashed.
+    /// @return The hash of the message.
     function computeHash(Message memory message) internal pure returns (bytes32) {
         return keccak256(encodeMessage(message));
     }
 
-    function getRequiredStake(Message memory message) internal pure returns (uint32) {
+    /// @notice returns the required stake for the provided message type.
+    /// @dev The function will revert if the message type is invalid.
+    /// @param message The bridge message to be used to determine the required stake.
+    /// @return The required stake for the provided message type.
+    function requiredStake(Message memory message) internal pure returns (uint32) {
         if (message.messageType == TOKEN_TRANSFER) {
             return TRANSFER_STAKE_REQUIRED;
         } else if (message.messageType == BLOCKLIST) {
@@ -87,9 +102,9 @@ library BridgeMessage {
             if (isFreezing) return FREEZING_STAKE_REQUIRED;
             return UNFREEZING_STAKE_REQUIRED;
         } else if (message.messageType == UPDATE_BRIDGE_LIMIT) {
-            return ASSET_LIMIT_STAKE_REQUIRED;
-        } else if (message.messageType == UPDATE_ASSET_PRICE) {
-            return ASSET_LIMIT_STAKE_REQUIRED;
+            return TOKEN_LIMIT_STAKE_REQUIRED;
+        } else if (message.messageType == UPDATE_TOKEN_PRICE) {
+            return TOKEN_LIMIT_STAKE_REQUIRED;
         } else if (message.messageType == UPGRADE) {
             return UPGRADE_STAKE_REQUIRED;
         } else {
@@ -97,14 +112,18 @@ library BridgeMessage {
         }
     }
 
-    // TokenTransfer payload is 64 bytes.
-    // byte 0       : sender address length
-    // bytes 1-32   : sender address (as we only support Sui now, it has to be 32 bytes long)
-    // bytes 33     : target chain id
-    // byte 34      : target address length
-    // bytes 35-54  : target address
-    // byte 55      : token id
-    // bytes 56-63  : amount
+    /// @notice Decodes a token transfer payload from bytes to a TokenTransferPayload struct.
+    /// @dev The function will revert if the payload length is invalid.
+    ///     TokenTransfer payload is 64 bytes.
+    ///     byte 0       : sender address length
+    ///     bytes 1-32   : sender address (as we only support Sui now, it has to be 32 bytes long)
+    ///     bytes 33     : target chain id
+    ///     byte 34      : target address length
+    ///     bytes 35-54  : target address
+    ///     byte 55      : token id
+    ///     bytes 56-63  : amount
+    /// @param payload The payload to be decoded.
+    /// @return The decoded token transfer payload as a TokenTransferPayload struct.
     function decodeTokenTransferPayload(bytes memory payload)
         internal
         pure
@@ -124,7 +143,7 @@ library BridgeMessage {
 
         // extract sender address from payload bytes 1-32
         bytes memory senderAddress = new bytes(senderAddressLength);
-        for (uint256 i = 0; i < senderAddressLength; i++) {
+        for (uint256 i; i < senderAddressLength; i++) {
             senderAddress[i] = payload[i + offset];
         }
 
@@ -158,7 +177,7 @@ library BridgeMessage {
         offset += targetAddressLength;
 
         // token id is a single byte
-        uint8 tokenId = uint8(payload[offset++]);
+        uint8 tokenID = uint8(payload[offset++]);
 
         // extract amount from payload
         uint64 amount;
@@ -180,11 +199,19 @@ library BridgeMessage {
             targetChain,
             targetAddressLength,
             targetAddress,
-            tokenId,
+            tokenID,
             amount
         );
     }
 
+    /// @notice Decodes a blocklist payload from bytes to a boolean and an array of addresses.
+    /// @dev The function will revert if the payload length is invalid.
+    ///     Blocklist payload is 2 + 20 * n bytes.
+    ///     byte 0       : blocklist type (0 = blocklist, 1 = unblocklist)
+    ///     byte 1       : number of addresses in the blocklist
+    ///     bytes 2-n    : addresses
+    /// @param payload The payload to be decoded.
+    /// @return blocklisting status and the array of addresses to be blocklisted/unblocklisted.
     function decodeBlocklistPayload(bytes memory payload)
         internal
         pure
@@ -195,7 +222,7 @@ library BridgeMessage {
         address[] memory members = new address[](membersLength);
         uint8 offset = 2;
         require((payload.length - offset) % 20 == 0, "BridgeMessage: Invalid payload length");
-        for (uint8 i = 0; i < membersLength; i++) {
+        for (uint8 i; i < membersLength; i++) {
             // Calculate the starting index for each address
             offset += i * 20;
             address member;
@@ -211,6 +238,12 @@ library BridgeMessage {
         return (blocklisted, members);
     }
 
+    /// @notice Decodes an emergency operation payload from bytes to a boolean.
+    /// @dev The function will revert if the payload length is invalid.
+    ///     Emergency operation payload is a single byte.
+    ///     byte 0       : operation type (0 = freezing, 1 = unfreezing)
+    /// @param payload The payload to be decoded.
+    /// @return The emergency operation type.
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
         require(payload.length == 1, "BridgeMessage: Invalid payload length");
         uint8 emergencyOpCode = uint8(payload[0]);
@@ -218,6 +251,14 @@ library BridgeMessage {
         return emergencyOpCode == 0;
     }
 
+    /// @notice Decodes an update limit payload from bytes to a chain ID and a new limit.
+    /// @dev The function will revert if the payload length is invalid.
+    ///     Update limit payload is 9 bytes.
+    ///     byte 0       : chain ID
+    ///     bytes 1-8    : new limit
+    /// @param payload The payload to be decoded.
+    /// @return senderChainID the sending chain ID to update the limit of.
+    /// @return newLimit the new limit of the sending chain ID.
     function decodeUpdateLimitPayload(bytes memory payload)
         internal
         pure
@@ -233,10 +274,18 @@ library BridgeMessage {
         }
     }
 
-    function decodeUpdateAssetPayload(bytes memory payload)
+    /// @notice Decodes an update token price payload from bytes to a token ID and a new price.
+    /// @dev The function will revert if the payload length is invalid.
+    ///     Update token price payload is 9 bytes.
+    ///     byte 0       : token ID
+    ///     bytes 1-8    : new price
+    /// @param payload The payload to be decoded.
+    /// @return tokenID the token ID to update the price of.
+    /// @return tokenPrice the new price of the token.
+    function decodeUpdateTokenPricePayload(bytes memory payload)
         internal
         pure
-        returns (uint8 tokenID, uint64 assetPrice)
+        returns (uint8 tokenID, uint64 tokenPrice)
     {
         require(payload.length == 9, "BridgeMessage: Invalid payload length");
         tokenID = uint8(payload[0]);
@@ -244,10 +293,18 @@ library BridgeMessage {
         // Extracts the uint64 value by loading 32 bytes starting just after the first byte.
         // Position uint64 to the least significant bits by shifting it 192 bits to the right.
         assembly {
-            assetPrice := shr(192, mload(add(add(payload, 0x20), 1)))
+            tokenPrice := shr(192, mload(add(add(payload, 0x20), 1)))
         }
     }
 
+    /// @notice Decodes an upgrade payload from bytes to a proxy address, an implementation address,
+    /// and call data.
+    /// @dev The function will revert if the payload length is invalid. The payload is expected to be
+    /// abi encoded.
+    /// @param payload The payload to be decoded.
+    /// @return proxy the address of the proxy to be upgraded.
+    /// @return implementation the address of the new implementation contract.
+    /// @return callData the call data to be used in the upgrade.
     function decodeUpgradePayload(bytes memory payload)
         internal
         pure

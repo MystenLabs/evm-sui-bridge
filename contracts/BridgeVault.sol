@@ -3,23 +3,32 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./interfaces/IWETH9.sol";
 import "./interfaces/IBridgeVault.sol";
+import "./interfaces/IWETH9.sol";
 
 /// @title BridgeVault
-/// @dev A contract that acts as a vault for transferring ERC20 tokens and ETH. It allows the owner to transfer ERC20 tokens and ETH to a target address. The contract also supports unwrapping WETH (Wrapped Ether) and transferring the unwrapped ETH.
+/// @notice A contract that acts as a vault for transferring ERC20 tokens and ETH. It enables the owner
+/// (intended to be the SuiBridge contract) to transfer tokens to a target address. It also supports
+/// unwrapping WETH (Wrapped Ether) and transferring the unwrapped ETH.
+/// @dev The contract is initialized with the deployer as the owner. The ownership is intended to be
+/// transferred to the SuiBridge contract after the bridge contract is deployed.
 contract BridgeVault is Ownable, IBridgeVault {
-    // The WETH address
+    /* ========== STATE VARIABLES ========== */
+
     IWETH9 public immutable wETH;
 
-    /// @dev Constructor function for the BridgeVault contract.
+    /* ========== CONSTRUCTOR ========== */
+
+    /// @notice Constructor function for the BridgeVault contract.
     /// @param _wETH The address of the Wrapped Ether (WETH) contract.
     constructor(address _wETH) Ownable(msg.sender) {
         // Set the WETH address
         wETH = IWETH9(_wETH);
     }
 
-    /// @dev Transfers ERC20 tokens from the contract to a target address. Only the owner of the contract can call this function.
+    /// @notice Transfers ERC20 tokens from the contract to a target address. Only the owner of
+    /// the contract can call this function.
+    /// @dev This function is intended to only be called by the SuiBridge contract.
     /// @param tokenAddress The address of the ERC20 token.
     /// @param targetAddress The address to transfer the tokens to.
     /// @param amount The amount of tokens to transfer.
@@ -38,7 +47,9 @@ contract BridgeVault is Ownable, IBridgeVault {
         require(success, "BridgeVault: Transfer failed");
     }
 
-    /// @dev Transfers ETH from the contract to a target address.  Only the owner of the contract can call this function.
+    /// @notice Unwraps stored wrapped ETH and transfers the newly withdrawn ETH to the provided target
+    /// address. Only the owner of the contract can call this function.
+    /// @dev This function is intended to only be called by the SuiBridge contract.
     /// @param targetAddress The address to transfer the ETH to.
     /// @param amount The amount of ETH to transfer.
     function transferETH(address payable targetAddress, uint256 amount)
@@ -53,8 +64,7 @@ contract BridgeVault is Ownable, IBridgeVault {
         targetAddress.transfer(amount);
     }
 
-    // These are needed to receive ETH when unwrapping WETH
+    /// @notice Enables the contract to receive ETH.
+    /// @dev This function is required to receive ETH when unwrapping WETH.
     receive() external payable {}
-
-    fallback() external payable {}
 }

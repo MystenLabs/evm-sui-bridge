@@ -1,20 +1,49 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+/// @title IBridgeTokens
+/// @dev Interface for the BridgeTokens contract.
 interface IBridgeTokens {
-    function getAddress(uint8 tokenId) external view returns (address);
+    /* ========== STRUCTS ========== */
 
-    function getSuiDecimal(uint8 tokenId) external view returns (uint8);
+    /// @notice The data struct for the supported bridge tokens.
+    struct Token {
+        address tokenAddress;
+        uint8 suiDecimal;
+    }
 
-    function convertEthToSuiDecimal(uint8 tokenId, uint256 originalAmount)
+    /* ========== VIEW FUNCTIONS ========== */
+
+    /// @notice Returns the address of the token with the given ID.
+    /// @param tokenID The ID of the token.
+    /// @return address of the provided token.
+    function getAddress(uint8 tokenID) external view returns (address);
+
+    /// @notice Returns the sui decimal places of the token with the given ID.
+    /// @param tokenID The ID of the token.
+    /// @return amount of sui decimal places of the provided token.
+    function getSuiDecimal(uint8 tokenID) external view returns (uint8);
+
+    /// @notice Converts the provided token amount to the Sui decimal adjusted amount.
+    /// @param tokenID The ID of the token to convert.
+    /// @param amount The ERC20 amount of the tokens to convert to Sui.
+    /// @return Sui converted amount.
+    function convertERC20ToSuiDecimal(uint8 tokenID, uint256 amount)
         external
         view
         returns (uint64);
 
-    function convertSuiToEthDecimal(uint8 tokenId, uint64 originalAmount)
+    /// @notice Converts the provided token amount to the Sui decimal adjusted amount.
+    /// @param tokenID The ID of the token to convert.
+    /// @param amount The ERC20 amount of the tokens to convert to Sui.
+    /// @return Sui converted amount.
+    function convertSuiToERC20Decimal(uint8 tokenID, uint64 amount)
         external
         view
         returns (uint256);
 
-    function isTokenSupported(uint8 tokenId) external view returns (bool);
+    /// @notice Returns the supported status of the token with the given ID.
+    /// @param tokenID The ID of the token.
+    /// @return true if the token is supported, false otherwise.
+    function isTokenSupported(uint8 tokenID) external view returns (bool);
 }

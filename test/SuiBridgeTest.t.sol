@@ -25,7 +25,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         uint8 targetChain = chainID;
         uint8 targetAddressLength = 20;
         address targetAddress = bridgerA;
-        uint8 tokenId = BridgeMessage.ETH;
+        uint8 tokenID = BridgeMessage.ETH;
         uint64 amount = 100000000000000;
         bytes memory payload = abi.encodePacked(
             senderAddressLength,
@@ -33,7 +33,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             targetChain,
             targetAddressLength,
             targetAddress,
-            tokenId,
+            tokenID,
             amount
         );
 
@@ -63,7 +63,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         uint8 targetChain = chainID;
         uint8 targetAddressLength = 20;
         address targetAddress = bridgerA;
-        uint8 tokenId = BridgeMessage.ETH;
+        uint8 tokenID = BridgeMessage.ETH;
         uint64 amount = 10000;
         bytes memory payload = abi.encodePacked(
             senderAddressLength,
@@ -71,7 +71,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             targetChain,
             targetAddressLength,
             targetAddress,
-            tokenId,
+            tokenID,
             amount
         );
 
@@ -101,7 +101,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         uint8 targetChain = 0;
         uint8 targetAddressLength = 20;
         address targetAddress = bridgerA;
-        uint8 tokenId = BridgeMessage.ETH;
+        uint8 tokenID = BridgeMessage.ETH;
         uint64 amount = 10000;
         bytes memory payload = abi.encodePacked(
             senderAddressLength,
@@ -109,7 +109,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             targetChain,
             targetAddressLength,
             targetAddress,
-            tokenId,
+            tokenID,
             amount
         );
 
@@ -141,7 +141,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             targetChain: 1,
             targetAddressLength: 0,
             targetAddress: bridgerA,
-            tokenId: BridgeMessage.ETH,
+            tokenID: BridgeMessage.ETH,
             // This is Sui amount (eth decimal 8)
             amount: 100_000_000
         });
@@ -169,7 +169,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             targetChain: 1,
             targetAddressLength: 0,
             targetAddress: bridgerA,
-            tokenId: BridgeMessage.ETH,
+            tokenID: BridgeMessage.ETH,
             // This is Sui amount (eth decimal 8)
             amount: 100_000_000
         });
@@ -201,7 +201,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         uint8 targetChain = chainID;
         uint8 targetAddressLength = 20;
         address targetAddress = bridgerA;
-        uint8 tokenId = BridgeMessage.ETH;
+        uint8 tokenID = BridgeMessage.ETH;
         uint64 amount = 100000000; // 1 ether in sui decimals
         bytes memory payload = abi.encodePacked(
             senderAddressLength,
@@ -209,7 +209,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             targetChain,
             targetAddressLength,
             targetAddress,
-            tokenId,
+            tokenID,
             amount
         );
 
@@ -253,7 +253,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         uint8 targetChain = chainID;
         uint8 targetAddressLength = 20;
         address targetAddress = bridgerA;
-        uint8 tokenId = BridgeMessage.USDC;
+        uint8 tokenID = BridgeMessage.USDC;
         uint64 amount = 1_000_000;
         bytes memory payload = abi.encodePacked(
             senderAddressLength,
@@ -261,7 +261,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
             targetChain,
             targetAddressLength,
             targetAddress,
-            tokenId,
+            tokenID,
             amount
         );
 
@@ -517,16 +517,16 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         committee = new BridgeCommittee();
         committee.initialize(_committee, _stake, 11);
         vault = new BridgeVault(wETH);
-        uint256[] memory assetPrices = new uint256[](4);
-        assetPrices[0] = 10000; // SUI PRICE
-        assetPrices[1] = 10000; // BTC PRICE
-        assetPrices[2] = 10000; // ETH PRICE
-        assetPrices[3] = 10000; // USDC PRICE
+        uint256[] memory tokenPrices = new uint256[](4);
+        tokenPrices[0] = 10000; // SUI PRICE
+        tokenPrices[1] = 10000; // BTC PRICE
+        tokenPrices[2] = 10000; // ETH PRICE
+        tokenPrices[3] = 10000; // USDC PRICE
         uint64 totalLimit = 1000000;
 
         skip(2 days);
         limiter = new BridgeLimiter();
-        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
+        limiter.initialize(address(committee), address(tokens), tokenPrices, totalLimit);
         bridge = new SuiBridge();
         uint8[] memory _supportedDestinationChains = new uint8[](2);
         _supportedDestinationChains[0] = 0;
@@ -593,16 +593,16 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         committee = new BridgeCommittee();
         committee.initialize(_committee, _stake, 3);
         vault = new BridgeVault(wETH);
-        uint256[] memory assetPrices = new uint256[](4);
-        assetPrices[0] = 10000; // SUI PRICE
-        assetPrices[1] = 10000; // BTC PRICE
-        assetPrices[2] = 10000; // ETH PRICE
-        assetPrices[3] = 10000; // USDC PRICE
+        uint256[] memory tokenPrices = new uint256[](4);
+        tokenPrices[0] = 10000; // SUI PRICE
+        tokenPrices[1] = 10000; // BTC PRICE
+        tokenPrices[2] = 10000; // ETH PRICE
+        tokenPrices[3] = 10000; // USDC PRICE
         uint64 totalLimit = 1000000;
 
         skip(2 days);
         limiter = new BridgeLimiter();
-        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
+        limiter.initialize(address(committee), address(tokens), tokenPrices, totalLimit);
         bridge = new SuiBridge();
         uint8[] memory _supportedDestinationChains = new uint8[](2);
         _supportedDestinationChains[0] = 0;
@@ -658,16 +658,16 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
         committee = new BridgeCommittee();
         committee.initialize(_committee, _stake, 1);
         vault = new BridgeVault(wETH);
-        uint256[] memory assetPrices = new uint256[](4);
-        assetPrices[0] = 10000; // SUI PRICE
-        assetPrices[1] = 10000; // BTC PRICE
-        assetPrices[2] = 10000; // ETH PRICE
-        assetPrices[3] = 10000; // USDC PRICE
+        uint256[] memory tokenPrices = new uint256[](4);
+        tokenPrices[0] = 10000; // SUI PRICE
+        tokenPrices[1] = 10000; // BTC PRICE
+        tokenPrices[2] = 10000; // ETH PRICE
+        tokenPrices[3] = 10000; // USDC PRICE
         uint64 totalLimit = 1000000;
 
         skip(2 days);
         limiter = new BridgeLimiter();
-        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
+        limiter.initialize(address(committee), address(tokens), tokenPrices, totalLimit);
         bridge = new SuiBridge();
         uint8[] memory _supportedDestinationChains = new uint8[](2);
         _supportedDestinationChains[0] = 0;
