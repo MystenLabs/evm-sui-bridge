@@ -24,16 +24,16 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
     /// @dev should be called directly after deployment (see OpenZeppelin upgradeable standards).
     /// the provided arrays must have the same length and the total stake provided must equal 10000.
     /// @param _committee addresses of the committee members.
-    /// @param stake amounts of the committee members.
+    /// @param _stake amounts of the committee members.
     /// @param _chainID used to identify the chain when validating messages.
-    function initialize(address[] memory _committee, uint16[] memory stake, uint8 _chainID)
+    function initialize(address[] memory _committee, uint16[] memory _stake, uint8 _chainID)
         external
         initializer
     {
         __CommitteeUpgradeable_init(address(this));
         __UUPSUpgradeable_init();
         require(
-            _committee.length == stake.length,
+            _committee.length == _stake.length,
             "BridgeCommittee: Committee and stake arrays must be of the same length"
         );
 
@@ -42,9 +42,9 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
             require(
                 committeeStake[_committee[i]] == 0, "BridgeCommittee: Duplicate committee member"
             );
-            committeeStake[_committee[i]] = stake[i];
+            committeeStake[_committee[i]] = _stake[i];
             committeeIndex[_committee[i]] = uint8(i);
-            total_stake += stake[i];
+            total_stake += _stake[i];
         }
 
         require(total_stake == 10000, "BridgeCommittee: Total stake must be 10000"); // 10000 == 100%
@@ -118,34 +118,34 @@ contract BridgeCommittee is IBridgeCommittee, CommitteeUpgradeable {
 
     /// @notice Updates the blocklist status of the provided addresses.
     /// @param _blocklist The addresses to update the blocklist status.
-    /// @param isBlocklisted new blocklist status.
-    function _updateBlocklist(address[] memory _blocklist, bool isBlocklisted) internal {
+    /// @param _isBlocklisted new blocklist status.
+    function _updateBlocklist(address[] memory _blocklist, bool _isBlocklisted) internal {
         // check original blocklist value of each validator
         for (uint16 i; i < _blocklist.length; i++) {
-            blocklist[_blocklist[i]] = isBlocklisted;
+            blocklist[_blocklist[i]] = _isBlocklisted;
         }
 
-        emit BlocklistUpdated(_blocklist, isBlocklisted);
+        emit BlocklistUpdated(_blocklist, _isBlocklisted);
     }
 
     /// @notice Splits the provided signature into its r, s, and v components.
-    /// @param sig The signature to be split.
+    /// @param _sig The signature to be split.
     /// @return r The r component of the signature.
     /// @return s The s component of the signature.
     /// @return v The v component of the signature.
-    function splitSignature(bytes memory sig)
+    function splitSignature(bytes memory _sig)
         internal
         pure
         returns (bytes32 r, bytes32 s, uint8 v)
     {
-        require(sig.length == 65, "BridgeCommittee: Invalid signature length");
+        require(_sig.length == 65, "BridgeCommittee: Invalid signature length");
         // ecrecover takes the signature parameters, and the only way to get them
         // currently is to use assembly.
         /// @solidity memory-safe-assembly
         assembly {
-            r := mload(add(sig, 32))
-            s := mload(add(sig, 64))
-            v := byte(0, mload(add(sig, 96)))
+            r := mload(add(_sig, 32))
+            s := mload(add(_sig, 64))
+            v := byte(0, mload(add(_sig, 96)))
         }
 
         //adjust for ethereum signature verification
