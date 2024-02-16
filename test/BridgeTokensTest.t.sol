@@ -25,43 +25,40 @@ contract BridgeTokensTest is BridgeBaseTest {
         assertEq(tokens.getAddress(1), wBTC);
     }
 
-    function testUpdateToken() public {
-        // create mock token
-        address mockToken = address(new MockUSDC());
-        changePrank(address(bridge));
-        tokens.updateToken(6, mockToken, 8);
-        assertEq(tokens.getAddress(6), mockToken);
-        assertEq(tokens.getSuiDecimal(6), 8);
-    }
-
-    function testRemoveToken() public {
-        changePrank(address(bridge));
-        tokens.removeToken(1);
-        assertEq(tokens.getAddress(1), address(0));
-    }
-
-    function testConvertEthToSuiDecimalAmountTooLargeForUint64() public {
+    function testconvertERC20ToSuiDecimalAmountTooLargeForUint64() public {
         vm.expectRevert(bytes("BridgeTokens: Amount too large for uint64"));
         tokens.convertERC20ToSuiDecimal(BridgeMessage.ETH, type(uint256).max);
     }
 
-    function testConvertEthToSuiDecimalTokenIdNotSupported() public {
+    function testconvertERC20ToSuiDecimalTokenIdNotSupported() public {
         vm.expectRevert(bytes("BridgeTokens: Unsupported token"));
         tokens.convertERC20ToSuiDecimal(type(uint8).max, 10 ether);
     }
 
-    function testConvertEthToSuiDecimalEthDecimalLessThanSuiDecimal() public {
+    function testconvertERC20ToSuiDecimalInvalidSuiDecimal() public {
         vm.startPrank(address(bridge));
-        tokens.updateToken(2, wETH, 19);
-        uint64 suiAmount = tokens.convertERC20ToSuiDecimal(2, 100);
-        assertEq(suiAmount, 1000);
+        address smallUSDC = address(new MockSmallUSDC());
+        address[] memory _supportedTokens = new address[](4);
+        _supportedTokens[0] = wBTC;
+        _supportedTokens[1] = wETH;
+        _supportedTokens[2] = smallUSDC;
+        _supportedTokens[3] = USDT;
+        BridgeTokens newBridgeTokens = new BridgeTokens(_supportedTokens);
+        vm.expectRevert(bytes("BridgeTokens: Invalid Sui decimal"));
+        newBridgeTokens.convertERC20ToSuiDecimal(3, 100);
     }
 
-    function testConvertSuiToEthDecimalEthDecimalGreaterThanSuiDecimal() public {
+    function testconvertSuiToERC20DecimalInvalidSuiDecimal() public {
         vm.startPrank(address(bridge));
-        tokens.updateToken(2, wETH, 19);
-        uint256 suiAmount = tokens.convertSuiToERC20Decimal(2, 100);
-        assertEq(suiAmount, 10);
+        address smallUSDC = address(new MockSmallUSDC());
+        address[] memory _supportedTokens = new address[](4);
+        _supportedTokens[0] = wBTC;
+        _supportedTokens[1] = wETH;
+        _supportedTokens[2] = smallUSDC;
+        _supportedTokens[3] = USDT;
+        BridgeTokens newBridgeTokens = new BridgeTokens(_supportedTokens);
+        vm.expectRevert(bytes("BridgeTokens: Invalid Sui decimal"));
+        newBridgeTokens.convertSuiToERC20Decimal(3, 100);
     }
 
     function testIsTokenSupported() public {
@@ -73,7 +70,7 @@ contract BridgeTokensTest is BridgeBaseTest {
         assertEq(tokens.getSuiDecimal(1), 8);
     }
 
-    function testConvertEthToSuiDecimal() public {
+    function testconvertERC20ToSuiDecimal() public {
         // ETH
         assertEq(IERC20Metadata(wETH).decimals(), 18);
         uint256 ethAmount = 10 ether;
@@ -99,7 +96,7 @@ contract BridgeTokensTest is BridgeBaseTest {
         assertEq(suiAmount, ethAmount);
     }
 
-    function testConvertSuiToEthDecimal() public {
+    function testconvertSuiToERC20Decimal() public {
         // ETH
         assertEq(IERC20Metadata(wETH).decimals(), 18);
         uint64 suiAmount = 11_000_000_00; // 11 eth

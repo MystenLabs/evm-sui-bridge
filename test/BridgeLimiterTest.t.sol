@@ -182,9 +182,8 @@ contract BridgeLimiterTest is BridgeBaseTest {
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), tokenPrices, totalLimit);
         bridge = new SuiBridge();
-        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        uint8[] memory _supportedDestinationChains = new uint8[](1);
         _supportedDestinationChains[0] = 0;
-        _supportedDestinationChains[1] = 1;
         bridge.initialize(
             address(committee),
             address(tokens),
@@ -257,9 +256,8 @@ contract BridgeLimiterTest is BridgeBaseTest {
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), tokenPrices, totalLimit);
         bridge = new SuiBridge();
-        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        uint8[] memory _supportedDestinationChains = new uint8[](1);
         _supportedDestinationChains[0] = 0;
-        _supportedDestinationChains[1] = 1;
         bridge.initialize(
             address(committee),
             address(tokens),

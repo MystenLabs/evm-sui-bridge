@@ -53,19 +53,21 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         weth9 = IWETH9(_weth9);
 
         for (uint8 i; i < _supportedChainIDs.length; i++) {
+            require(_supportedChainIDs[i] != committee.chainID(), "SuiBridge: Cannot support self");
             isChainSupported[_supportedChainIDs[i]] = true;
         }
     }
 
     /* ========== EXTERNAL FUNCTIONS ========== */
 
-    /// @notice Transfers tokens to the target chain using the provided signatures and message.
-    /// @dev The message chain ID for transfer messages differ from other messages in that the
-    /// sending chain ID, and the target chain ID provided within the payload is the receiving
-    /// chain ID (this chain).
+    /// @notice Allows the caller to provide signatures that enable the transfer of tokens to
+    /// the recipient address indicated within the message payload.
+    /// @dev The message chain ID for transfer messages differs from other messages. The message
+    /// chain ID is the sending chain, and the target chain ID provided within the payload is the
+    /// receiving chain ID (this chain).
     /// @param signatures The array of signatures.
     /// @param message The BridgeMessage containing the transfer details.
-    function transferTokensWithSignatures(
+    function transferBridgedTokensWithSignatures(
         bytes[] memory signatures,
         BridgeMessage.Message memory message
     )
@@ -85,9 +87,6 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
             tokenTransferPayload.targetChain == committee.chainID(),
             "SuiBridge: Invalid target chain"
         );
-
-        // verify chain ID (sending chain) is not this chain ID
-        require(message.chainID != committee.chainID(), "SuiBridge: Invalid sending chain");
 
         // convert amount to ERC20 token decimals
         uint256 erc20AdjustedAmount = tokens.convertSuiToERC20Decimal(
