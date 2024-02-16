@@ -27,7 +27,14 @@ interface ISuiBridge {
     /// @param nonce The nonce of the transaction.
     /// @param tokenID The code of the token.
     /// @param amount The amount of tokens transferred.
+    /// @param senderAddress The address of the sender.
+    /// @param recipientAddress The address of the recipient.
     event BridgedTokensTransferred(
-        uint8 indexed sourceChainID, uint64 indexed nonce, uint8 tokenID, uint256 amount
+        uint8 indexed sourceChainID,
+        uint64 indexed nonce,
+        uint8 tokenID,
+        uint256 amount,
+        bytes senderAddress,
+        address recipientAddress
     );
 }

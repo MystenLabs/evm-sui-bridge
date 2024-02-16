@@ -101,7 +101,12 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         isMessageProcessed[message.nonce] = true;
 
         emit BridgedTokensTransferred(
-            message.chainID, message.nonce, tokenTransferPayload.tokenId, erc20AdjustedAmount
+            message.chainID,
+            message.nonce,
+            tokenTransferPayload.tokenId,
+            erc20AdjustedAmount,
+            tokenTransferPayload.senderAddress,
+            tokenTransferPayload.targetAddress
         );
     }
 
