@@ -156,9 +156,6 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         // Adjust the amount to emit.
         uint64 suiAdjustedAmount = tokens.convertERC20ToSuiDecimal(tokenId, amount);
 
-        // increment token transfer nonce
-        nonces[BridgeMessage.TOKEN_TRANSFER]++;
-
         emit TokensDeposited(
             committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
@@ -168,6 +165,9 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
             msg.sender,
             targetAddress
         );
+
+        // increment token transfer nonce
+        nonces[BridgeMessage.TOKEN_TRANSFER]++;
     }
 
     /// @notice Enables the caller to deposit Eth to be bridged to a given destination chain.
@@ -191,9 +191,6 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         // Adjust the amount to emit.
         uint64 suiAdjustedAmount = tokens.convertERC20ToSuiDecimal(BridgeMessage.ETH, amount);
 
-        // increment token transfer nonce
-        nonces[BridgeMessage.TOKEN_TRANSFER]++;
-
         emit TokensDeposited(
             committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
@@ -203,6 +200,9 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
             msg.sender,
             targetAddress
         );
+
+        // increment token transfer nonce
+        nonces[BridgeMessage.TOKEN_TRANSFER]++;
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */
