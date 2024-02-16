@@ -9,7 +9,8 @@ import "./utils/CommitteeUpgradeable.sol";
 
 /// @title BridgeLimiter
 /// @notice A contract that limits the amount of tokens that can be bridged within a rolling 24-hour
-/// window. It also provides functions to update the token prices and the total limit of the bridge
+/// window. This is accomplished by storing the amount bridged in USD within a given hourly timestamp.
+/// It also provides functions to update the token prices and the total limit of the bridge
 /// measured in USD with a 4 decimal precision. The contract is intended to be used and owned by the
 /// SuiBridge contract.
 contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeable {
@@ -111,7 +112,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
     /// @dev The amount must be greater than 0 and must not exceed the rolling window limit.
     /// @param tokenID The ID of the token.
     /// @param amount The amount of tokens to be transferred.
-    function updateBridgeTransfers(uint8 tokenID, uint256 amount) external override onlyOwner {
+    function recordBridgeTransfers(uint8 tokenID, uint256 amount) external override onlyOwner {
         require(amount > 0, "BridgeLimiter: amount must be greater than 0");
         uint256 usdAmount = calculateAmountInUSD(tokenID, amount);
         require(

@@ -10,7 +10,7 @@ interface IBridgeCommittee {
     /// stake of each signer against the required stake of the given message type.
     /// @dev The function will revert if the total stake of the signers is less than the required stake.
     /// @param signatures The array of signatures to be verified.
-    /// @param message The BridgeMessage to be verified.
+    /// @param message The `BridgeMessage.Message` to be verified.
     function verifySignatures(bytes[] memory signatures, BridgeMessage.Message memory message)
         external
         view;

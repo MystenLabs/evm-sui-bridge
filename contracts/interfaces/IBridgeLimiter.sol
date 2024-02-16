@@ -9,7 +9,7 @@ interface IBridgeLimiter {
     /// @dev The amount must be greater than 0 and must not exceed the rolling window limit.
     /// @param tokenID The ID of the token.
     /// @param amount The amount of tokens to be transferred.
-    function updateBridgeTransfers(uint8 tokenID, uint256 amount) external;
+    function recordBridgeTransfers(uint8 tokenID, uint256 amount) external;
 
     /// @notice Returns whether the total amount, including the given token amount, will exceed the totalLimit.
     /// @dev The function will calculate the given token amount in USD.

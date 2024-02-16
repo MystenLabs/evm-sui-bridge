@@ -11,7 +11,7 @@ import "./interfaces/IBridgeTokens.sol";
 import "./interfaces/IWETH9.sol";
 
 /// @title SuiBridge
-/// @notice This contract implements an asset bridge that enables users to deposit and withdraw
+/// @notice This contract implements a token bridge that enables users to deposit and withdraw
 /// supported tokens to and from other chains. The bridge supports the transfer of Ethereum and ERC20
 /// tokens. Bridge operations are managed by a committee of Sui validators that are responsible
 /// for verifying and processing bridge messages. The bridge is designed to be upgradeable and
@@ -23,7 +23,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     IBridgeVault public vault;
     IBridgeLimiter public limiter;
     IBridgeTokens public tokens;
-    IWETH9 public weth9;
+    IWETH9 public wETH;
     mapping(uint64 nonce => bool isProcessed) public isMessageProcessed;
     mapping(uint8 chainId => bool isSupported) public isChainSupported;
 
@@ -35,26 +35,26 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /// @param _tokens The address of the bridge tokens contract.
     /// @param _vault The address of the bridge vault contract.
     /// @param _limiter The address of the bridge limiter contract.
-    /// @param _weth9 The address of the WETH9 contract.
-    /// @param _supportedChainIDs array of supported chain IDs.
+    /// @param _wETH The address of the WETH9 contract.
+    /// @param supportedChainIDs array of supported chain IDs.
     function initialize(
         address _committee,
         address _tokens,
         address _vault,
         address _limiter,
-        address _weth9,
-        uint8[] memory _supportedChainIDs
+        address _wETH,
+        uint8[] memory supportedChainIDs
     ) external initializer {
         __CommitteeUpgradeable_init(_committee);
         __Pausable_init();
         tokens = IBridgeTokens(_tokens);
         vault = IBridgeVault(_vault);
         limiter = IBridgeLimiter(_limiter);
-        weth9 = IWETH9(_weth9);
+        wETH = IWETH9(_wETH);
 
-        for (uint8 i; i < _supportedChainIDs.length; i++) {
-            require(_supportedChainIDs[i] != committee.chainID(), "SuiBridge: Cannot support self");
-            isChainSupported[_supportedChainIDs[i]] = true;
+        for (uint8 i; i < supportedChainIDs.length; i++) {
+            require(supportedChainIDs[i] != committee.chainID(), "SuiBridge: Cannot support self");
+            isChainSupported[supportedChainIDs[i]] = true;
         }
     }
 
@@ -62,9 +62,8 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
     /// @notice Allows the caller to provide signatures that enable the transfer of tokens to
     /// the recipient address indicated within the message payload.
-    /// @dev The message chain ID for transfer messages differs from other messages. The message
-    /// chain ID is the sending chain, and the target chain ID provided within the payload is the
-    /// receiving chain ID (this chain).
+    /// @dev `message.chainID` represents the sending chain ID. Receiving chain ID needs to match
+    /// this bridge's chain ID (this chain).
     /// @param signatures The array of signatures.
     /// @param message The BridgeMessage containing the transfer details.
     function transferBridgedTokensWithSignatures(
@@ -179,10 +178,10 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         uint256 amount = msg.value;
 
         // Wrap ETH
-        weth9.deposit{value: amount}();
+        wETH.deposit{value: amount}();
 
         // Transfer the wrapped ETH back to caller
-        weth9.transfer(address(vault), amount);
+        wETH.transfer(address(vault), amount);
 
         // Adjust the amount to emit.
         uint64 suiAdjustedAmount = tokens.convertERC20ToSuiDecimal(BridgeMessage.ETH, amount);
@@ -226,12 +225,13 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         }
 
         // update amount bridged
-        limiter.updateBridgeTransfers(tokenID, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
     }
 
     /* ========== MODIFIERS ========== */
 
-    /// @dev Requires the amount being transferred does not exceed the bridge limit.
+    /// @dev Requires the amount being transferred does not exceed the bridge limit in
+    /// the last 24 hours.
     /// @param tokenID The ID of the token being transferred.
     /// @param amount The amount of tokens being transferred.
     modifier limitNotExceeded(uint8 tokenID, uint256 amount) {

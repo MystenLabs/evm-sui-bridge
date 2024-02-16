@@ -39,9 +39,9 @@ contract BridgeLimiterTest is BridgeBaseTest {
         changePrank(address(bridge));
         uint8 tokenID = 3;
         uint256 amount = 1000000; // USDC has 6 decimals
-        limiter.updateBridgeTransfers(tokenID, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
         skip(1 hours);
-        limiter.updateBridgeTransfers(tokenID, 2 * amount);
+        limiter.recordBridgeTransfers(tokenID, 2 * amount);
         skip(1 hours);
         uint256 actual = limiter.calculateWindowAmount();
         assertEq(actual, 30000);
@@ -61,7 +61,7 @@ contract BridgeLimiterTest is BridgeBaseTest {
         uint8 tokenID = 3;
         uint256 amount = 999999 * 1000000; // USDC has 6 decimals
         assertFalse(limiter.willAmountExceedLimit(tokenID, amount));
-        limiter.updateBridgeTransfers(tokenID, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
         assertTrue(limiter.willAmountExceedLimit(tokenID, 2000000));
         assertFalse(limiter.willAmountExceedLimit(tokenID, 1000000));
     }
@@ -70,29 +70,29 @@ contract BridgeLimiterTest is BridgeBaseTest {
         changePrank(address(bridge));
         uint8 tokenID = 1;
         uint256 amount = 100000000; // wBTC has 8 decimals
-        limiter.updateBridgeTransfers(tokenID, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
         tokenID = 2;
         amount = 1 ether;
-        limiter.updateBridgeTransfers(tokenID, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
         tokenID = 3;
         amount = 1000000; // USDC has 6 decimals
-        limiter.updateBridgeTransfers(tokenID, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
         assertEq(
             limiter.hourlyTransferAmount(uint32(block.timestamp / 1 hours)),
             BTC_PRICE + ETH_PRICE + USDC_PRICE
         );
     }
 
-    function testUpdateBridgeTransfersGarbageCollection() public {
+    function testrecordBridgeTransfersGarbageCollection() public {
         changePrank(address(bridge));
         uint8 tokenID = 1;
         uint256 amount = 100000000; // wBTC has 8 decimals
         uint32 hourToDelete = uint32(block.timestamp / 1 hours);
-        limiter.updateBridgeTransfers(tokenID, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
         uint256 deleteAmount = limiter.hourlyTransferAmount(hourToDelete);
         assertEq(deleteAmount, BTC_PRICE);
         skip(25 hours);
-        limiter.updateBridgeTransfers(tokenID, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
         deleteAmount = limiter.hourlyTransferAmount(hourToDelete);
         assertEq(deleteAmount, 0);
     }

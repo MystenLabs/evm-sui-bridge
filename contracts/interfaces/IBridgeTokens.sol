@@ -33,10 +33,10 @@ interface IBridgeTokens {
         view
         returns (uint64);
 
-    /// @notice Converts the provided token amount to the Sui decimal adjusted amount.
+    /// @notice Converts the provided token amount to the ERC20 decimal adjusted amount.
     /// @param tokenID The ID of the token to convert.
-    /// @param amount The ERC20 amount of the tokens to convert to Sui.
-    /// @return Sui converted amount.
+    /// @param amount The Sui amount of the tokens to convert to ERC20 amount.
+    /// @return ERC20 converted amount.
     function convertSuiToERC20Decimal(uint8 tokenID, uint64 amount)
         external
         view

@@ -51,7 +51,7 @@ contract BridgeTokens is Ownable, IBridgeTokens {
         return supportedTokens[tokenID].suiDecimal;
     }
 
-    /// @notice Returns the supported status of the token with the given ID.
+    /// @notice Returns whether a token is supported in SuiBridge with the given ID.
     /// @param tokenID The ID of the token.
     /// @return true if the token is supported, false otherwise.
     function isTokenSupported(uint8 tokenID) public view override returns (bool) {
