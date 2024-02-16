@@ -41,12 +41,12 @@ contract DeployBridge is Script {
             config.supportedTokens[1] = address(wBTC);
             config.supportedTokens[2] = config.WETH;
             config.supportedTokens[3] = address(USDC);
+        }
 
-            config.tokenSuiDecimals = new uint8[](4);
-            config.tokenSuiDecimals[0] = 9;
-            config.tokenSuiDecimals[1] = 8;
-            config.tokenSuiDecimals[2] = 8;
-            config.tokenSuiDecimals[3] = 6;
+        // convert supported chains from uint256 to uint8[]
+        uint8[] memory supportedChainIDs = new uint8[](config.supportedChainIDs.length);
+        for (uint256 i; i < config.supportedChainIDs.length; i++) {
+            supportedChainIDs[i] = uint8(config.supportedChainIDs[i]);
         }
 
         // deploy Bridge Committee
@@ -71,8 +71,7 @@ contract DeployBridge is Script {
 
         // deploy bridge tokens
 
-        BridgeTokens bridgeTokens =
-            new BridgeTokens(config.supportedTokens, config.tokenSuiDecimals);
+        BridgeTokens bridgeTokens = new BridgeTokens(config.supportedTokens);
 
         // deploy limiter
 
@@ -89,9 +88,8 @@ contract DeployBridge is Script {
             )
         );
 
-        uint8[] memory _supportedDestinationChains = new uint8[](2);
-        _supportedDestinationChains[0] = 0;
-        _supportedDestinationChains[1] = 1;
+        uint8[] memory _destinationChains = new uint8[](1);
+        _destinationChains[0] = 1;
 
         // deploy Sui Bridge
 
@@ -105,7 +103,7 @@ contract DeployBridge is Script {
                     address(vault),
                     limiter,
                     config.WETH,
-                    _supportedDestinationChains
+                    supportedChainIDs
                 )
             )
         );
@@ -120,6 +118,7 @@ contract DeployBridge is Script {
         vm.stopBroadcast();
     }
 
+    // used to ignore for forge coverage
     function test() public {}
 }
 
@@ -129,8 +128,9 @@ struct DeployConfig {
     uint256[] committeeMemberStake;
     address[] committeeMembers;
     uint256 sourceChainId;
+    uint256[] supportedChainIDs;
     address[] supportedTokens;
-    uint8[] tokenSuiDecimals;
+    uint256[] tokenPrices;
     uint256 totalBridgeLimitInDollars;
     address WETH;
 }

@@ -15,11 +15,24 @@ contract BridgeTokens is Ownable, IBridgeTokens {
 
     mapping(uint8 tokenID => Token) public supportedTokens;
 
-    constructor(address[] memory _tokens, uint8[] memory _decimals) Ownable(msg.sender) {
-        require(_tokens.length == _decimals.length, "BridgeTokens: Invalid input");
+    /// @notice Constructor function for the BridgeTokens contract.
+    /// @dev the provided arrays must have the same length.
+    /// @param _supportedTokens The addresses of the supported tokens.
+    constructor(address[] memory _supportedTokens) Ownable(msg.sender) {
+        require(_supportedTokens.length == 4, "BridgeTokens: Invalid supported token addresses");
 
-        for (uint8 i; i < _tokens.length; i++) {
-            supportedTokens[i] = Token(_tokens[i], _decimals[i]);
+        uint8[] memory _suiDecimals = new uint8[](5);
+        _suiDecimals[0] = 9; // SUI
+        _suiDecimals[1] = 8; // wBTC
+        _suiDecimals[2] = 8; // wETH
+        _suiDecimals[3] = 6; // USDC
+        _suiDecimals[4] = 6; // USDT
+
+        // Add SUI as the first supported token
+        supportedTokens[0] = Token(address(0), _suiDecimals[0]);
+
+        for (uint8 i; i < _supportedTokens.length; i++) {
+            supportedTokens[i + 1] = Token(_supportedTokens[i], _suiDecimals[i + 1]);
         }
     }
 
@@ -35,7 +48,7 @@ contract BridgeTokens is Ownable, IBridgeTokens {
         return supportedTokens[tokenId].tokenAddress != address(0);
     }
 
-    function convertEthToSuiDecimal(uint8 tokenId, uint256 amount)
+    function convertERC20ToSuiDecimal(uint8 tokenId, uint256 amount)
         public
         view
         override
@@ -51,15 +64,11 @@ contract BridgeTokens is Ownable, IBridgeTokens {
             return uint64(amount);
         }
 
-        if (ethDecimal > suiDecimal) {
-            // Difference in decimal places
-            uint256 factor = 10 ** (ethDecimal - suiDecimal);
-            amount = amount / factor;
-        } else {
-            // Difference in decimal places
-            uint256 factor = 10 ** (suiDecimal - ethDecimal);
-            amount = amount * factor;
-        }
+        require(ethDecimal > suiDecimal, "BridgeTokens: Invalid Sui decimal");
+
+        // Difference in decimal places
+        uint256 factor = 10 ** (ethDecimal - suiDecimal);
+        amount = amount / factor;
 
         // Ensure the converted amount fits within uint64
         require(amount <= type(uint64).max, "BridgeTokens: Amount too large for uint64");
@@ -67,7 +76,7 @@ contract BridgeTokens is Ownable, IBridgeTokens {
         return uint64(amount);
     }
 
-    function convertSuiToEthDecimal(uint8 tokenId, uint64 amount)
+    function convertSuiToERC20Decimal(uint8 tokenId, uint64 amount)
         public
         view
         override
@@ -81,34 +90,11 @@ contract BridgeTokens is Ownable, IBridgeTokens {
             return uint256(amount);
         }
 
-        uint256 convertedAmount;
-        if (ethDecimal > suiDecimal) {
-            // Difference in decimal places
-            uint256 factor = 10 ** (ethDecimal - suiDecimal);
-            convertedAmount = amount * factor;
-        } else {
-            // Difference in decimal places
-            uint256 factor = 10 ** (suiDecimal - ethDecimal);
-            convertedAmount = amount / factor;
-        }
+        require(ethDecimal > suiDecimal, "BridgeTokens: Invalid Sui decimal");
 
-        return convertedAmount;
-    }
-
-    /// @dev Add a new supported token
-    /// @param tokenId The ID of the token
-    /// @param tokenAddress The address of the token
-    function updateToken(uint8 tokenId, address tokenAddress, uint8 suiDecimal)
-        external
-        onlyOwner
-    {
-        supportedTokens[tokenId] = Token(tokenAddress, suiDecimal);
-    }
-
-    /// @dev Remove a supported token
-    /// @param tokenId The ID of the token
-    function removeToken(uint8 tokenId) external onlyOwner {
-        delete supportedTokens[tokenId];
+        // Difference in decimal places
+        uint256 factor = 10 ** (ethDecimal - suiDecimal);
+        return uint256(amount * factor);
     }
 
     modifier tokenSupported(uint8 tokenId) {

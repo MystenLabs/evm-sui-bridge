@@ -6,12 +6,12 @@ interface IBridgeTokens {
 
     function getSuiDecimal(uint8 tokenId) external view returns (uint8);
 
-    function convertEthToSuiDecimal(uint8 tokenId, uint256 originalAmount)
+    function convertERC20ToSuiDecimal(uint8 tokenId, uint256 originalAmount)
         external
         view
         returns (uint64);
 
-    function convertSuiToEthDecimal(uint8 tokenId, uint64 originalAmount)
+    function convertSuiToERC20Decimal(uint8 tokenId, uint64 originalAmount)
         external
         view
         returns (uint256);

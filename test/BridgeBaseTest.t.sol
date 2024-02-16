@@ -140,30 +140,27 @@ contract BridgeBaseTest is Test {
 
         committee.initialize(_committee, _stake, chainID);
         vault = new BridgeVault(wETH);
-        address[] memory _supportedTokens = new address[](5);
-        _supportedTokens[0] = address(0); // SUI not supported yet
-        _supportedTokens[1] = wBTC;
-        _supportedTokens[2] = wETH;
-        _supportedTokens[3] = USDC;
-        _supportedTokens[4] = USDT;
-        uint8[] memory _decimals = new uint8[](5);
-        _decimals[0] = 9;
-        _decimals[1] = 8;
-        _decimals[2] = 8;
-        _decimals[3] = 6;
-        _decimals[4] = 6;
-        tokens = new BridgeTokens(_supportedTokens, _decimals);
+        address[] memory _supportedTokens = new address[](4);
+        _supportedTokens[0] = wBTC;
+        _supportedTokens[1] = wETH;
+        _supportedTokens[2] = USDC;
+        _supportedTokens[3] = USDT;
+        tokens = new BridgeTokens(_supportedTokens);
         uint256[] memory assetPrices = new uint256[](4);
         assetPrices[0] = SUI_PRICE;
         assetPrices[1] = BTC_PRICE;
         assetPrices[2] = ETH_PRICE;
         assetPrices[3] = USDC_PRICE;
+        uint256[] memory tokenPrices = new uint256[](4);
+        tokenPrices[0] = SUI_PRICE;
+        tokenPrices[1] = BTC_PRICE;
+        tokenPrices[2] = ETH_PRICE;
+        tokenPrices[3] = USDC_PRICE;
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
-        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        uint8[] memory _supportedDestinationChains = new uint8[](1);
         _supportedDestinationChains[0] = 0;
-        _supportedDestinationChains[1] = 1;
         bridge.initialize(
             address(committee),
             address(tokens),

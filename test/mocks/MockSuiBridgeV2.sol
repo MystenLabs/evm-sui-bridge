@@ -20,5 +20,6 @@ contract MockSuiBridgeV2 is SuiBridge {
         isPausing = _pausing;
     }
 
+    // used to ignore for forge coverage
     function test() external view {}
 }
