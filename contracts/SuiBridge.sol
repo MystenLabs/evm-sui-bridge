@@ -99,6 +99,10 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
         // mark message as processed
         isMessageProcessed[message.nonce] = true;
+
+        emit BridgedTokensTransferred(
+            message.chainID, message.nonce, tokenTransferPayload.tokenId, erc20AdjustedAmount
+        );
     }
 
     /// @notice Executes an emergency operation with the provided signatures and message.
@@ -119,6 +123,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
         if (isFreezing) _pause();
         else _unpause();
+        // pausing event emitted in 'PausableUpgradeable.sol'
     }
 
     /// @notice Enables the caller to deposit supported tokens to be bridged to a given
@@ -151,7 +156,10 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         // Adjust the amount to emit.
         uint64 suiAdjustedAmount = tokens.convertERC20ToSuiDecimal(tokenId, amount);
 
-        emit TokensBridged(
+        // increment token transfer nonce
+        nonces[BridgeMessage.TOKEN_TRANSFER]++;
+
+        emit TokensDeposited(
             committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
@@ -160,9 +168,6 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
             msg.sender,
             targetAddress
         );
-
-        // increment token transfer nonce
-        nonces[BridgeMessage.TOKEN_TRANSFER]++;
     }
 
     /// @notice Enables the caller to deposit Eth to be bridged to a given destination chain.
@@ -186,7 +191,10 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         // Adjust the amount to emit.
         uint64 suiAdjustedAmount = tokens.convertERC20ToSuiDecimal(BridgeMessage.ETH, amount);
 
-        emit TokensBridged(
+        // increment token transfer nonce
+        nonces[BridgeMessage.TOKEN_TRANSFER]++;
+
+        emit TokensDeposited(
             committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
@@ -195,9 +203,6 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
             msg.sender,
             targetAddress
         );
-
-        // increment token transfer nonce
-        nonces[BridgeMessage.TOKEN_TRANSFER]++;
     }
 
     /* ========== INTERNAL FUNCTIONS ========== */

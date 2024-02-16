@@ -119,6 +119,8 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
 
         // update hourly transfers
         hourlyTransferAmount[_currentHour] += usdAmount;
+
+        emit HourlyTransferAmountUpdated(_currentHour, usdAmount);
     }
 
     /// @dev Updates the asset price with the provided signatures and message.
@@ -137,6 +139,8 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
 
         // update the asset price
         assetPrices[tokenId] = price;
+
+        emit AssetPriceUpdated(tokenId, price);
     }
 
     /// @dev Updates the bridge limit with the provided signatures and message.
@@ -156,5 +160,7 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
 
         // update the limit
         totalLimit = newLimit;
+
+        emit LimitUpdated(sourceChainID, newLimit);
     }
 }
