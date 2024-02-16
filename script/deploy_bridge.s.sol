@@ -36,10 +36,17 @@ contract DeployBridge is Script {
             MockUSDC USDC = new MockUSDC();
 
             // update config with mock addresses
-            config.supportedTokens = new address[](3);
-            config.supportedTokens[0] = address(wBTC);
-            config.supportedTokens[1] = config.WETH;
-            config.supportedTokens[2] = address(USDC);
+            config.supportedTokens = new address[](4);
+            config.supportedTokens[0] = address(0);
+            config.supportedTokens[1] = address(wBTC);
+            config.supportedTokens[2] = config.WETH;
+            config.supportedTokens[3] = address(USDC);
+        }
+
+        // convert supported chains from uint256 to uint8[]
+        uint8[] memory supportedChainIDs = new uint8[](config.supportedChainIDs.length);
+        for (uint256 i; i < config.supportedChainIDs.length; i++) {
+            supportedChainIDs[i] = uint8(config.supportedChainIDs[i]);
         }
 
         // deploy Bridge Committee
@@ -81,9 +88,8 @@ contract DeployBridge is Script {
             )
         );
 
-        uint8[] memory _supportedDestinationChains = new uint8[](2);
-        _supportedDestinationChains[0] = 0;
-        _supportedDestinationChains[1] = 1;
+        uint8[] memory _destinationChains = new uint8[](1);
+        _destinationChains[0] = 1;
 
         // deploy Sui Bridge
 
@@ -91,7 +97,14 @@ contract DeployBridge is Script {
             "SuiBridge.sol",
             abi.encodeCall(
                 SuiBridge.initialize,
-                (bridgeCommittee, address(bridgeTokens), address(vault), limiter, config.WETH, _supportedDestinationChains)
+                (
+                    bridgeCommittee,
+                    address(bridgeTokens),
+                    address(vault),
+                    limiter,
+                    config.WETH,
+                    supportedChainIDs
+                )
             )
         );
 
@@ -104,6 +117,9 @@ contract DeployBridge is Script {
         bridgeTokens.transferOwnership(suiBridge);
         vm.stopBroadcast();
     }
+
+    // used to ignore for forge coverage
+    function test() public {}
 }
 
 // TODO: add gotchas and references to foundry docs (ex. struct fields must be in alphabetical order)
@@ -112,7 +128,9 @@ struct DeployConfig {
     uint256[] committeeMemberStake;
     address[] committeeMembers;
     uint256 sourceChainId;
+    uint256[] supportedChainIDs;
     address[] supportedTokens;
+    uint256[] tokenPrices;
     uint256 totalBridgeLimitInDollars;
     address WETH;
 }

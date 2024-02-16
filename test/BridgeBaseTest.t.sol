@@ -151,14 +151,23 @@ contract BridgeBaseTest is Test {
         assetPrices[1] = BTC_PRICE;
         assetPrices[2] = ETH_PRICE;
         assetPrices[3] = USDC_PRICE;
+        uint256[] memory tokenPrices = new uint256[](4);
+        tokenPrices[0] = SUI_PRICE;
+        tokenPrices[1] = BTC_PRICE;
+        tokenPrices[2] = ETH_PRICE;
+        tokenPrices[3] = USDC_PRICE;
         limiter = new BridgeLimiter();
         limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
         bridge = new SuiBridge();
-        uint8[] memory _supportedDestinationChains = new uint8[](2);
+        uint8[] memory _supportedDestinationChains = new uint8[](1);
         _supportedDestinationChains[0] = 0;
-        _supportedDestinationChains[1] = 1;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
+            address(committee),
+            address(tokens),
+            address(vault),
+            address(limiter),
+            wETH,
+            _supportedDestinationChains
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
