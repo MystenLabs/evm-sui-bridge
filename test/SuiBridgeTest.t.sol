@@ -15,7 +15,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
     function testSuiBridgeInitialization() public {
         assertEq(address(bridge.committee()), address(committee));
         assertEq(address(bridge.vault()), address(vault));
-        assertEq(address(bridge.weth9()), wETH);
+        assertEq(address(bridge.wETH()), wETH);
         assertEq(address(bridge.tokens()), address(tokens));
     }
 

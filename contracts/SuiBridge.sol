@@ -102,7 +102,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         emit BridgedTokensTransferred(
             message.chainID,
             message.nonce,
-            tokenTransferPayload.tokenId,
+            tokenTransferPayload.tokenID,
             erc20AdjustedAmount,
             tokenTransferPayload.senderAddress,
             tokenTransferPayload.targetAddress
