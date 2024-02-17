@@ -164,10 +164,11 @@ contract BridgeLimiter is IBridgeLimiter, CommitteeUpgradeable, OwnableUpgradeab
         nonReentrant
         verifyMessageAndSignatures(message, signatures, BridgeMessage.UPDATE_BRIDGE_LIMIT)
     {
-        // TODO: do we need to validate the sourceChainID here?
         // decode the update limit payload
         (uint8 sourceChainID, uint64 newLimit) =
             BridgeMessage.decodeUpdateLimitPayload(message.payload);
+
+        // TODO: expose supportedChainIDs from SuiBridge contract and check that the sourceChainID is supported
 
         // update the limit
         totalLimit = newLimit;
