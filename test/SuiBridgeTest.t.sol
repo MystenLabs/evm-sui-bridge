@@ -394,7 +394,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
 
         // assert emitted event
         vm.expectEmit(true, true, true, false);
-        emit TokensBridged(
+        emit TokensDeposited(
             chainID,
             0, // nonce
             0, // destination chain id
@@ -411,7 +411,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
 
         // Now test rounding. For ETH, the last 10 digits are rounded
         vm.expectEmit(true, true, true, false);
-        emit TokensBridged(
+        emit TokensDeposited(
             chainID,
             1, // nonce
             0, // destination chain id
@@ -448,7 +448,7 @@ contract SuiBridgeTest is BridgeBaseTest, ISuiBridge {
 
         // assert emitted event
         vm.expectEmit(true, true, true, false);
-        emit ISuiBridge.TokensBridged(
+        emit ISuiBridge.TokensDeposited(
             chainID,
             0, // nonce
             0, // destination chain id

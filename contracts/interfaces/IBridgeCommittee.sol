@@ -24,8 +24,4 @@ interface IBridgeCommittee {
     /// @param newMembers The addresses of the new committee members.
     /// @param isBlocklisted A boolean indicating whether the committee members are blocklisted or not.
     event BlocklistUpdated(address[] newMembers, bool isBlocklisted);
-
-    /// @notice Emitted when a message is processed by the bridge committee.
-    /// @param message The processed message.
-    event MessageProcessed(bytes message);
 }

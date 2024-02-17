@@ -98,6 +98,15 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
         // mark message as processed
         isMessageProcessed[message.nonce] = true;
+
+        emit BridgedTokensTransferred(
+            message.chainID,
+            message.nonce,
+            tokenTransferPayload.tokenId,
+            erc20AdjustedAmount,
+            tokenTransferPayload.senderAddress,
+            tokenTransferPayload.targetAddress
+        );
     }
 
     /// @notice Executes an emergency operation with the provided signatures and message.
@@ -118,6 +127,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
         if (isFreezing) _pause();
         else _unpause();
+        // pausing event emitted in 'PausableUpgradeable.sol'
     }
 
     /// @notice Enables the caller to deposit supported tokens to be bridged to a given
@@ -150,7 +160,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         // Adjust the amount to emit.
         uint64 suiAdjustedAmount = tokens.convertERC20ToSuiDecimal(tokenID, amount);
 
-        emit TokensBridged(
+        emit TokensDeposited(
             committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
@@ -186,7 +196,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         // Adjust the amount to emit.
         uint64 suiAdjustedAmount = tokens.convertERC20ToSuiDecimal(BridgeMessage.ETH, amount);
 
-        emit TokensBridged(
+        emit TokensDeposited(
             committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
