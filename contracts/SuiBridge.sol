@@ -4,27 +4,26 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./utils/CommitteeUpgradeable.sol";
-import "./interfaces/IWETH9.sol";
+import "./interfaces/ISuiBridge.sol";
 import "./interfaces/IBridgeVault.sol";
 import "./interfaces/IBridgeLimiter.sol";
-import "./interfaces/ISuiBridge.sol";
 import "./interfaces/IBridgeTokens.sol";
-import "./BridgeCommittee.sol";
+import "./interfaces/IWETH9.sol";
 
 /// @title SuiBridge
-/// @notice This contract implements an asset bridge that enables users to deposit and withdraw
-/// assets to and from other chains. The bridge supports the transfer of Ethereum and ERC20
+/// @notice This contract implements a token bridge that enables users to deposit and withdraw
+/// supported tokens to and from other chains. The bridge supports the transfer of Ethereum and ERC20
 /// tokens. Bridge operations are managed by a committee of Sui validators that are responsible
 /// for verifying and processing bridge messages. The bridge is designed to be upgradeable and
 /// can be paused in case of an emergency. The bridge also enforces limits on the amount of
-/// assets that can be transferred to prevent abuse.
+/// assets that can be withdrawn to prevent abuse.
 contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
     IBridgeVault public vault;
     IBridgeLimiter public limiter;
     IBridgeTokens public tokens;
-    IWETH9 public weth9;
+    IWETH9 public wETH;
     mapping(uint64 nonce => bool isProcessed) public isMessageProcessed;
     mapping(uint8 chainId => bool isSupported) public isChainSupported;
 
@@ -36,25 +35,26 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /// @param _tokens The address of the bridge tokens contract.
     /// @param _vault The address of the bridge vault contract.
     /// @param _limiter The address of the bridge limiter contract.
-    /// @param _weth9 The address of the WETH9 contract.
+    /// @param _wETH The address of the WETH9 contract.
+    /// @param supportedChainIDs array of supported chain IDs.
     function initialize(
         address _committee,
         address _tokens,
         address _vault,
         address _limiter,
-        address _weth9,
-        uint8[] memory _supportedChainIDs
+        address _wETH,
+        uint8[] memory supportedChainIDs
     ) external initializer {
         __CommitteeUpgradeable_init(_committee);
         __Pausable_init();
         tokens = IBridgeTokens(_tokens);
         vault = IBridgeVault(_vault);
         limiter = IBridgeLimiter(_limiter);
-        weth9 = IWETH9(_weth9);
+        wETH = IWETH9(_wETH);
 
-        for (uint8 i; i < _supportedChainIDs.length; i++) {
-            require(_supportedChainIDs[i] != committee.chainID(), "SuiBridge: Cannot support self");
-            isChainSupported[_supportedChainIDs[i]] = true;
+        for (uint8 i; i < supportedChainIDs.length; i++) {
+            require(supportedChainIDs[i] != committee.chainID(), "SuiBridge: Cannot support self");
+            isChainSupported[supportedChainIDs[i]] = true;
         }
     }
 
@@ -62,9 +62,8 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
     /// @notice Allows the caller to provide signatures that enable the transfer of tokens to
     /// the recipient address indicated within the message payload.
-    /// @dev The message chain ID for transfer messages differs from other messages. The message
-    /// chain ID is the sending chain, and the target chain ID provided within the payload is the
-    /// receiving chain ID (this chain).
+    /// @dev `message.chainID` represents the sending chain ID. Receiving chain ID needs to match
+    /// this bridge's chain ID (this chain).
     /// @param signatures The array of signatures.
     /// @param message The BridgeMessage containing the transfer details.
     function transferBridgedTokensWithSignatures(
@@ -90,15 +89,24 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
         // convert amount to ERC20 token decimals
         uint256 erc20AdjustedAmount = tokens.convertSuiToERC20Decimal(
-            tokenTransferPayload.tokenId, tokenTransferPayload.amount
+            tokenTransferPayload.tokenID, tokenTransferPayload.amount
         );
 
         _transferTokensFromVault(
-            tokenTransferPayload.tokenId, tokenTransferPayload.targetAddress, erc20AdjustedAmount
+            tokenTransferPayload.tokenID, tokenTransferPayload.targetAddress, erc20AdjustedAmount
         );
 
         // mark message as processed
         isMessageProcessed[message.nonce] = true;
+
+        emit BridgedTokensTransferred(
+            message.chainID,
+            message.nonce,
+            tokenTransferPayload.tokenID,
+            erc20AdjustedAmount,
+            tokenTransferPayload.senderAddress,
+            tokenTransferPayload.targetAddress
+        );
     }
 
     /// @notice Executes an emergency operation with the provided signatures and message.
@@ -119,25 +127,26 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
 
         if (isFreezing) _pause();
         else _unpause();
+        // pausing event emitted in 'PausableUpgradeable.sol'
     }
 
     /// @notice Enables the caller to deposit supported tokens to be bridged to a given
     /// destination chain.
-    /// @dev The provided tokenId and destinationChainID must be supported. The caller must
-    /// have approved the contract to transfer the tokens.
-    /// @param tokenId The ID of the token to be bridged.
+    /// @dev The provided tokenID and destinationChainID must be supported. The caller must
+    /// have approved this contract to transfer the given token.
+    /// @param tokenID The ID of the token to be bridged.
     /// @param amount The amount of tokens to be bridged.
     /// @param targetAddress The address on the Sui chain where the tokens will be sent.
     /// @param destinationChainID The ID of the destination chain.
     function bridgeERC20(
-        uint8 tokenId,
+        uint8 tokenID,
         uint256 amount,
         bytes memory targetAddress,
         uint8 destinationChainID
     ) external whenNotPaused nonReentrant onlySupportedChain(destinationChainID) {
-        require(tokens.isTokenSupported(tokenId), "SuiBridge: Unsupported token");
+        require(tokens.isTokenSupported(tokenID), "SuiBridge: Unsupported token");
 
-        address tokenAddress = tokens.getAddress(tokenId);
+        address tokenAddress = tokens.getAddress(tokenID);
 
         // check that the bridge contract has allowance to transfer the tokens
         require(
@@ -149,13 +158,13 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         IERC20(tokenAddress).transferFrom(msg.sender, address(vault), amount);
 
         // Adjust the amount to emit.
-        uint64 suiAdjustedAmount = tokens.convertERC20ToSuiDecimal(tokenId, amount);
+        uint64 suiAdjustedAmount = tokens.convertERC20ToSuiDecimal(tokenID, amount);
 
-        emit TokensBridged(
+        emit TokensDeposited(
             committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
-            tokenId,
+            tokenID,
             suiAdjustedAmount,
             msg.sender,
             targetAddress
@@ -166,6 +175,7 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     }
 
     /// @notice Enables the caller to deposit Eth to be bridged to a given destination chain.
+    /// @dev The provided destinationChainID must be supported.
     /// @param targetAddress The address on the destination chain where Eth will be sent.
     /// @param destinationChainID The ID of the destination chain.
     function bridgeETH(bytes memory targetAddress, uint8 destinationChainID)
@@ -178,15 +188,15 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         uint256 amount = msg.value;
 
         // Wrap ETH
-        weth9.deposit{value: amount}();
+        wETH.deposit{value: amount}();
 
         // Transfer the wrapped ETH back to caller
-        weth9.transfer(address(vault), amount);
+        wETH.transfer(address(vault), amount);
 
         // Adjust the amount to emit.
         uint64 suiAdjustedAmount = tokens.convertERC20ToSuiDecimal(BridgeMessage.ETH, amount);
 
-        emit TokensBridged(
+        emit TokensDeposited(
             committee.chainID(),
             nonces[BridgeMessage.TOKEN_TRANSFER],
             destinationChainID,
@@ -203,21 +213,21 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
     /* ========== INTERNAL FUNCTIONS ========== */
 
     /// @dev Transfers tokens from the vault to a target address.
-    /// @param tokenId The ID of the token being transferred.
+    /// @param tokenID The ID of the token being transferred.
     /// @param targetAddress The address to which the tokens are being transferred.
     /// @param amount The amount of tokens being transferred.
-    function _transferTokensFromVault(uint8 tokenId, address targetAddress, uint256 amount)
+    function _transferTokensFromVault(uint8 tokenID, address targetAddress, uint256 amount)
         private
         whenNotPaused
-        limitNotExceeded(tokenId, amount)
+        limitNotExceeded(tokenID, amount)
     {
-        address tokenAddress = tokens.getAddress(tokenId);
+        address tokenAddress = tokens.getAddress(tokenID);
 
         // Check that the token address is supported
         require(tokenAddress != address(0), "SuiBridge: Unsupported token");
 
         // transfer eth if token type is eth
-        if (tokenId == BridgeMessage.ETH) {
+        if (tokenID == BridgeMessage.ETH) {
             vault.transferETH(payable(targetAddress), amount);
         } else {
             // transfer tokens from vault to target address
@@ -225,22 +235,25 @@ contract SuiBridge is ISuiBridge, CommitteeUpgradeable, PausableUpgradeable {
         }
 
         // update amount bridged
-        limiter.updateBridgeTransfers(tokenId, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
     }
 
     /* ========== MODIFIERS ========== */
 
-    /// @dev Checks that the amount being transferred does not exceed the limit.
-    /// @param tokenId The ID of the token being transferred.
+    /// @dev Requires the amount being transferred does not exceed the bridge limit in
+    /// the last 24 hours.
+    /// @param tokenID The ID of the token being transferred.
     /// @param amount The amount of tokens being transferred.
-    modifier limitNotExceeded(uint8 tokenId, uint256 amount) {
+    modifier limitNotExceeded(uint8 tokenID, uint256 amount) {
         require(
-            !limiter.willAmountExceedLimit(tokenId, amount),
+            !limiter.willAmountExceedLimit(tokenID, amount),
             "SuiBridge: Amount exceeds bridge limit"
         );
         _;
     }
 
+    /// @dev Requires the target chain ID is supported.
+    /// @param targetChainID The ID of the target chain.
     modifier onlySupportedChain(uint8 targetChainID) {
         require(isChainSupported[targetChainID], "SuiBridge: Target chain not supported");
         _;

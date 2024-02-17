@@ -53,7 +53,7 @@ contract DeployBridge is Script {
 
         // convert committeeMembers stake from uint256 to uint16[]
         uint16[] memory committeeMemberStake = new uint16[](config.committeeMemberStake.length);
-        for (uint256 i = 0; i < config.committeeMemberStake.length; i++) {
+        for (uint256 i; i < config.committeeMemberStake.length; i++) {
             committeeMemberStake[i] = uint16(config.committeeMemberStake[i]);
         }
 
@@ -82,7 +82,7 @@ contract DeployBridge is Script {
                 (
                     bridgeCommittee,
                     address(bridgeTokens),
-                    config.assetPrices,
+                    config.tokenPrices,
                     uint64(config.totalBridgeLimitInDollars)
                 )
             )
@@ -122,9 +122,9 @@ contract DeployBridge is Script {
     function test() public {}
 }
 
-// TODO: add gotchas and references to foundry docs (ex. struct fields must be in alphabetical order)
+/// check the following for guidelines on updating deploy_configs and references:
+/// https://book.getfoundry.sh/cheatcodes/parse-json
 struct DeployConfig {
-    uint256[] assetPrices;
     uint256[] committeeMemberStake;
     address[] committeeMembers;
     uint256 sourceChainId;

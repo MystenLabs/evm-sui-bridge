@@ -157,7 +157,7 @@ contract BridgeBaseTest is Test {
         tokenPrices[2] = ETH_PRICE;
         tokenPrices[3] = USDC_PRICE;
         limiter = new BridgeLimiter();
-        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
+        limiter.initialize(address(committee), address(tokens), tokenPrices, totalLimit);
         bridge = new SuiBridge();
         uint8[] memory _supportedDestinationChains = new uint8[](1);
         _supportedDestinationChains[0] = 0;

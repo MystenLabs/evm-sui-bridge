@@ -12,36 +12,36 @@ contract BridgeLimiterTest is BridgeBaseTest {
     }
 
     function testBridgeLimiterInitialization() public {
-        assertEq(limiter.assetPrices(0), SUI_PRICE);
-        assertEq(limiter.assetPrices(1), BTC_PRICE);
-        assertEq(limiter.assetPrices(2), ETH_PRICE);
-        assertEq(limiter.assetPrices(3), USDC_PRICE);
+        assertEq(limiter.tokenPrices(0), SUI_PRICE);
+        assertEq(limiter.tokenPrices(1), BTC_PRICE);
+        assertEq(limiter.tokenPrices(2), ETH_PRICE);
+        assertEq(limiter.tokenPrices(3), USDC_PRICE);
         assertEq(limiter.oldestHourTimestamp(), uint32(block.timestamp / 1 hours));
         assertEq(limiter.totalLimit(), totalLimit);
     }
 
     function testCalculateAmountInUSD() public {
-        uint8 tokenId = 1; // wBTC
+        uint8 tokenID = 1; // wBTC
         uint256 wBTCAmount = 100000000; // wBTC has 8 decimals
-        uint256 actual = limiter.calculateAmountInUSD(tokenId, wBTCAmount);
+        uint256 actual = limiter.calculateAmountInUSD(tokenID, wBTCAmount);
         assertEq(actual, BTC_PRICE);
-        tokenId = 2;
+        tokenID = 2;
         uint256 ethAmount = 1 ether;
-        actual = limiter.calculateAmountInUSD(tokenId, ethAmount);
+        actual = limiter.calculateAmountInUSD(tokenID, ethAmount);
         assertEq(actual, ETH_PRICE);
-        tokenId = 3;
+        tokenID = 3;
         uint256 usdcAmount = 1000000; // USDC has 6 decimals
-        actual = limiter.calculateAmountInUSD(tokenId, usdcAmount);
+        actual = limiter.calculateAmountInUSD(tokenID, usdcAmount);
         assertEq(actual, USDC_PRICE);
     }
 
     function testCalculateWindowLimit() public {
         changePrank(address(bridge));
-        uint8 tokenId = 3;
+        uint8 tokenID = 3;
         uint256 amount = 1000000; // USDC has 6 decimals
-        limiter.updateBridgeTransfers(tokenId, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
         skip(1 hours);
-        limiter.updateBridgeTransfers(tokenId, 2 * amount);
+        limiter.recordBridgeTransfers(tokenID, 2 * amount);
         skip(1 hours);
         uint256 actual = limiter.calculateWindowAmount();
         assertEq(actual, 30000);
@@ -58,51 +58,51 @@ contract BridgeLimiterTest is BridgeBaseTest {
 
     function testAmountWillExceedLimit() public {
         changePrank(address(bridge));
-        uint8 tokenId = 3;
+        uint8 tokenID = 3;
         uint256 amount = 999999 * 1000000; // USDC has 6 decimals
-        assertFalse(limiter.willAmountExceedLimit(tokenId, amount));
-        limiter.updateBridgeTransfers(tokenId, amount);
-        assertTrue(limiter.willAmountExceedLimit(tokenId, 2000000));
-        assertFalse(limiter.willAmountExceedLimit(tokenId, 1000000));
+        assertFalse(limiter.willAmountExceedLimit(tokenID, amount));
+        limiter.recordBridgeTransfers(tokenID, amount);
+        assertTrue(limiter.willAmountExceedLimit(tokenID, 2000000));
+        assertFalse(limiter.willAmountExceedLimit(tokenID, 1000000));
     }
 
     function testUpdateBridgeTransfer() public {
         changePrank(address(bridge));
-        uint8 tokenId = 1;
+        uint8 tokenID = 1;
         uint256 amount = 100000000; // wBTC has 8 decimals
-        limiter.updateBridgeTransfers(tokenId, amount);
-        tokenId = 2;
+        limiter.recordBridgeTransfers(tokenID, amount);
+        tokenID = 2;
         amount = 1 ether;
-        limiter.updateBridgeTransfers(tokenId, amount);
-        tokenId = 3;
+        limiter.recordBridgeTransfers(tokenID, amount);
+        tokenID = 3;
         amount = 1000000; // USDC has 6 decimals
-        limiter.updateBridgeTransfers(tokenId, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
         assertEq(
             limiter.hourlyTransferAmount(uint32(block.timestamp / 1 hours)),
             BTC_PRICE + ETH_PRICE + USDC_PRICE
         );
     }
 
-    function testUpdateBridgeTransfersGarbageCollection() public {
+    function testrecordBridgeTransfersGarbageCollection() public {
         changePrank(address(bridge));
-        uint8 tokenId = 1;
+        uint8 tokenID = 1;
         uint256 amount = 100000000; // wBTC has 8 decimals
         uint32 hourToDelete = uint32(block.timestamp / 1 hours);
-        limiter.updateBridgeTransfers(tokenId, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
         uint256 deleteAmount = limiter.hourlyTransferAmount(hourToDelete);
         assertEq(deleteAmount, BTC_PRICE);
         skip(25 hours);
-        limiter.updateBridgeTransfers(tokenId, amount);
+        limiter.recordBridgeTransfers(tokenID, amount);
         deleteAmount = limiter.hourlyTransferAmount(hourToDelete);
         assertEq(deleteAmount, 0);
     }
 
-    function testUpdateAssetPriceWithSignatures() public {
+    function testUpdateTokenPriceWithSignatures() public {
         changePrank(address(bridge));
         bytes memory payload = abi.encodePacked(uint8(1), uint64(100000000));
         // Create a sample BridgeMessage
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.UPDATE_ASSET_PRICE,
+            messageType: BridgeMessage.UPDATE_TOKEN_PRICE,
             version: 1,
             nonce: 0,
             chainID: chainID,
@@ -118,11 +118,11 @@ contract BridgeLimiterTest is BridgeBaseTest {
         signatures[2] = getSignature(messageHash, committeeMemberPkC);
         signatures[3] = getSignature(messageHash, committeeMemberPkD);
 
-        // Call the updateAssetPriceWithSignatures function
-        limiter.updateAssetPriceWithSignatures(signatures, message);
+        // Call the updateTokenPriceWithSignatures function
+        limiter.updateTokenPriceWithSignatures(signatures, message);
 
-        // Assert that the asset price has been updated correctly
-        assertEq(limiter.assetPrices(1), 100000000);
+        // Assert that the token price has been updated correctly
+        assertEq(limiter.tokenPrices(1), 100000000);
     }
 
     function testUpdateLimitWithSignatures() public {
@@ -171,21 +171,26 @@ contract BridgeLimiterTest is BridgeBaseTest {
         committee = new BridgeCommittee();
         committee.initialize(_committee, _stake, 1);
         vault = new BridgeVault(wETH);
-        uint256[] memory assetPrices = new uint256[](4);
-        assetPrices[0] = 10000; // SUI PRICE
-        assetPrices[1] = 10000; // BTC PRICE
-        assetPrices[2] = 10000; // ETH PRICE
-        assetPrices[3] = 10000; // USDC PRICE
+        uint256[] memory tokenPrices = new uint256[](4);
+        tokenPrices[0] = 10000; // SUI PRICE
+        tokenPrices[1] = 10000; // BTC PRICE
+        tokenPrices[2] = 10000; // ETH PRICE
+        tokenPrices[3] = 10000; // USDC PRICE
         uint64 totalLimit = 1000000;
 
         skip(2 days);
         limiter = new BridgeLimiter();
-        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
+        limiter.initialize(address(committee), address(tokens), tokenPrices, totalLimit);
         bridge = new SuiBridge();
         uint8[] memory _supportedDestinationChains = new uint8[](1);
         _supportedDestinationChains[0] = 0;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
+            address(committee),
+            address(tokens),
+            address(vault),
+            address(limiter),
+            wETH,
+            _supportedDestinationChains
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
@@ -225,8 +230,8 @@ contract BridgeLimiterTest is BridgeBaseTest {
         // assertEq(limiter.totalLimit(), 1_000_000_0000);
     }
 
-    // An e2e update asset price regression test covering message ser/de and signature verification
-    function testUpdateAssetPriceRegressionTest() public {
+    // An e2e update token price regression test covering message ser/de and signature verification
+    function testUpdateTokenPriceRegressionTest() public {
         address[] memory _committee = new address[](4);
         uint16[] memory _stake = new uint16[](4);
         _committee[0] = 0x68B43fD906C0B8F024a18C56e06744F7c6157c65;
@@ -240,21 +245,26 @@ contract BridgeLimiterTest is BridgeBaseTest {
         committee = new BridgeCommittee();
         committee.initialize(_committee, _stake, 1);
         vault = new BridgeVault(wETH);
-        uint256[] memory assetPrices = new uint256[](4);
-        assetPrices[0] = 10000; // SUI PRICE
-        assetPrices[1] = 10000; // BTC PRICE
-        assetPrices[2] = 10000; // ETH PRICE
-        assetPrices[3] = 10000; // USDC PRICE
+        uint256[] memory tokenPrices = new uint256[](4);
+        tokenPrices[0] = 10000; // SUI PRICE
+        tokenPrices[1] = 10000; // BTC PRICE
+        tokenPrices[2] = 10000; // ETH PRICE
+        tokenPrices[3] = 10000; // USDC PRICE
         uint64 totalLimit = 1000000;
 
         skip(2 days);
         limiter = new BridgeLimiter();
-        limiter.initialize(address(committee), address(tokens), assetPrices, totalLimit);
+        limiter.initialize(address(committee), address(tokens), tokenPrices, totalLimit);
         bridge = new SuiBridge();
         uint8[] memory _supportedDestinationChains = new uint8[](1);
         _supportedDestinationChains[0] = 0;
         bridge.initialize(
-            address(committee), address(tokens), address(vault), address(limiter), wETH, _supportedDestinationChains
+            address(committee),
+            address(tokens),
+            address(vault),
+            address(limiter),
+            wETH,
+            _supportedDestinationChains
         );
         vault.transferOwnership(address(bridge));
         limiter.transferOwnership(address(bridge));
@@ -268,7 +278,7 @@ contract BridgeLimiterTest is BridgeBaseTest {
 
         // Create transfer message
         BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.UPDATE_ASSET_PRICE,
+            messageType: BridgeMessage.UPDATE_TOKEN_PRICE,
             version: 1,
             nonce: 266,
             chainID: 3,
@@ -290,7 +300,7 @@ contract BridgeLimiterTest is BridgeBaseTest {
 
         // committee.verifySignatures(signatures, message);
 
-        // limiter.updateAssetPriceWithSignatures(signatures, message);
-        // assertEq(limiter.assetPrices(BridgeMessage.BTC), 100_000_0000);
+        // limiter.updateTokenPriceWithSignatures(signatures, message);
+        // assertEq(limiter.tokenPrices(BridgeMessage.BTC), 100_000_0000);
     }
 }

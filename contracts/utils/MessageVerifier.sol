@@ -1,21 +1,35 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "../interfaces/IBridgeCommittee.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "../interfaces/IBridgeCommittee.sol";
 
 /// @title MessageVerifier
-/// @dev Abstract contract that enables the verification of message signatures and management
-/// of message nonces.
+/// @notice This contract provides an interface to verify messages and their signatures
+/// using a BridgeCommittee contract. This contract is also responsible for maintaining
+/// nonces for each message type to prevent replay attacks.
+/// @dev The contract is intended to be inherited by contracts that require message and signature
+/// verification.
 abstract contract MessageVerifier is Initializable {
+    /* ========== STATE VARIABLES ========== */
+
     IBridgeCommittee public committee;
-    // messageType => nonce
-    mapping(uint8 => uint64) public nonces;
+    mapping(uint8 messageType => uint64 nonce) public nonces;
+
+    /* ========== INITIALIZER ========== */
 
     function __MessageVerifier_init(address _committee) internal onlyInitializing {
         committee = IBridgeCommittee(_committee);
     }
 
+    /* ========== MODIFIERS ========== */
+
+    /// @notice Verifies the provided message and signatures using the BridgeCommittee contract.
+    /// @dev The function will revert if the message type does not match the expected type,
+    /// if the signatures are invalid, or if the message nonce is invalid.
+    /// @param message The BridgeMessage to be verified.
+    /// @param signatures The array of signatures to be verified.
+    /// @param messageType The expected message type of the provided message.
     modifier verifyMessageAndSignatures(
         BridgeMessage.Message memory message,
         bytes[] memory signatures,

@@ -56,7 +56,7 @@ contract BridgeMessageTest is BridgeBaseTest {
         assertEq(_payload.targetChain, uint8(11));
         assertEq(_payload.targetAddressLength, uint8(20));
         assertEq(_payload.targetAddress, 0xb18f79Fe671db47393315fFDB377Da4Ea1B7AF96);
-        assertEq(_payload.tokenId, BridgeMessage.ETH);
+        assertEq(_payload.tokenID, BridgeMessage.ETH);
         assertEq(_payload.amount, uint64(854768923101));
     }
 
@@ -79,10 +79,10 @@ contract BridgeMessageTest is BridgeBaseTest {
         assertEq(newLimit, 1_000_000_0000);
     }
 
-    function testDecodeUpdateAssetPayload() public {
+    function testdecodeUpdateTokenPricePayload() public {
         bytes memory payload = hex"01000000003b9aca00";
-        (uint8 assetID, uint64 newPrice) = BridgeMessage.decodeUpdateAssetPayload(payload);
-        assertEq(assetID, 1);
+        (uint8 tokenID, uint64 newPrice) = BridgeMessage.decodeUpdateTokenPricePayload(payload);
+        assertEq(tokenID, 1);
         assertEq(newPrice, 100_000_0000);
     }
 
@@ -221,9 +221,9 @@ contract BridgeMessageTest is BridgeBaseTest {
         assertEq(_calldata, bytes(hex""));
     }
 
-    function testGetRequiredStakeInvalidType() public {
+    function testrequiredStakeInvalidType() public {
         uint8 invalidType = 100;
         vm.expectRevert("BridgeMessage: Invalid message type");
-        BridgeMessage.getRequiredStake(BridgeMessage.Message(invalidType, 0, 0, 1, bytes(hex"00")));
+        BridgeMessage.requiredStake(BridgeMessage.Message(invalidType, 0, 0, 1, bytes(hex"00")));
     }
 }
