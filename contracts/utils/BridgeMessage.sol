@@ -13,20 +13,6 @@ library BridgeMessage {
     uint8 public constant UPDATE_ASSET_PRICE = 4;
     uint8 public constant UPGRADE = 5;
 
-    // token Ids
-    uint8 public constant SUI = 0;
-    uint8 public constant BTC = 1;
-    uint8 public constant ETH = 2;
-    uint8 public constant USDC = 3;
-    uint8 public constant USDT = 4;
-
-    // Sui token decimals
-    uint8 public constant SUI_DECIMAL_ON_SUI = 9;
-    uint8 public constant BTC_DECIMAL_ON_SUI = 8;
-    uint8 public constant ETH_DECIMAL_ON_SUI = 8;
-    uint8 public constant USDC_DECIMAL_ON_SUI = 6;
-    uint8 public constant USDT_DECIMAL_ON_SUI = 6;
-
     // Message type stake requirements
     uint32 public constant TRANSFER_STAKE_REQUIRED = 3334;
     uint32 public constant FREEZING_STAKE_REQUIRED = 450;
@@ -35,13 +21,20 @@ library BridgeMessage {
     uint16 public constant BLOCKLIST_STAKE_REQUIRED = 5001;
     uint32 public constant ASSET_LIMIT_STAKE_REQUIRED = 5001;
 
+    // token Ids
+    uint8 public constant SUI = 0;
+    uint8 public constant BTC = 1;
+    uint8 public constant ETH = 2;
+    uint8 public constant USDC = 3;
+    uint8 public constant USDT = 4;
+
     string public constant MESSAGE_PREFIX = "SUI_BRIDGE_MESSAGE";
 
     /// @dev A struct that represents a bridge message
     /// @param messageType The type of the message, such as token transfer, blocklist, etc.
     /// @param version The version of the message format
     /// @param nonce The nonce of the message, used to prevent replay attacks
-    /// @param chainID The chain ID of the source chain
+    /// @param chainID The chain ID of the source chain (for token transfer messages this is the source chain)
     /// @param payload The payload of the message, which depends on the message type
     struct Message {
         uint8 messageType;
@@ -197,28 +190,62 @@ library BridgeMessage {
         pure
         returns (bool, address[] memory)
     {
-        (uint8 blocklistType, address[] memory members) = abi.decode(payload, (uint8, address[]));
-        return (blocklistType == 0 ? true : false, members);
+        uint8 blocklistType = uint8(payload[0]);
+        uint8 membersLength = uint8(payload[1]);
+        address[] memory members = new address[](membersLength);
+        uint8 offset = 2;
+        require((payload.length - offset) % 20 == 0, "BridgeMessage: Invalid payload length");
+        for (uint8 i = 0; i < membersLength; i++) {
+            // Calculate the starting index for each address
+            offset += i * 20;
+            address member;
+            // Extract each address
+            assembly {
+                member := mload(add(add(payload, 20), offset))
+            }
+            // Store the extracted address
+            members[i] = member;
+        }
+        // blocklistType: 0 = blocklist, 1 = unblocklist
+        bool blocklisted = (blocklistType == 0);
+        return (blocklisted, members);
     }
 
     function decodeEmergencyOpPayload(bytes memory payload) internal pure returns (bool) {
-        (uint8 emergencyOpCode) = abi.decode(payload, (uint8));
+        require(payload.length == 1, "BridgeMessage: Invalid payload length");
+        uint8 emergencyOpCode = uint8(payload[0]);
         require(emergencyOpCode <= 1, "BridgeMessage: Invalid op code");
-        return emergencyOpCode == 0 ? true : false;
+        return emergencyOpCode == 0;
     }
 
-    function decodeUpdateLimitPayload(bytes memory payload) internal pure returns (uint256) {
-        (uint256 newLimit) = abi.decode(payload, (uint256));
-        return newLimit;
+    function decodeUpdateLimitPayload(bytes memory payload)
+        internal
+        pure
+        returns (uint8 senderChainID, uint64 newLimit)
+    {
+        require(payload.length == 9, "BridgeMessage: Invalid payload length");
+        senderChainID = uint8(payload[0]);
+
+        // Extracts the uint64 value by loading 32 bytes starting just after the first byte.
+        // Position uint64 to the least significant bits by shifting it 192 bits to the right.
+        assembly {
+            newLimit := shr(192, mload(add(add(payload, 0x20), 1)))
+        }
     }
 
     function decodeUpdateAssetPayload(bytes memory payload)
         internal
         pure
-        returns (uint8, uint256)
+        returns (uint8 tokenID, uint64 assetPrice)
     {
-        (uint8 tokenId, uint256 price) = abi.decode(payload, (uint8, uint256));
-        return (tokenId, price);
+        require(payload.length == 9, "BridgeMessage: Invalid payload length");
+        tokenID = uint8(payload[0]);
+
+        // Extracts the uint64 value by loading 32 bytes starting just after the first byte.
+        // Position uint64 to the least significant bits by shifting it 192 bits to the right.
+        assembly {
+            assetPrice := shr(192, mload(add(add(payload, 0x20), 1)))
+        }
     }
 
     function decodeUpgradePayload(bytes memory payload)
