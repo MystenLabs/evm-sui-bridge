@@ -51,14 +51,14 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         assertEq(expected, actual);
     }
 
-    function testFuzz_updateAssetPriceWithSignatures(uint8 numSigners, uint8 tokenId, uint256 price)
+    function testFuzz_updateAssetPriceWithSignatures(uint8 numSigners, uint8 tokenId, uint64 price)
         public
     {
         vm.assume(numSigners > 0 && numSigners <= N);
         vm.assume(price >= 100000000);
         tokenId = uint8(bound(tokenId, BridgeMessage.BTC, BridgeMessage.USDT));
 
-        bytes memory payload = abi.encode(uint8(tokenId), uint256(price));
+        bytes memory payload = abi.encodePacked(uint8(tokenId), uint64(price));
         // Create a sample BridgeMessage
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.UPDATE_ASSET_PRICE,
@@ -97,10 +97,16 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         }
     }
 
-    function testFuzz_updateLimitWithSignatures(uint8 numSigners, uint256 totalLimit) public {
+    function testFuzz_updateLimitWithSignatures(
+        uint8 numSigners,
+        uint64 newLimit,
+        uint8 sourceChainID
+    ) public {
         vm.assume(numSigners > 0 && numSigners <= N);
-        vm.assume(totalLimit >= 100000000);
-        bytes memory payload = abi.encode(uint256(totalLimit));
+        vm.assume(newLimit >= 100000000);
+        vm.assume(sourceChainID >= 1 && sourceChainID <= 4);
+
+        bytes memory payload = abi.encodePacked(sourceChainID, newLimit);
         // Create a sample BridgeMessage
         BridgeMessage.Message memory message = BridgeMessage.Message({
             messageType: BridgeMessage.UPDATE_BRIDGE_LIMIT,
@@ -131,7 +137,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         if (signaturesValid) {
             // Call the updateLimitWithSignatures function
             bridgeLimiter.updateLimitWithSignatures(signatures, message);
-            assertEq(bridgeLimiter.totalLimit(), totalLimit);
+            assertEq(bridgeLimiter.totalLimit(), newLimit);
         } else {
             // Expect a revert
             vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));

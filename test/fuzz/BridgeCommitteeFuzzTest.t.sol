@@ -52,19 +52,17 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
     function testFuzz_updateBlocklistWithSignatures(
         uint8 numSigners,
         uint8 isBlocklisted,
-        uint8 numBlocklistAddresses
+        uint8 blocklistAddressesPos
     ) public {
         vm.assume(numSigners > 0 && numSigners <= N);
-        vm.assume(numBlocklistAddresses > 0 && numBlocklistAddresses <= N);
+        vm.assume(blocklistAddressesPos >= 0 && blocklistAddressesPos < N);
 
         // Create a blocklist payload
         isBlocklisted = uint8(bound(isBlocklisted, 0, 1));
-        address[] memory _blocklist = new address[](numBlocklistAddresses);
-        for (uint8 i = 0; i < numBlocklistAddresses; i++) {
-            _blocklist[i] = _committeeMemebers[i];
-        }
+        bytes memory isBlocklistedBytes = isBlocklisted == 0 ? bytes(hex"0000") : bytes(hex"0001");
 
-        bytes memory payload = abi.encode(uint8(isBlocklisted), _blocklist);
+        bytes memory payload =
+            abi.encodePacked(isBlocklistedBytes, _committeeMemebers[blocklistAddressesPos]);
 
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
