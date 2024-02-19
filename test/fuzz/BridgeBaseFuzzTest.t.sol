@@ -50,7 +50,7 @@ contract BridgeBaseFuzzTest is Test {
     uint256 ETH_PRICE = 25969600;
     uint256 USDC_PRICE = 10000;
 
-    uint8 public chainID = 99;
+    uint8 public chainID = 1;
     uint64 totalLimit = 10000000000;
 
     BridgeCommittee public bridgeCommittee;
@@ -126,8 +126,9 @@ contract BridgeBaseFuzzTest is Test {
             address(bridgeCommittee), address(bridgeTokens), assetPrices, totalLimit
         );
 
-        uint8[] memory _supportedDestinationChains = new uint8[](1);
+        uint8[] memory _supportedDestinationChains = new uint8[](2);
         _supportedDestinationChains[0] = 0;
+        _supportedDestinationChains[1] = 1;
 
         suiBridge = new SuiBridge();
         suiBridge.initialize(
