@@ -129,7 +129,7 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
         if (signaturesValid) {
             assert(IERC20(USDC).balanceOf(targetAddress) == 0);
             // uint256 targetAddressBalance = IERC20(USDC).balanceOf(targetAddress);
-            suiBridge.transferTokensWithSignatures(signatures, message);
+            suiBridge.transferBridgedTokensWithSignatures(signatures, message);
             assert(IERC20(USDC).balanceOf(targetAddress) > 0);
             // assert(IERC20(USDC).balanceOf(targetAddress) == (targetAddressBalance + (amount / 100)));
         } else {
@@ -137,7 +137,7 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
             vm.expectRevert(
                 bytes("BridgeCommittee: Insufficient stake amount")
             );
-            suiBridge.transferTokensWithSignatures(signatures, message);
+            suiBridge.transferBridgedTokensWithSignatures(signatures, message);
         }
         }
     }

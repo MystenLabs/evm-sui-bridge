@@ -51,7 +51,7 @@ contract BridgeBaseFuzzTest is Test {
     uint256 USDC_PRICE = 10000;
 
     uint8 public chainID = 99;
-    uint256 totalLimit = 10000000000;
+    uint64 totalLimit = 10000000000;
 
     BridgeCommittee public bridgeCommittee;
     SuiBridge public suiBridge;
@@ -132,13 +132,17 @@ contract BridgeBaseFuzzTest is Test {
             totalLimit
         );
 
+        uint8[] memory _supportedDestinationChains = new uint8[](1);
+        _supportedDestinationChains[0] = 0;
+
         suiBridge = new SuiBridge();
         suiBridge.initialize(
             address(bridgeCommittee),
             address(bridgeTokens),
             address(bridgeVault),
             address(bridgeLimiter),
-            wETH
+            wETH,
+            _supportedDestinationChains
         );
 
         bridgeVault.transferOwnership(address(suiBridge));
