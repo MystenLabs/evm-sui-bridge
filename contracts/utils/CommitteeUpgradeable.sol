@@ -38,7 +38,7 @@ abstract contract CommitteeUpgradeable is
         // authorize upgrade
         _upgradeAuthorized = true;
         // upgrade contract
-        upgradeToAndCall(implementation, callData);
+        upgradeToAndCall(implementation, callData); // Upgraded event emitted with new implementation address
         // reset upgrade authorization
         _upgradeAuthorized = false;
     }
