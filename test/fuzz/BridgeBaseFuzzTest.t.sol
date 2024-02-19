@@ -128,7 +128,6 @@ contract BridgeBaseFuzzTest is Test {
 
         uint8[] memory _supportedDestinationChains = new uint8[](2);
         _supportedDestinationChains[0] = 0;
-        _supportedDestinationChains[1] = 1;
 
         suiBridge = new SuiBridge();
         suiBridge.initialize(
