@@ -8,12 +8,10 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         setUpBridgeFuzzTest();
     }
 
-    function testFuzz_verifyMessageSignatures(
-        uint8 numSigners,
-        uint8 messageType
-    ) public {
+    function testFuzz_verifyMessageSignatures(uint8 numSigners, uint8 messageType) public {
         vm.assume(numSigners > 0 && numSigners <= N);
-        messageType = uint8(bound(messageType, BridgeMessage.TOKEN_TRANSFER, BridgeMessage.BLOCKLIST));
+        messageType =
+            uint8(bound(messageType, BridgeMessage.TOKEN_TRANSFER, BridgeMessage.BLOCKLIST));
         bytes memory payload = "0x";
         // Create a message
         BridgeMessage.Message memory message = BridgeMessage.Message({
@@ -33,12 +31,7 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         }
 
         bool signaturesValid;
-        try
-            bridgeCommittee.verifySignatures(
-                signatures,
-                message
-            )
-        {
+        try bridgeCommittee.verifySignatures(signatures, message) {
             // The call was successful
             signaturesValid = true;
         } catch Error(string memory) {
@@ -48,19 +41,11 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         }
 
         if (signaturesValid) {
-            bridgeCommittee.verifySignatures(
-                signatures,
-                message
-            );
+            bridgeCommittee.verifySignatures(signatures, message);
         } else {
             // Expect a revert
-            vm.expectRevert(
-                bytes("BridgeCommittee: Insufficient stake amount")
-            );
-            bridgeCommittee.verifySignatures(
-                signatures,
-                message
-            );
+            vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
+            bridgeCommittee.verifySignatures(signatures, message);
         }
     }
 
@@ -99,12 +84,7 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
         }
 
         bool signaturesValid;
-        try
-            bridgeCommittee.verifySignatures(
-                signatures,
-                message
-            )
-        {
+        try bridgeCommittee.verifySignatures(signatures, message) {
             // The call was successful
             signaturesValid = true;
         } catch Error(string memory) {
@@ -117,9 +97,7 @@ contract BridgeCommitteeFuzzTest is BridgeBaseFuzzTest {
             bridgeCommittee.updateBlocklistWithSignatures(signatures, message);
         } else {
             // Expect a revert
-            vm.expectRevert(
-                bytes("BridgeCommittee: Insufficient stake amount")
-            );
+            vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
             bridgeCommittee.updateBlocklistWithSignatures(signatures, message);
         }
     }

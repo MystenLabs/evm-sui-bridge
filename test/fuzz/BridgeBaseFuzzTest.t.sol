@@ -61,10 +61,7 @@ contract BridgeBaseFuzzTest is Test {
 
     function setUpBridgeFuzzTest() public {
         vm.createSelectFork(
-            string.concat(
-                "https://mainnet.infura.io/v3/",
-                vm.envString("INFURA_API_KEY")
-            )
+            string.concat("https://mainnet.infura.io/v3/", vm.envString("INFURA_API_KEY"))
         );
 
         (committeeMemeberAddressA, committeeMemeberPkA) = makeAddrAndKey("a");
@@ -126,10 +123,7 @@ contract BridgeBaseFuzzTest is Test {
 
         bridgeLimiter = new BridgeLimiter();
         bridgeLimiter.initialize(
-            address(bridgeCommittee),
-            address(bridgeTokens),
-            assetPrices,
-            totalLimit
+            address(bridgeCommittee), address(bridgeTokens), assetPrices, totalLimit
         );
 
         uint8[] memory _supportedDestinationChains = new uint8[](1);
@@ -153,10 +147,7 @@ contract BridgeBaseFuzzTest is Test {
     function testMock() public {}
 
     // Helper function to get the signature components from an address
-    function getSignature(
-        bytes32 digest,
-        uint256 privateKey
-    ) public pure returns (bytes memory) {
+    function getSignature(bytes32 digest, uint256 privateKey) public pure returns (bytes memory) {
         // r and s are the outputs of the ECDSA signature
         // r,s and v are packed into the signature. It should be 65 bytes: 32 + 32 + 1
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
@@ -164,5 +155,4 @@ contract BridgeBaseFuzzTest is Test {
         // pack v, r, s into 65bytes signature
         return abi.encodePacked(r, s, v);
     }
-    
 }

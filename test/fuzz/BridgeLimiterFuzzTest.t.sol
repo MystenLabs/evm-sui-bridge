@@ -15,36 +15,28 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         assertEq(bridgeLimiter.assetPrices(2), ETH_PRICE);
         assertEq(bridgeLimiter.assetPrices(3), USDC_PRICE);
         assertEq(bridgeLimiter.totalLimit(), 10000000000);
-        assertEq(
-            bridgeLimiter.oldestHourTimestamp(),
-            bridgeLimiter.currentHour()
-        );
+        assertEq(bridgeLimiter.oldestHourTimestamp(), bridgeLimiter.currentHour());
     }
 
-    function testFuzz_willAmountExceedLimit(
-        uint8 tokenId,
-        uint256 amount
-    ) public {
+    function testFuzz_willAmountExceedLimit(uint8 tokenId, uint256 amount) public {
         tokenId = uint8(bound(tokenId, BridgeMessage.BTC, BridgeMessage.USDT));
         amount = uint8(bound(amount, 100_000_000, 100_000_000_000_000_000));
 
-        bool expected = bridgeLimiter.calculateWindowAmount() +
-            bridgeLimiter.calculateAmountInUSD(tokenId, amount) >
-            bridgeLimiter.totalLimit();
+        bool expected = bridgeLimiter.calculateWindowAmount()
+            + bridgeLimiter.calculateAmountInUSD(tokenId, amount) > bridgeLimiter.totalLimit();
 
         bool actual = bridgeLimiter.willAmountExceedLimit(tokenId, amount);
 
         assertEq(expected, actual);
     }
 
-    function testFuzz_updateBridgeTransfers(
-        uint8 tokenId,
-        uint256 amount
-    ) public {
+    function testFuzz_updateBridgeTransfers(uint8 tokenId, uint256 amount) public {
         tokenId = uint8(bound(tokenId, BridgeMessage.BTC, BridgeMessage.USDT));
         amount = uint8(bound(amount, 100_000_000, 100_000_000_000_000_000));
 
-        bool expected = bridgeLimiter.willUSDAmountExceedLimit(bridgeLimiter.calculateAmountInUSD(tokenId, amount));
+        bool expected = bridgeLimiter.willUSDAmountExceedLimit(
+            bridgeLimiter.calculateAmountInUSD(tokenId, amount)
+        );
 
         bool actual;
         try bridgeLimiter.updateBridgeTransfers(tokenId, amount) {
@@ -59,11 +51,9 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         assertEq(expected, actual);
     }
 
-    function testFuzz_updateAssetPriceWithSignatures(
-        uint8 numSigners,
-        uint8 tokenId,
-        uint256 price
-    ) public {
+    function testFuzz_updateAssetPriceWithSignatures(uint8 numSigners, uint8 tokenId, uint256 price)
+        public
+    {
         vm.assume(numSigners > 0 && numSigners <= N);
         vm.assume(price >= 100000000);
         tokenId = uint8(bound(tokenId, BridgeMessage.BTC, BridgeMessage.USDT));
@@ -87,12 +77,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         }
 
         bool signaturesValid;
-        try
-            bridgeCommittee.verifySignatures(
-                signatures,
-                message
-            )
-        {
+        try bridgeCommittee.verifySignatures(signatures, message) {
             // The call was successful
             signaturesValid = true;
         } catch Error(string memory) {
@@ -107,9 +92,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
             assertEq(postPrice, price);
         } else {
             // Expect a revert
-            vm.expectRevert(
-                bytes("BridgeCommittee: Insufficient stake amount")
-            );
+            vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
             bridgeLimiter.updateAssetPriceWithSignatures(signatures, message);
         }
     }
@@ -136,12 +119,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
         }
 
         bool signaturesValid;
-        try
-            bridgeCommittee.verifySignatures(
-                signatures,
-                message
-            )
-        {
+        try bridgeCommittee.verifySignatures(signatures, message) {
             // The call was successful
             signaturesValid = true;
         } catch Error(string memory) {
@@ -156,9 +134,7 @@ contract BridgeLimiterFuzzTest is BridgeBaseFuzzTest {
             assertEq(bridgeLimiter.totalLimit(), totalLimit);
         } else {
             // Expect a revert
-            vm.expectRevert(
-                bytes("BridgeCommittee: Insufficient stake amount")
-            );
+            vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
             bridgeLimiter.updateLimitWithSignatures(signatures, message);
         }
     }

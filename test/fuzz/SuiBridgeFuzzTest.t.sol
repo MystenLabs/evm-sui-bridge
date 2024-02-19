@@ -8,9 +8,7 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
         setUpBridgeFuzzTest();
     }
 
-    function testFuzz_executeEmergencyOpWithSignatures(
-        uint8 numSigners
-    ) public {
+    function testFuzz_executeEmergencyOpWithSignatures(uint8 numSigners) public {
         vm.assume(numSigners > 0 && numSigners <= N);
         // Get current paused state
         bool isPaused = suiBridge.paused();
@@ -33,12 +31,7 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
         }
 
         bool signaturesValid;
-        try
-            bridgeCommittee.verifySignatures(
-                signatures,
-                message
-            )
-        {
+        try bridgeCommittee.verifySignatures(signatures, message) {
             // The call was successful
             signaturesValid = true;
         } catch Error(string memory) {
@@ -53,9 +46,7 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
             assertEq(suiBridge.nonces(message.messageType), message.nonce + 1);
         } else {
             // Expect a revert
-            vm.expectRevert(
-                bytes("BridgeCommittee: Insufficient stake amount")
-            );
+            vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
             suiBridge.executeEmergencyOpWithSignatures(signatures, message);
         }
     }
@@ -88,7 +79,7 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
             amount
         );
 
-       // Fill the vault
+        // Fill the vault
         changePrank(USDCWhale);
         IERC20(USDC).transfer(address(bridgeVault), amount);
         changePrank(deployer);
@@ -96,49 +87,42 @@ contract SuiBridgeFuzzTest is BridgeBaseFuzzTest {
         IERC20(wETH).transfer(address(bridgeVault), 10 ether);
 
         {
-        // Create transfer message
-        BridgeMessage.Message memory message = BridgeMessage.Message({
-            messageType: BridgeMessage.TOKEN_TRANSFER,
-            version: 1,
-            nonce: 1,
-            chainID: chainID,
-            payload: payload
-        });
-        bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
-        
-        bytes32 messageHash = keccak256(encodedMessage);
-        bytes[] memory signatures = new bytes[](numSigners);
-        for (uint8 i = 0; i < numSigners; i++) {
-            signatures[i] = getSignature(messageHash, signers[i]);
-        }
-        
-        bool signaturesValid;
-        try
-            bridgeCommittee.verifySignatures(
-                signatures,
-                message
-            )
-        {
-            // The call was successful
-            signaturesValid = true;
-        } catch Error(string memory) {
-            signaturesValid = false;
-        } catch (bytes memory) {
-            signaturesValid = false;
-        }
-        if (signaturesValid) {
-            assert(IERC20(USDC).balanceOf(targetAddress) == 0);
-            // uint256 targetAddressBalance = IERC20(USDC).balanceOf(targetAddress);
-            suiBridge.transferBridgedTokensWithSignatures(signatures, message);
-            assert(IERC20(USDC).balanceOf(targetAddress) > 0);
-            // assert(IERC20(USDC).balanceOf(targetAddress) == (targetAddressBalance + (amount / 100)));
-        } else {
-            // Expect a revert
-            vm.expectRevert(
-                bytes("BridgeCommittee: Insufficient stake amount")
-            );
-            suiBridge.transferBridgedTokensWithSignatures(signatures, message);
-        }
+            // Create transfer message
+            BridgeMessage.Message memory message = BridgeMessage.Message({
+                messageType: BridgeMessage.TOKEN_TRANSFER,
+                version: 1,
+                nonce: 1,
+                chainID: chainID,
+                payload: payload
+            });
+            bytes memory encodedMessage = BridgeMessage.encodeMessage(message);
+
+            bytes32 messageHash = keccak256(encodedMessage);
+            bytes[] memory signatures = new bytes[](numSigners);
+            for (uint8 i = 0; i < numSigners; i++) {
+                signatures[i] = getSignature(messageHash, signers[i]);
+            }
+
+            bool signaturesValid;
+            try bridgeCommittee.verifySignatures(signatures, message) {
+                // The call was successful
+                signaturesValid = true;
+            } catch Error(string memory) {
+                signaturesValid = false;
+            } catch (bytes memory) {
+                signaturesValid = false;
+            }
+            if (signaturesValid) {
+                assert(IERC20(USDC).balanceOf(targetAddress) == 0);
+                // uint256 targetAddressBalance = IERC20(USDC).balanceOf(targetAddress);
+                suiBridge.transferBridgedTokensWithSignatures(signatures, message);
+                assert(IERC20(USDC).balanceOf(targetAddress) > 0);
+                // assert(IERC20(USDC).balanceOf(targetAddress) == (targetAddressBalance + (amount / 100)));
+            } else {
+                // Expect a revert
+                vm.expectRevert(bytes("BridgeCommittee: Insufficient stake amount"));
+                suiBridge.transferBridgedTokensWithSignatures(signatures, message);
+            }
         }
     }
 }
